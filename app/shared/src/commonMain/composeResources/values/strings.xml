@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">WMS Pick-by-Light</string>
+    <string name="loading_default">Carregando...</string>
+    <string name="loading_hardware">Aguardando confirmação do hardware ESP32...</string>
+    <string name="error_default_title">Ocorreu um erro</string>
+    <string name="error_retry">Tentar Novamente</string>
+    <string name="empty_default_title">Nenhum dado encontrado</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard_title">WMS Pick-by-Light</string>
+    <string name="btn_receiving">Recebimento de Itens</string>
+    <string name="btn_picking">Separação de Pedidos (Pick-by-Light)</string>
+    <string name="btn_addresses">Gestão de Endereços</string>
+    <string name="btn_catalog">Catálogo de Itens</string>
+    <string name="btn_ping_esp32">Ping ESP32</string>
+    <string name="btn_history">Histórico</string>
+    <string name="btn_settings">Ajustes</string>
+</resources>
