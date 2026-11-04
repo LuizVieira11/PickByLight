@@ -573,7 +573,7 @@ class SeparacaoViewModelTest {
     }
 
     @Test
-    fun testWavePickingSemProximidadeUsaFirstFitNaPrimeiraPosicao() = runTest {
+    fun testWavePickingSemProximidadeUsaBestFitNoMenorSaldo() = runTest {
         val viewModel = SeparacaoViewModel(repository, mqttService, feedbackController, this)
 
         // Item A tem estoque na PRAT-A1 (POS_A1_01: 3 un) e na PRAT-A2 (POS_A2_01: 10 un)

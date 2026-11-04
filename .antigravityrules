@@ -1,0 +1,37 @@
+ENV: Windows.
+Always use 'cmd /c' for all shell executions to ensure the process terminates
+correctly and sends an EOF signal.
+
+Example: Use 'cmd /c pip list' instead of just 'pip list'.
+
+Avoid interactive shells. If a persistent session is needed, use 'cmd /k'
+but ensure the command is self-terminating.
+
+## Command execution process (applies to ALL cmd commands)
+
+Background: the default sandbox has NO network and NO access to files outside
+the workspace (e.g. C:\Users\<user>\.gradle, ~/.m2, ~/.npm, SDKs, caches).
+Commands that depend on them hang silently forever with an empty log
+(this already happened with gradlew). Follow the steps below for EVERY command.
+
+1. Run every cmd command with BypassSandbox = true. Do not try the sandbox first.
+2. Always wrap with cmd /c and append the exit code so completion is visible:
+     cmd /c "<command> & echo EXITCODE=%ERRORLEVEL%"
+   Example:
+     cmd /c "gradlew.bat :app:shared:testAndroidHostTest & echo EXITCODE=%ERRORLEVEL%"
+3. Never use --quiet / -q / silent flags. Progress output is required to tell
+   "slow" apart from "stuck". Use --info if more detail is needed.
+4. Use WaitMsBeforeAsync = 10000. If the command goes to background, schedule a
+   60-second timer. If it is still RUNNING after 1 minute with no new log output,
+   tell the user immediately (do not wait silently) and check the task log.
+5. If a command hangs with an empty log, first suspect sandbox/network/path
+   access, not the project itself.
+6. Report the final line of the output (e.g. BUILD SUCCESSFUL / BUILD FAILED)
+   and the EXITCODE.
+
+## Gradle specifics
+- Use gradlew.bat (Windows). Daemon JVM must be Java 21 Azul Zulu
+  (gradle/gradle-daemon-jvm.properties); other idle daemons (Java 25) are
+  ignored, which is expected. Use 'gradlew.bat --stop' to free them if needed.
+- If all tasks are UP-TO-DATE, tests were NOT re-executed. Use --rerun-tasks
+  when a real test run is required, and tell the user.

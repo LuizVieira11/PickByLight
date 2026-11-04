@@ -345,7 +345,7 @@ fun SeparacaoScreen(
                                                 modifier = Modifier.align(Alignment.Start)
                                             ) {
                                                 Text(
-                                                    text = "No pedido: $selectedQty ${item.unidade}",
+                                                    text = "No Pedido: $selectedQty ${item.unidade}",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.Bold,
                                                     color = ShelfRackBlue,
