@@ -38,7 +38,7 @@ class RecebimentoViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(RecebimentoStep.FORM, state.step)
         assertNotNull(state.resolvedPosicao)
-        assertEquals("POS_A2_05", state.resolvedPosicao.id)
+        assertEquals("POS_A2_05", state.resolvedPosicao?.id)
         assertEquals("04:A1:2B:3C:4D:5E:04", state.resolvedTagUid)
         assertTrue(state.enderecoFormatado.contains("PRAT-A2"))
         assertTrue(state.enderecoFormatado.contains("POS-05"))
@@ -177,5 +177,64 @@ class RecebimentoViewModelTest {
         assertNotNull(estoqueNovoItem)
         assertEquals(10, estoqueNovoItem.quantidade)
     }
-}
 
+    @Test
+    fun testModoRecebimentoMultiploGuiadoPassoAPasso() = runTest {
+        val viewModel = RecebimentoViewModel(repository, feedbackController, this)
+
+        // 1. Seleciona o Modo de Recebimento Múltiplo
+        viewModel.selecionarModo(ModoRecebimento.MULTIPLO)
+        assertEquals(ModoRecebimento.MULTIPLO, viewModel.uiState.value.modo)
+        assertEquals(RecebimentoStep.MONTAGEM_LISTA, viewModel.uiState.value.step)
+
+        val itemA = repository.getItemBySku("ARD-ESP32")
+        val itemB = repository.getItemBySku("MOD-RC522")
+        assertNotNull(itemA)
+        assertNotNull(itemB)
+
+        val estoqueInicialA = repository.getEstoque(itemA.id, "POS_A1_01")?.quantidade ?: 0
+        val estoqueInicialB = repository.getEstoque(itemB.id, "POS_A1_02")?.quantidade ?: 0
+
+        // 2. Adiciona Item A (10 un) e Item B (5 un) à lista
+        viewModel.selecionarItem(itemA)
+        viewModel.setQuantidade(10)
+        viewModel.adicionarItemAoLote()
+
+        viewModel.selecionarItem(itemB)
+        viewModel.setQuantidade(5)
+        viewModel.adicionarItemAoLote()
+
+        assertEquals(2, viewModel.uiState.value.itensLote.size)
+
+        // 3. Inicia o Recebimento Guiado -> Passo 1 de 2: Item A (10 un)
+        viewModel.iniciarRecebimentoGuiado()
+        val statePasso1 = viewModel.uiState.value
+        assertEquals(RecebimentoStep.GUIADO_NFC, statePasso1.step)
+        assertEquals(0, statePasso1.passoGuiadoIndex)
+        assertEquals(2, statePasso1.totalPassosGuiados)
+        assertEquals(itemA.id, statePasso1.itemGuiadoAtual?.item?.id)
+        assertEquals(10, statePasso1.itemGuiadoAtual?.quantidade)
+
+        // 4. Bipa a Tag NFC da POS_A1_01 ("04:A1:2B:3C:4D:5E:01") para guardar o Item A
+        viewModel.processarLeituraNfc("04:A1:2B:3C:4D:5E:01")
+        testScheduler.runCurrent()
+
+        // Deve ter confirmado a entrada do Item A e avançado para o Passo 2 de 2: Item B (5 un)
+        val statePasso2 = viewModel.uiState.value
+        assertEquals(RecebimentoStep.GUIADO_NFC, statePasso2.step)
+        assertEquals(1, statePasso2.passoGuiadoIndex)
+        assertEquals(itemB.id, statePasso2.itemGuiadoAtual?.item?.id)
+        assertEquals(5, statePasso2.itemGuiadoAtual?.quantidade)
+        assertEquals(estoqueInicialA + 10, repository.getEstoque(itemA.id, "POS_A1_01")?.quantidade)
+
+        // 5. Bipa a Tag NFC da POS_A1_02 ("04:A1:2B:3C:4D:5E:02") para guardar o Item B
+        viewModel.processarLeituraNfc("04:A1:2B:3C:4D:5E:02")
+        testScheduler.runCurrent()
+
+        // Deve ter concluído o recebimento guiado e exibido o resumo de sucesso
+        val stateFinal = viewModel.uiState.value
+        assertEquals(RecebimentoStep.SUCCESS, stateFinal.step)
+        assertEquals(2, stateFinal.resumoRecebimentoMultiplo.size)
+        assertEquals(estoqueInicialB + 5, repository.getEstoque(itemB.id, "POS_A1_02")?.quantidade)
+    }
+}

@@ -7,6 +7,7 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoPing
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoTesteLed
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttStatusApp
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttTopics
+import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.util.AppBuildConfig
 import com.uniso.wms.pickbylight.util.currentTimeMillis
 import kotlinx.coroutines.CompletableDeferred
@@ -80,7 +81,11 @@ class PahoMqttServiceImpl(
     private var isManualDisconnect = false
 
     override suspend fun connect(brokerUrl: String?): Unit = withContext(Dispatchers.IO) {
-        val targetUrl = brokerUrl?.takeIf { it.isNotBlank() } ?: AppBuildConfig.MQTT_BROKER_URL
+        val explicitUrl = brokerUrl?.trim()?.takeIf { it.isNotBlank() }
+        if (explicitUrl != null) {
+            AppSettings.saveBrokerUrl(explicitUrl)
+        }
+        val targetUrl = explicitUrl ?: AppSettings.resolveBrokerUrlOrFallback()
         currentBrokerUrl = targetUrl
         isManualDisconnect = false
 

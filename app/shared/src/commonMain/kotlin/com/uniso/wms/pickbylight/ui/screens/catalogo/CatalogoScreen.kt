@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.uniso.wms.pickbylight.domain.model.Estante
 import com.uniso.wms.pickbylight.domain.model.EstoquePosicaoDetalhe
 import com.uniso.wms.pickbylight.domain.model.Item
@@ -88,7 +89,7 @@ fun CatalogoScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateEnderecosComUid: ((String) -> Unit)? = null,
-    viewModel: CatalogoViewModel = remember(repository, feedbackController) {
+    viewModel: CatalogoViewModel = viewModel {
         CatalogoViewModel(repository, feedbackController)
     }
 ) {

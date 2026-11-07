@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.domain.model.Estante
 import com.uniso.wms.pickbylight.domain.model.Posicao
@@ -75,7 +76,7 @@ fun EnderecosScreen(
     initialTagUid: String? = null,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: EnderecosViewModel = remember(repository, mqttService, feedbackController) {
+    viewModel: EnderecosViewModel = viewModel {
         EnderecosViewModel(repository, mqttService, feedbackController)
     }
 ) {

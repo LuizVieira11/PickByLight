@@ -321,9 +321,14 @@ class SeparacaoViewModelTest {
         testScheduler.advanceTimeBy(61_000)
         testScheduler.runCurrent()
 
-        // Deve ter cancelado a coleta e liberado o lock otimista
+        // Deve ter enviado APAGAR, cancelado a coleta, liberado o lock otimista e exibido mensagem de timeout
         assertFalse(repository.getItens().first().find { it.id == "ITEM_1" }!!.emSeparacao)
         assertEquals(EtapaSeparacao.SELECAO_E_RESUMO, viewModel.uiState.value.etapa)
+        assertEquals("Tempo esgotado. Operação cancelada.", viewModel.uiState.value.timeoutCancelMessage)
+        assertTrue(mqttService.sentCommands.last().contains("APAGAR"))
+
+        viewModel.dismissTimeoutCancelMessage()
+        assertEquals(null, viewModel.uiState.value.timeoutCancelMessage)
     }
 
     @Test
@@ -705,5 +710,210 @@ class SeparacaoViewModelTest {
         assertEquals("POS_A2_01", passo.posicao.id)
         assertEquals("PRAT-A2", passo.prateleira.codigo)
         assertEquals(8, passo.itens[0].quantidadeDesejada)
+    }
+
+    @Test
+    fun testSeparacaoFlexivelPickingDinamicoAceitaOutraPosicaoComSaldoSuficienteEDebitaDela() = runTest {
+        val viewModel = SeparacaoViewModel(repository, mqttService, feedbackController, this)
+
+        // ITEM_1 tem 3 unidades na POS_A1_01 (tag 01) e 10 unidades na POS_A2_01 (tag 03)
+        repository.atualizarEstoquePosicao("ITEM_1", "POS_A1_01", 3)
+        repository.atualizarEstoquePosicao("ITEM_1", "POS_A2_01", 10)
+
+        val itens = repository.getItens().first()
+        val posicoes = repository.getPosicoes().first()
+        val prateleiras = repository.getPrateleiras().first()
+        val estantes = repository.getEstantes().first()
+        val tags = repository.getTagsNFC().first()
+
+        // Solicita 2 unidades -> Best Fit sugere inicialmente POS_A1_01 (menor saldo >= 2)
+        viewModel.iniciarColeta(
+            itensDisponiveis = itens,
+            posicoes = posicoes,
+            prateleiras = prateleiras,
+            estantes = estantes,
+            tagsNfc = tags,
+            quantidadesSelecionadas = mapOf("ITEM_1" to 2)
+        )
+        testScheduler.runCurrent()
+
+        assertEquals("POS_A1_01", viewModel.uiState.value.passoAtual?.posicao?.id)
+
+        // Operador no chão de fábrica bipa a tag da POS_A2_01 ("04:A1:2B:3C:4D:5E:03"),
+        // que TAMBÉM possui o ITEM_1 com saldo suficiente (10 >= 2)!
+        viewModel.processarLeituraNfc(
+            scannedUid = "04:A1:2B:3C:4D:5E:03",
+            allTags = tags,
+            allPosicoes = posicoes,
+            allPrateleiras = prateleiras,
+            allEstantes = estantes
+        )
+        testScheduler.runCurrent()
+
+        val stateAfterScan = viewModel.uiState.value
+        assertEquals(EtapaSeparacao.CONFIRMAR_QUANTIDADE, stateAfterScan.etapa)
+        assertTrue(stateAfterScan.isVisualFlashingGreen)
+        assertFalse(stateAfterScan.isVisualFlashingRed)
+        assertEquals(null, stateAfterScan.showWrongTagModal)
+        assertEquals("POS_A2_01", stateAfterScan.passoAtual?.posicao?.id)
+
+        // Finaliza a retirada e verifica que o saldo foi debitado da POS_A2_01 (10 - 2 = 8)
+        // enquanto a POS_A1_01 permaneceu intacta (3 unidades)!
+        viewModel.finalizarRetiradaPassoAtual(mapOf("ITEM_1" to 2))
+        testScheduler.runCurrent()
+
+        assertEquals(EtapaSeparacao.CONCLUIDO, viewModel.uiState.value.etapa)
+        assertEquals(8, repository.getEstoque("ITEM_1", "POS_A2_01")?.quantidade)
+        assertEquals(3, repository.getEstoque("ITEM_1", "POS_A1_01")?.quantidade)
+
+        val movSaida = repository.getMovimentacoes().first().find {
+            it.tipo == TipoMovimentacao.SAIDA && it.itemId == "ITEM_1"
+        }
+        assertNotNull(movSaida)
+        assertEquals("POS_A2_01", movSaida.posicaoId)
+        assertEquals(2, movSaida.quantidade)
+    }
+
+    @Test
+    fun testExecucaoRotaOtimizadaAcendeEApagaUmLedPorVezSequencialmente() = runTest {
+        val viewModel = SeparacaoViewModel(repository, mqttService, feedbackController, this)
+        mqttService.clearSentCommands()
+
+        val itens = repository.getItens().first()
+        val posicoes = repository.getPosicoes().first()
+        val prateleiras = repository.getPrateleiras().first()
+        val estantes = repository.getEstantes().first()
+        val tags = repository.getTagsNFC().first()
+
+        // Inicia coleta com 2 paradas: ITEM_1 (POS_A1_01) e ITEM_3 (POS_A2_05)
+        viewModel.iniciarColeta(
+            itensDisponiveis = itens,
+            posicoes = posicoes,
+            prateleiras = prateleiras,
+            estantes = estantes,
+            tagsNfc = tags,
+            quantidadesSelecionadas = mapOf(
+                "ITEM_1" to 2,
+                "ITEM_3" to 3
+            )
+        )
+        testScheduler.runCurrent()
+
+        // Passo 1 de 2: apenas o LED de POS_A1_01 deve estar aceso
+        assertEquals(2, viewModel.uiState.value.totalPassos)
+        assertEquals(0, viewModel.uiState.value.passoAtualIndex)
+        assertEquals(1, mqttService.sentCommands.size)
+        assertTrue(mqttService.sentCommands[0].contains("\"acao\":\"ACENDER\""))
+        assertTrue(mqttService.sentCommands[0].contains("\"posicao_led_id\":\"POS_A1_01\""))
+
+        // Operador bipa NFC da POS_A1_01 e confirma retirada do Passo 1
+        viewModel.processarLeituraNfc(
+            scannedUid = "04:A1:2B:3C:4D:5E:01",
+            allTags = tags,
+            allPosicoes = posicoes,
+            allPrateleiras = prateleiras,
+            allEstantes = estantes
+        )
+        viewModel.finalizarRetiradaPassoAtual(mapOf("ITEM_1" to 2))
+        testScheduler.runCurrent()
+
+        // Deve ter apagado o LED de POS_A1_01 e acendido o LED de POS_A2_05 (Passo 2 de 2)
+        assertEquals(EtapaSeparacao.VALIDACAO_NFC, viewModel.uiState.value.etapa)
+        assertEquals(1, viewModel.uiState.value.passoAtualIndex)
+        assertEquals(3, mqttService.sentCommands.size)
+        assertTrue(mqttService.sentCommands[1].contains("\"acao\":\"APAGAR\""))
+        assertTrue(mqttService.sentCommands[1].contains("\"posicao_led_id\":\"POS_A1_01\""))
+        assertTrue(mqttService.sentCommands[2].contains("\"acao\":\"ACENDER\""))
+        assertTrue(mqttService.sentCommands[2].contains("\"posicao_led_id\":\"POS_A2_05\""))
+
+        // Operador bipa NFC da POS_A2_05 e confirma retirada do Passo 2
+        viewModel.processarLeituraNfc(
+            scannedUid = "04:A1:2B:3C:4D:5E:04",
+            allTags = tags,
+            allPosicoes = posicoes,
+            allPrateleiras = prateleiras,
+            allEstantes = estantes
+        )
+        viewModel.finalizarRetiradaPassoAtual(mapOf("ITEM_3" to 3))
+        testScheduler.runCurrent()
+
+        // Deve ter apagado o LED de POS_A2_05 e concluído a rota
+        assertEquals(EtapaSeparacao.CONCLUIDO, viewModel.uiState.value.etapa)
+        assertEquals(4, mqttService.sentCommands.size)
+        assertTrue(mqttService.sentCommands[3].contains("\"acao\":\"APAGAR\""))
+        assertTrue(mqttService.sentCommands[3].contains("\"posicao_led_id\":\"POS_A2_05\""))
+    }
+
+    @Test
+    fun testTimeoutAck5SegundosModoManualPreservaPokaYokeERegistraMovimentacaoModoManual() = runTest {
+        val viewModel = SeparacaoViewModel(repository, mqttService, feedbackController, this)
+        mqttService.simulateAckTimeout = true
+
+        val itens = repository.getItens().first()
+        val posicoes = repository.getPosicoes().first()
+        val prateleiras = repository.getPrateleiras().first()
+        val estantes = repository.getEstantes().first()
+        val tags = repository.getTagsNFC().first()
+
+        viewModel.iniciarColeta(
+            itensDisponiveis = itens,
+            posicoes = posicoes,
+            prateleiras = prateleiras,
+            estantes = estantes,
+            tagsNfc = tags,
+            quantidadesSelecionadas = mapOf("ITEM_1" to 2)
+        )
+        testScheduler.runCurrent()
+
+        // Inicialmente está aguardando o ACK de 5 segundos
+        assertTrue(viewModel.uiState.value.isAguardandoAck)
+        assertFalse(viewModel.uiState.value.showHardwareTimeoutModal)
+
+        // Avança 5 segundos: deve disparar o modal de timeout de hardware
+        testScheduler.advanceTimeBy(5_000)
+        testScheduler.runCurrent()
+
+        assertFalse(viewModel.uiState.value.isAguardandoAck)
+        assertTrue(viewModel.uiState.value.showHardwareTimeoutModal)
+
+        // Operador escolhe [Continuar em Modo Manual] (Cenário 8 / Seção 5.2)
+        viewModel.continuarEmModoManual()
+        assertTrue(viewModel.uiState.value.isModoManual)
+        assertFalse(viewModel.uiState.value.showHardwareTimeoutModal)
+
+        // Em Modo Manual, o Poka-Yoke NFC continua ativo: bipar tag errada bloqueia
+        viewModel.processarLeituraNfc(
+            scannedUid = "04:A1:2B:3C:4D:5E:02",
+            allTags = tags,
+            allPosicoes = posicoes,
+            allPrateleiras = prateleiras,
+            allEstantes = estantes
+        )
+        assertTrue(viewModel.uiState.value.isVisualFlashingRed)
+        assertNotNull(viewModel.uiState.value.showWrongTagModal)
+        assertEquals(EtapaSeparacao.VALIDACAO_NFC, viewModel.uiState.value.etapa)
+
+        viewModel.dismissWrongTagModal()
+
+        // Bipar tag correta avança para confirmação de quantidade
+        viewModel.processarLeituraNfc(
+            scannedUid = "04:A1:2B:3C:4D:5E:01",
+            allTags = tags,
+            allPosicoes = posicoes,
+            allPrateleiras = prateleiras,
+            allEstantes = estantes
+        )
+        assertEquals(EtapaSeparacao.CONFIRMAR_QUANTIDADE, viewModel.uiState.value.etapa)
+
+        // Finaliza a retirada e verifica que Movimentacao(SAIDA) registrou modoManual = true
+        viewModel.finalizarRetiradaPassoAtual(mapOf("ITEM_1" to 2))
+        testScheduler.runCurrent()
+
+        assertEquals(EtapaSeparacao.CONCLUIDO, viewModel.uiState.value.etapa)
+        val movSaidaManual = repository.getMovimentacoes().first().find {
+            it.tipo == TipoMovimentacao.SAIDA && it.itemId == "ITEM_1"
+        }
+        assertNotNull(movSaidaManual)
+        assertTrue(movSaidaManual.modoManual, "A movimentação de saída deve registrar modoManual = true")
     }
 }

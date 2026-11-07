@@ -1,21 +1,25 @@
 package com.uniso.wms.pickbylight.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -28,6 +32,7 @@ fun QuantityStepper(
     onValueChange: (Int) -> Unit,
     min: Int = 1,
     max: Int = 9999,
+    expandField: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val dimensions = LocalWmsDimensions.current
@@ -35,7 +40,7 @@ fun QuantityStepper(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Botão Decrescer (-)
         Box(
@@ -61,26 +66,57 @@ fun QuantityStepper(
             }
         }
 
-        // Input numérico direto
-        OutlinedTextField(
+        // Input numérico direto com largura mínima ampla e sem sobreposição
+        val fieldModifier = if (expandField) {
+            Modifier
+                .weight(1f)
+                .widthIn(min = 88.dp)
+                .height(dimensions.minTouchTarget)
+        } else {
+            Modifier
+                .widthIn(min = 88.dp)
+                .defaultMinSize(minWidth = 88.dp)
+                .height(dimensions.minTouchTarget)
+        }
+
+        BasicTextField(
             value = value.toString(),
             onValueChange = { input ->
                 val cleaned = input.filter { it.isDigit() }
-                if (cleaned.isNotEmpty()) {
+                if (cleaned.isEmpty()) {
+                    onValueChange(min)
+                } else {
                     val intVal = cleaned.toIntOrNull() ?: min
                     onValueChange(intVal.coerceIn(min, max))
                 }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             textStyle = MaterialTheme.typography.titleMedium.copy(
                 textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             ),
-            modifier = Modifier
-                .width(54.dp)
-                .height(dimensions.minTouchTarget),
-            shape = RoundedCornerShape(8.dp),
-            singleLine = true
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            modifier = fieldModifier,
+            decorationBox = { innerTextField ->
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    innerTextField()
+                }
+            }
         )
 
         // Botão Acrescer (+)

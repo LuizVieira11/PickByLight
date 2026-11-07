@@ -117,7 +117,11 @@ fun App(
                                     repository = repository,
                                     mqttService = mqttService,
                                     feedbackController = feedbackController,
-                                    onNavigateBack = safePopBackStack
+                                    onNavigateBack = safePopBackStack,
+                                    onNavigateEnderecosComUid = { uid ->
+                                        passedTagUidForEnderecos = uid
+                                        navController.navigate(Screen.Enderecos.route)
+                                    }
                                 )
                             }
 

@@ -21,19 +21,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.uniso.wms.pickbylight.data.mqtt.MqttConnectionState
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.data.settings.AppSettings
@@ -44,12 +41,8 @@ import com.uniso.wms.pickbylight.ui.theme.CoralError
 import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
-import com.uniso.wms.pickbylight.util.AppBuildConfig
 import com.uniso.wms.pickbylight.util.FeedbackController
-import com.uniso.wms.pickbylight.util.FeedbackScenario
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Composable
 fun AjustesScreen(
@@ -57,19 +50,21 @@ fun AjustesScreen(
     repository: WmsRepository,
     feedbackController: FeedbackController,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: AjustesViewModel = viewModel {
+        AjustesViewModel(
+            mqttService = mqttService,
+            repository = repository,
+            feedbackController = feedbackController
+        )
+    }
 ) {
     val dimensions = LocalWmsDimensions.current
-    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
+    val uiState by viewModel.uiState.collectAsState()
     val mqttState by mqttService.connectionState.collectAsState()
-    var brokerUrlInput by remember { mutableStateOf(AppBuildConfig.MQTT_BROKER_URL) }
-    var pingStatusText by remember { mutableStateOf<String?>(null) }
-    var isTestingConnection by remember { mutableStateOf(false) }
-
-    var soundEnabled by remember { mutableStateOf(feedbackController.settings.soundEnabled) }
-    var vibrationEnabled by remember { mutableStateOf(feedbackController.settings.vibrationEnabled) }
+    val modoDebugNfc by AppSettings.modoDebugNfc.collectAsState()
 
     PlatformBackHandler {
         onNavigateBack()
@@ -147,8 +142,8 @@ fun AjustesScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
-                    value = brokerUrlInput,
-                    onValueChange = { brokerUrlInput = it },
+                    value = uiState.brokerUrl,
+                    onValueChange = { viewModel.onBrokerUrlChanged(it) },
                     label = { Text("URL do Broker MQTT") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -157,45 +152,27 @@ fun AjustesScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PrimaryButton(
-                    text = if (isTestingConnection) "Testando Conexão..." else "Testar Conexão (PING)",
-                    onClick = {
-                        coroutineScope.launch(Dispatchers.Default) {
-                            isTestingConnection = true
-                            val result = mqttService.enviarPing()
-                            isTestingConnection = false
-                            if (result.isSuccess) {
-                                val latencia = result.getOrNull() ?: 0L
-                                pingStatusText = "Conexão OK: ${latencia}ms de latência."
-                                feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
-                            } else {
-                                pingStatusText = "Falha no Ping: ${result.exceptionOrNull()?.message}"
-                                feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
-                            }
-                        }
-                    },
-                    isLoading = isTestingConnection,
+                    text = if (uiState.isTestingConnection) "Testando Conexão..." else "Testar Conexão (PING)",
+                    onClick = { viewModel.testarConexaoPing() },
+                    isLoading = uiState.isTestingConnection,
                     containerColor = ShelfRackBlue
                 )
 
-                if (pingStatusText != null) {
+                if (uiState.pingStatusText != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = pingStatusText ?: "",
+                        text = uiState.pingStatusText ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (pingStatusText?.startsWith("Conexão OK") == true) EmeraldSuccess else CoralError
+                        color = if (uiState.pingStatusText?.startsWith("Conexão OK") == true) EmeraldSuccess else CoralError
                     )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
                 PrimaryButton(
-                    text = "Reconectar Agora",
-                    onClick = {
-                        coroutineScope.launch(Dispatchers.Default) {
-                            mqttService.connect(brokerUrlInput)
-                        }
-                    },
+                    text = "Salvar e Reconectar Agora",
+                    onClick = { viewModel.salvarEReconectarBroker() },
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -233,11 +210,8 @@ fun AjustesScreen(
                         )
                     }
                     Switch(
-                        checked = soundEnabled,
-                        onCheckedChange = {
-                            soundEnabled = it
-                            feedbackController.settings = feedbackController.settings.copy(soundEnabled = it)
-                        }
+                        checked = uiState.soundEnabled,
+                        onCheckedChange = { viewModel.setSoundEnabled(it) }
                     )
                 }
 
@@ -257,11 +231,8 @@ fun AjustesScreen(
                         )
                     }
                     Switch(
-                        checked = vibrationEnabled,
-                        onCheckedChange = {
-                            vibrationEnabled = it
-                            feedbackController.settings = feedbackController.settings.copy(vibrationEnabled = it)
-                        }
+                        checked = uiState.vibrationEnabled,
+                        onCheckedChange = { viewModel.setVibrationEnabled(it) }
                     )
                 }
             }
@@ -292,7 +263,6 @@ fun AjustesScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                val modoDebugNfc by AppSettings.modoDebugNfc.collectAsState()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -317,12 +287,7 @@ fun AjustesScreen(
 
                 PrimaryButton(
                     text = "Resetar Dados de Demonstração (Seed)",
-                    onClick = {
-                        coroutineScope.launch {
-                            repository.resetarDadosDemo()
-                            feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
-                        }
-                    },
+                    onClick = { viewModel.resetarDadosDemo() },
                     containerColor = AmberWarning,
                     contentColor = Color.White
                 )

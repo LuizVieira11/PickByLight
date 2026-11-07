@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.uniso.wms.pickbylight.data.mqtt.MqttConnectionState
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
+import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
@@ -48,7 +49,6 @@ import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.ui.theme.ShelfBinGreen
 import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
 import com.uniso.wms.pickbylight.ui.theme.ShelfRowOrange
-import com.uniso.wms.pickbylight.util.AppBuildConfig
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
 import kotlinx.coroutines.launch
@@ -114,6 +114,7 @@ fun DashboardScreen(
 
     val mqttState by mqttService.connectionState.collectAsState()
     val pendingCommands by mqttService.pendingCommandsCount.collectAsState()
+    val brokerUrl by AppSettings.brokerUrlState.collectAsState()
 
     var pingFeedbackText by remember { mutableStateOf<String?>(null) }
     var isPinging by remember { mutableStateOf(false) }
@@ -192,7 +193,7 @@ fun DashboardScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = AppBuildConfig.MQTT_BROKER_URL,
+                                text = brokerUrl,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,

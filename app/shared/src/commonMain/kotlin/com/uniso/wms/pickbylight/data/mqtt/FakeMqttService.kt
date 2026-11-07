@@ -4,6 +4,7 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoAcender
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoApagar
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoPing
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoTesteLed
+import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.util.AppBuildConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,7 +53,11 @@ class FakeMqttService(
 
     override suspend fun connect(brokerUrl: String?) {
         _connectionState.value = MqttConnectionState.CONNECTING
-        activeBrokerUrl = brokerUrl ?: AppBuildConfig.MQTT_BROKER_URL
+        val explicitUrl = brokerUrl?.trim()?.takeIf { it.isNotBlank() }
+        if (explicitUrl != null) {
+            AppSettings.saveBrokerUrl(explicitUrl)
+        }
+        activeBrokerUrl = explicitUrl ?: AppSettings.resolveBrokerUrlOrFallback()
         delay(50)
         _connectionState.value = MqttConnectionState.CONNECTED
     }

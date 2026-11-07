@@ -15,6 +15,7 @@ import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Representa a intenção de retirada de um item em uma posição física específica.
@@ -79,6 +81,8 @@ data class SeparacaoUiState(
     val showHardwareTimeoutModal: Boolean = false,
     val showConcurrencyLockError: String? = null,
     val showWrongTagModal: Pair<String, String>? = null,
+    val unmappedTagUid: String? = null,
+    val timeoutCancelMessage: String? = null,
     val isVisualFlashingGreen: Boolean = false,
     val isVisualFlashingRed: Boolean = false,
     val resumoFinal: List<ItemParaColeta> = emptyList()
@@ -446,6 +450,8 @@ class SeparacaoViewModel(
                 showHardwareTimeoutModal = false,
                 showConcurrencyLockError = null,
                 showWrongTagModal = null,
+                unmappedTagUid = null,
+                timeoutCancelMessage = null,
                 isVisualFlashingGreen = false,
                 isVisualFlashingRed = false,
                 resumoFinal = emptyList()
@@ -523,35 +529,53 @@ class SeparacaoViewModel(
     /**
      * Dispara comando MQTT ACENDER com QoS 1 para a posição atual da rota.
      * Inicia o timeout de ACK de 5 segundos (Seção 5.2).
+     * Se o ACK for recebido com sucesso, libera automaticamente o Modo Manual caso estivesse ativo.
      */
-    fun acionarHardwarePassoAtual() {
+    fun acionarHardwarePassoAtual(forceRetry: Boolean = false) {
         val passo = _uiState.value.passoAtual ?: return
 
-        if (_uiState.value.isModoManual) {
+        if (_uiState.value.isModoManual && !forceRetry) {
             return
         }
 
-        scope.launch {
-            _uiState.update { it.copy(isAguardandoAck = true) }
+        ackTimeoutJob?.cancel()
+        ackTimeoutJob = scope.launch {
+            _uiState.update { it.copy(isAguardandoAck = true, showHardwareTimeoutModal = false) }
 
-            ackTimeoutJob?.cancel()
-            val result = mqttService.acenderLed(
-                estanteLedId = passo.estante.ledId,
-                prateleiraLedId = passo.prateleira.ledIdPonta,
-                posicaoLedId = passo.posicao.ledId,
-                cor = "VERDE"
-            )
+            val result = withTimeoutOrNull(5000L) {
+                mqttService.acenderLed(
+                    estanteLedId = passo.estante.ledId,
+                    prateleiraLedId = passo.prateleira.ledIdPonta,
+                    posicaoLedId = passo.posicao.ledId,
+                    cor = "VERDE"
+                )
+            }
 
-            _uiState.update { it.copy(isAguardandoAck = false) }
-
-            if (result.isFailure) {
-                _uiState.update { it.copy(showHardwareTimeoutModal = true) }
+            if (result != null && result.isSuccess) {
+                // Seção 5.2: Libera o modo manual automaticamente ao receber ACK de comando MQTT bem-sucedido
+                _uiState.update {
+                    it.copy(
+                        isAguardandoAck = false,
+                        isModoManual = false,
+                        showHardwareTimeoutModal = false
+                    )
+                }
+            } else {
+                feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+                _uiState.update {
+                    it.copy(
+                        isAguardandoAck = false,
+                        showHardwareTimeoutModal = true
+                    )
+                }
             }
         }
     }
 
     /**
      * Temporizador regressivo visível de 60 segundos do operador (Seção 5.3).
+     * Se expirar sem leitura NFC válida, envia APAGAR, libera os locks e retorna à busca
+     * exibindo a mensagem "Tempo esgotado. Operação cancelada.".
      */
     private fun iniciarTimerOperador() {
         operatorTimerJob?.cancel()
@@ -566,14 +590,47 @@ class SeparacaoViewModel(
             }
 
             feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
-            cancelarColetaEVoltar()
+            cancelarColetaPorTimeout()
+        }
+    }
+
+    private fun cancelarColetaPorTimeout() {
+        operatorTimerJob?.cancel()
+        ackTimeoutJob?.cancel()
+        val passo = _uiState.value.passoAtual
+        val passosParaLiberar = _uiState.value.passos
+
+        scope.launch {
+            if (passo != null) {
+                mqttService.apagarLed(
+                    estanteLedId = passo.estante.ledId,
+                    prateleiraLedId = passo.prateleira.ledIdPonta,
+                    posicaoLedId = passo.posicao.ledId
+                )
+            }
+
+            passosParaLiberar.forEach { p ->
+                p.itens.forEach { item ->
+                    repository.setEmSeparacao(item.item.id, false)
+                }
+            }
+
+            _uiState.update {
+                SeparacaoUiState(
+                    timeoutCancelMessage = "Tempo esgotado. Operação cancelada."
+                )
+            }
         }
     }
 
     /**
-     * Validação NFC Poka-Yoke (Seção 3.5.4):
-     * - Se tag correta: vibração curta (150ms) + avanço para confirmação de quantidades.
-     * - Se tag incorreta: vibração longa (600ms) + tela vermelha + modal bloqueando baixa.
+     * Validação NFC com Separação Flexível / Picking Dinâmico (Seção 3.5.4):
+     * - Se a tag bipada corresponder à posição sugerida OU a qualquer outra posição física
+     *   que possua o(s) item(ns) do passo atual com saldo suficiente na tabela EstoquePosicao:
+     *   aceita a leitura (vibra sucesso), atualiza a posição do passo atual para dar baixa
+     *   dessa posição bipada e avança para a confirmação de quantidades.
+     * - O erro "Local incorreto" (vermelho) só ocorre se a posição bipada não tiver o item
+     *   ou não tiver saldo suficiente (ou se a tag não estiver cadastrada).
      */
     fun processarLeituraNfc(
         scannedUid: String,
@@ -582,21 +639,87 @@ class SeparacaoViewModel(
         allPrateleiras: List<Prateleira>,
         allEstantes: List<Estante>
     ) {
-        val passo = _uiState.value.passoAtual ?: return
+        val currentState = _uiState.value
+        val passo = currentState.passoAtual ?: return
+        val passoIndex = currentState.passoAtualIndex
         val expectedTag = passo.tagNfc
 
-        if (expectedTag != null && expectedTag.uid.equals(scannedUid, ignoreCase = true)) {
-            operatorTimerJob?.cancel()
-            _uiState.update {
-                it.copy(
-                    etapa = EtapaSeparacao.CONFIRMAR_QUANTIDADE,
-                    isVisualFlashingGreen = true,
-                    isVisualFlashingRed = false,
-                    showWrongTagModal = null
-                )
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // Caso 1: Operador bipou exatamente a posição sugerida
+            if (expectedTag != null && expectedTag.uid.equals(scannedUid, ignoreCase = true)) {
+                operatorTimerJob?.cancel()
+                _uiState.update {
+                    it.copy(
+                        etapa = EtapaSeparacao.CONFIRMAR_QUANTIDADE,
+                        isVisualFlashingGreen = true,
+                        isVisualFlashingRed = false,
+                        showWrongTagModal = null
+                    )
+                }
+                feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+                return@launch
             }
-            feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
-        } else {
+
+            // Caso 2: Verifica se a tag bipada pertence a outra posição que possui o item com saldo suficiente
+            val tagLida = allTags.find { it.uid.equals(scannedUid, ignoreCase = true) }
+                ?: repository.getTagByUid(scannedUid)
+            val posLida = tagLida?.let { t ->
+                allPosicoes.find { it.id == t.posicaoId } ?: repository.getPosicaoById(t.posicaoId)
+            }
+            val pratLida = posLida?.let { p ->
+                allPrateleiras.find { it.id == p.prateleiraId } ?: repository.getPrateleiraById(p.prateleiraId)
+            }
+            val estLida = pratLida?.let { pr ->
+                allEstantes.find { it.id == pr.estanteId } ?: repository.getEstanteById(pr.estanteId)
+            }
+
+            if (tagLida != null && posLida != null && pratLida != null && estLida != null) {
+                val temSaldoSuficiente = passo.itens.all { itemParaColeta ->
+                    val saldoNaPosicaoBipada = repository.getEstoque(itemParaColeta.item.id, posLida.id)?.quantidade ?: 0
+                    saldoNaPosicaoBipada >= itemParaColeta.quantidadeDesejada
+                }
+
+                if (temSaldoSuficiente) {
+                    operatorTimerJob?.cancel()
+
+                    // Apaga o LED da posição originalmente sugerida caso tenha mudado de endereço
+                    if (posLida.id != passo.posicao.id) {
+                        mqttService.apagarLed(
+                            estanteLedId = passo.estante.ledId,
+                            prateleiraLedId = passo.prateleira.ledIdPonta,
+                            posicaoLedId = passo.posicao.ledId
+                        )
+                    }
+
+                    // Atualiza o passo atual para apontar para a posição efetivamente bipada pelo operador
+                    val passoAtualizado = passo.copy(
+                        posicao = posLida,
+                        prateleira = pratLida,
+                        estante = estLida,
+                        tagNfc = tagLida,
+                        itens = passo.itens.map { it.copy(posicaoOrigemId = posLida.id) }
+                    )
+
+                    _uiState.update { state ->
+                        val novosPassos = state.passos.toMutableList().apply {
+                            if (passoIndex in indices) {
+                                set(passoIndex, passoAtualizado)
+                            }
+                        }
+                        state.copy(
+                            passos = novosPassos,
+                            etapa = EtapaSeparacao.CONFIRMAR_QUANTIDADE,
+                            isVisualFlashingGreen = true,
+                            isVisualFlashingRed = false,
+                            showWrongTagModal = null
+                        )
+                    }
+                    feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+                    return@launch
+                }
+            }
+
+            // Caso 3: Posição bipada não possui o item ou não possui saldo suficiente (ou tag desconhecida)
             _uiState.update {
                 it.copy(
                     isVisualFlashingRed = true,
@@ -605,18 +728,19 @@ class SeparacaoViewModel(
             }
             feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
 
-            val tagLida = allTags.find { it.uid.equals(scannedUid, ignoreCase = true) }
-            val enderecoLido = if (tagLida != null) {
-                val posLida = allPosicoes.find { it.id == tagLida.posicaoId }
-                val pratLida = allPrateleiras.find { it.id == posLida?.prateleiraId }
-                val estLida = allEstantes.find { it.id == pratLida?.estanteId }
-                "${estLida?.nome ?: estLida?.codigo ?: "Estante"} > ${pratLida?.codigo ?: "Prateleira"} > ${posLida?.codigo ?: "Posição"}"
+            val enderecoLido = if (tagLida != null && posLida != null) {
+                "${estLida?.nome ?: estLida?.codigo ?: "Estante"} > ${pratLida?.codigo ?: "Prateleira"} > ${posLida.codigo} (Sem saldo suficiente)"
             } else {
                 "UID: $scannedUid (Tag não cadastrada)"
             }
 
             val enderecoEsperado = "${passo.estante.nome} > ${passo.prateleira.codigo} > ${passo.posicao.codigo}"
-            _uiState.update { it.copy(showWrongTagModal = enderecoLido to enderecoEsperado) }
+            _uiState.update {
+                it.copy(
+                    showWrongTagModal = enderecoLido to enderecoEsperado,
+                    unmappedTagUid = if (tagLida == null) scannedUid.trim().uppercase() else null
+                )
+            }
         }
     }
 
@@ -731,7 +855,17 @@ class SeparacaoViewModel(
     }
 
     fun dismissWrongTagModal() {
-        _uiState.update { it.copy(showWrongTagModal = null, isVisualFlashingRed = false) }
+        _uiState.update {
+            it.copy(
+                showWrongTagModal = null,
+                unmappedTagUid = null,
+                isVisualFlashingRed = false
+            )
+        }
+    }
+
+    fun dismissTimeoutCancelMessage() {
+        _uiState.update { it.copy(timeoutCancelMessage = null) }
     }
 
     fun dismissConcurrencyLockError() {

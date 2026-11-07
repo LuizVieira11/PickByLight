@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.uniso.wms.pickbylight.data.settings.BrokerUrlDataStore
 import com.uniso.wms.pickbylight.nfc.NfcController
 import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.util.AppBuildConfig
@@ -18,6 +19,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AppBuildConfig.setDynamicBrokerUrl(BuildConfig.MQTT_BROKER_URL)
+        BrokerUrlDataStore.init(this)
         FeedbackController.init(this)
         NfcController.init(this)
 

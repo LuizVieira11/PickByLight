@@ -9,6 +9,13 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoPing
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoTesteLed
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttStatusApp
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttTopics
+import com.uniso.wms.pickbylight.data.repository.InMemoryWmsRepository
+import com.uniso.wms.pickbylight.data.settings.AppSettings
+import com.uniso.wms.pickbylight.data.settings.BrokerUrlDataStore
+import com.uniso.wms.pickbylight.ui.screens.ajustes.AjustesViewModel
+import com.uniso.wms.pickbylight.util.AppBuildConfig
+import com.uniso.wms.pickbylight.util.FeedbackController
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -164,5 +171,65 @@ class MqttServiceTest {
         assertEquals("wms/pickbylight/comando", MqttTopics.COMANDO)
         assertEquals("wms/pickbylight/ack", MqttTopics.ACK)
         assertEquals("wms/pickbylight/status/app", MqttTopics.STATUS_APP)
+    }
+
+    @Test
+    fun shouldPersistBrokerUrlInDataStoreAndUseSavedUrlOnReconnect() = runTest {
+        val customUrl = "tcp://10.0.0.99:1883"
+        AppSettings.saveBrokerUrl(customUrl)
+        mqttService.connect(customUrl)
+
+        // Deve observar a URL salva no Flow do DataStore (e não voltar para o BuildConfig)
+        val observedFromDataStore = AppSettings.brokerUrlFlow.first()
+        assertEquals(customUrl, observedFromDataStore)
+        assertEquals(customUrl, mqttService.activeBrokerUrl)
+
+        // Mesmo quando connect(null) é chamado depois, deve usar a URL persistida no DataStore
+        mqttService.connect(null)
+        assertEquals(customUrl, mqttService.activeBrokerUrl)
+    }
+
+    @Test
+    fun shouldAjustesViewModelCollectFromDataStoreAndNotRevertToBuildConfigWhenRecreated() = runTest {
+        // Limpa o DataStore para simular primeira execução (savedUrl == null)
+        BrokerUrlDataStore.saveBrokerUrl("")
+
+        val repo = InMemoryWmsRepository()
+        val feedback = FeedbackController()
+
+        val viewModel1 = AjustesViewModel(
+            mqttService = mqttService,
+            repository = repo,
+            feedbackController = feedback,
+            coroutineScope = backgroundScope
+        )
+        testScheduler.runCurrent()
+
+        // Na primeira execução (DataStore nulo), usa o fallback do BuildConfig
+        assertEquals(AppBuildConfig.MQTT_BROKER_URL, viewModel1.uiState.value.brokerUrl)
+
+        // Operador altera o IP na tela de Ajustes e clica em Salvar e Reconectar
+        val novoIp = "tcp://192.168.15.200:1883"
+        viewModel1.onBrokerUrlChanged(novoIp)
+        assertEquals(novoIp, viewModel1.uiState.value.brokerUrl)
+
+        viewModel1.salvarEReconectarBroker()
+        testScheduler.runCurrent()
+
+        assertEquals(novoIp, viewModel1.uiState.value.brokerUrl)
+        assertEquals(novoIp, mqttService.activeBrokerUrl)
+        assertEquals(novoIp, AppSettings.brokerUrlState.value)
+
+        // Simula o usuário saindo da tela e voltando (recriando a AjustesViewModel)
+        val viewModelRecriada = AjustesViewModel(
+            mqttService = mqttService,
+            repository = repo,
+            feedbackController = feedback,
+            coroutineScope = backgroundScope
+        )
+        testScheduler.runCurrent()
+
+        // Deve exibir o IP salvo no DataStore e NÃO o IP padrão do BuildConfig
+        assertEquals(novoIp, viewModelRecriada.uiState.value.brokerUrl)
     }
 }

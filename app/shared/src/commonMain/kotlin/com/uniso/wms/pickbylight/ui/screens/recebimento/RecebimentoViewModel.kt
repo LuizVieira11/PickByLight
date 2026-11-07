@@ -11,6 +11,7 @@ import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
+import com.uniso.wms.pickbylight.util.generateUUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,16 +19,45 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class ModoRecebimento {
+    UNICO,
+    MULTIPLO
+}
+
 enum class RecebimentoStep {
-    SCAN_NFC,
-    FORM,
-    SUCCESS
+    SCAN_NFC,        // Modo Único: Leitura NFC da posição de destino
+    FORM,            // Modo Único: Formulário pós-NFC
+    MONTAGEM_LISTA,  // Modo Múltiplo: Montagem da lista de itens antes de bipar posições
+    GUIADO_NFC,      // Modo Múltiplo: Passo a passo bipando a Tag NFC para guardar cada item da lista
+    SUCCESS          // Resumo de conclusão (Único ou Múltiplo)
 }
 
 /**
- * Estado UDF do módulo de Recebimento de Itens (Seção 3.4).
+ * Representa um item adicionado à lista de Recebimento Múltiplo antes da guarda guiada.
+ */
+data class ItemLoteRecebimento(
+    val id: String = generateUUID(),
+    val item: Item,
+    val quantidade: Int,
+    val observacao: String = ""
+)
+
+/**
+ * Representa o resumo de um item efetivamente guardado em uma posição física.
+ */
+data class ItemRecebidoResumo(
+    val item: Item,
+    val quantidade: Int,
+    val posicao: Posicao,
+    val enderecoFormatado: String,
+    val tagUid: String?
+)
+
+/**
+ * Estado UDF do módulo de Recebimento de Itens (Seção 3.4 + Modos Único e Múltiplo).
  */
 data class RecebimentoUiState(
+    val modo: ModoRecebimento = ModoRecebimento.UNICO,
     val step: RecebimentoStep = RecebimentoStep.SCAN_NFC,
     val resolvedPosicao: Posicao? = null,
     val resolvedPrateleira: Prateleira? = null,
@@ -38,6 +68,9 @@ data class RecebimentoUiState(
     val quantidade: Int = 1,
     val observacao: String = "",
     val itemSearchQuery: String = "",
+    val itensLote: List<ItemLoteRecebimento> = emptyList(),
+    val passoGuiadoIndex: Int = 0,
+    val resumoRecebimentoMultiplo: List<ItemRecebidoResumo> = emptyList(),
     val unmappedTagErrorUid: String? = null,
     val isErrorFlashingRed: Boolean = false,
     val formErrorMessage: String? = null,
@@ -45,10 +78,27 @@ data class RecebimentoUiState(
     val snackbarMessage: String? = null
 ) {
     val hasDirtyForm: Boolean
-        get() = selectedItem != null || quantidade > 1 || observacao.isNotBlank()
+        get() = when (step) {
+            RecebimentoStep.FORM -> selectedItem != null || quantidade > 1 || observacao.isNotBlank()
+            RecebimentoStep.MONTAGEM_LISTA -> itensLote.isNotEmpty() || selectedItem != null || observacao.isNotBlank()
+            RecebimentoStep.GUIADO_NFC -> true
+            else -> false
+        }
 
     val isFormValid: Boolean
         get() = resolvedPosicao != null && selectedItem != null && quantidade > 0
+
+    val canAddToList: Boolean
+        get() = selectedItem != null && quantidade > 0
+
+    val itemGuiadoAtual: ItemLoteRecebimento?
+        get() = itensLote.getOrNull(passoGuiadoIndex)
+
+    val totalPassosGuiados: Int
+        get() = itensLote.size
+
+    val progressoGuiadoFracao: Float
+        get() = if (totalPassosGuiados > 0) (passoGuiadoIndex + 1).toFloat() / totalPassosGuiados else 0f
 }
 
 class RecebimentoViewModel(
@@ -70,9 +120,28 @@ class RecebimentoViewModel(
     }
 
     /**
-     * Resolução de Endereço via Leitura NFC (Seção 3.4.2 e Seção 5.4):
-     * - Se encontrada na tabela TagNFC: vibração curta (150ms) + avança automaticamente para o formulário.
-     * - Se não cadastrada: vibração longa (600ms) + tela vermelha + modal com atalho [Cadastrar Agora].
+     * Alterna entre Recebimento Único e Recebimento Múltiplo.
+     */
+    fun selecionarModo(novoModo: ModoRecebimento) {
+        if (_uiState.value.modo == novoModo) return
+        _uiState.update {
+            RecebimentoUiState(
+                modo = novoModo,
+                step = if (novoModo == ModoRecebimento.UNICO) {
+                    RecebimentoStep.SCAN_NFC
+                } else {
+                    RecebimentoStep.MONTAGEM_LISTA
+                }
+            )
+        }
+    }
+
+    /**
+     * Resolução de Endereço via Leitura NFC:
+     * - No Modo Único (SCAN_NFC): resolve o endereço e avança para o formulário.
+     * - No Modo Múltiplo Guiado (GUIADO_NFC): confirma a entrada do item atual na posição bipada
+     *   e avança automaticamente para o próximo passo (ou tela de sucesso final).
+     * - Se tag não cadastrada: vibração longa (600ms) + tela vermelha + modal com atalho [Cadastrar Agora].
      */
     fun processarLeituraNfc(rawUid: String) {
         val uid = rawUid.trim().uppercase()
@@ -80,7 +149,9 @@ class RecebimentoViewModel(
 
         scope.launch {
             val tag = repository.getTagByUid(uid)
-            if (tag == null) {
+            val pos = tag?.let { repository.getPosicaoById(it.posicaoId) }
+
+            if (tag == null || pos == null) {
                 feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
                 _uiState.update {
                     it.copy(
@@ -88,19 +159,12 @@ class RecebimentoViewModel(
                         isErrorFlashingRed = true
                     )
                 }
-            } else {
-                val pos = repository.getPosicaoById(tag.posicaoId)
-                if (pos == null) {
-                    feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
-                    _uiState.update {
-                        it.copy(
-                            unmappedTagErrorUid = uid,
-                            isErrorFlashingRed = true
-                        )
-                    }
-                    return@launch
-                }
+                return@launch
+            }
 
+            if (_uiState.value.step == RecebimentoStep.GUIADO_NFC) {
+                confirmarPassoGuiadoNaPosicao(pos, tag.uid)
+            } else {
                 val prat = repository.getPrateleiraById(pos.prateleiraId)
                 val est = prat?.let { repository.getEstanteById(it.estanteId) }
                 val endereco = buildEnderecoFormatado(est, prat, pos)
@@ -124,26 +188,163 @@ class RecebimentoViewModel(
     }
 
     /**
-     * Fallback de Seleção Manual de Endereço (Seção 3.4.1 - Web / Contingência).
+     * Fallback de Seleção Manual de Endereço (Web / Contingência) para Modo Único e Modo Múltiplo Guiado.
      */
     fun selecionarEnderecoManualmente(posicao: Posicao) {
         scope.launch {
-            val prat = repository.getPrateleiraById(posicao.prateleiraId)
-            val est = prat?.let { repository.getEstanteById(it.estanteId) }
             val tag = repository.getTagByPosicaoId(posicao.id)
-            val endereco = buildEnderecoFormatado(est, prat, posicao)
+            if (_uiState.value.step == RecebimentoStep.GUIADO_NFC) {
+                confirmarPassoGuiadoNaPosicao(posicao, tag?.uid)
+            } else {
+                val prat = repository.getPrateleiraById(posicao.prateleiraId)
+                val est = prat?.let { repository.getEstanteById(it.estanteId) }
+                val endereco = buildEnderecoFormatado(est, prat, posicao)
 
+                _uiState.update {
+                    it.copy(
+                        step = RecebimentoStep.FORM,
+                        resolvedPosicao = posicao,
+                        resolvedPrateleira = prat,
+                        resolvedEstante = est,
+                        resolvedTagUid = tag?.uid,
+                        enderecoFormatado = endereco,
+                        unmappedTagErrorUid = null,
+                        isErrorFlashingRed = false,
+                        formErrorMessage = null
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Modo Múltiplo: Adiciona o item e quantidade atuais à lista de recebimento.
+     */
+    fun adicionarItemAoLote() {
+        val state = _uiState.value
+        val item = state.selectedItem
+        val qtd = state.quantidade
+
+        if (item == null || qtd <= 0) {
+            feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+            _uiState.update {
+                it.copy(formErrorMessage = "Selecione um item e informe uma quantidade maior que zero para adicionar à lista.")
+            }
+            return
+        }
+
+        val novoItemLote = ItemLoteRecebimento(
+            item = item,
+            quantidade = qtd,
+            observacao = state.observacao.trim()
+        )
+
+        feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+        _uiState.update {
+            it.copy(
+                itensLote = it.itensLote + novoItemLote,
+                selectedItem = null,
+                itemSearchQuery = "",
+                quantidade = 1,
+                observacao = "",
+                formErrorMessage = null
+            )
+        }
+    }
+
+    /**
+     * Modo Múltiplo: Remove um item da lista antes de iniciar o recebimento guiado.
+     */
+    fun removerItemDoLote(loteId: String) {
+        _uiState.update { state ->
+            state.copy(itensLote = state.itensLote.filterNot { it.id == loteId })
+        }
+    }
+
+    /**
+     * Modo Múltiplo: Inicia o fluxo passo a passo de Recebimento Guiado.
+     */
+    fun iniciarRecebimentoGuiado() {
+        if (_uiState.value.itensLote.isEmpty()) {
+            feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                step = RecebimentoStep.GUIADO_NFC,
+                passoGuiadoIndex = 0,
+                resumoRecebimentoMultiplo = emptyList(),
+                unmappedTagErrorUid = null,
+                isErrorFlashingRed = false,
+                formErrorMessage = null
+            )
+        }
+    }
+
+    /**
+     * Modo Múltiplo: Registra a entrada do item do passo atual na posição bipada e avança para o próximo passo.
+     */
+    private suspend fun confirmarPassoGuiadoNaPosicao(pos: Posicao, tagUid: String?) {
+        val state = _uiState.value
+        val itemLote = state.itemGuiadoAtual ?: return
+
+        val prat = repository.getPrateleiraById(pos.prateleiraId)
+        val est = prat?.let { repository.getEstanteById(it.estanteId) }
+        val endereco = buildEnderecoFormatado(est, prat, pos)
+
+        val estoqueAtual = repository.getEstoque(itemLote.item.id, pos.id)?.quantidade ?: 0
+        val novaQtd = estoqueAtual + itemLote.quantidade
+        val resEstoque = repository.atualizarEstoquePosicao(itemLote.item.id, pos.id, novaQtd)
+        if (resEstoque.isFailure) {
+            feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
+            return
+        }
+
+        val mov = Movimentacao(
+            tipo = TipoMovimentacao.ENTRADA,
+            itemId = itemLote.item.id,
+            posicaoId = pos.id,
+            quantidade = itemLote.quantidade,
+            observacao = itemLote.observacao.takeIf { it.isNotBlank() } ?: "Recebimento Múltiplo Guiado",
+            modoManual = false
+        )
+        repository.registrarMovimentacao(mov)
+
+        feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+
+        val itemResumo = ItemRecebidoResumo(
+            item = itemLote.item,
+            quantidade = itemLote.quantidade,
+            posicao = pos,
+            enderecoFormatado = endereco,
+            tagUid = tagUid
+        )
+        val novoResumo = state.resumoRecebimentoMultiplo + itemResumo
+        val msgPasso = "Entrada registrada: ${itemLote.item.nome} × ${itemLote.quantidade} em $endereco"
+        val proximoIndex = state.passoGuiadoIndex + 1
+
+        if (proximoIndex < state.itensLote.size) {
             _uiState.update {
                 it.copy(
-                    step = RecebimentoStep.FORM,
-                    resolvedPosicao = posicao,
-                    resolvedPrateleira = prat,
-                    resolvedEstante = est,
-                    resolvedTagUid = tag?.uid,
-                    enderecoFormatado = endereco,
+                    passoGuiadoIndex = proximoIndex,
+                    resumoRecebimentoMultiplo = novoResumo,
+                    snackbarMessage = msgPasso,
                     unmappedTagErrorUid = null,
-                    isErrorFlashingRed = false,
-                    formErrorMessage = null
+                    isErrorFlashingRed = false
+                )
+            }
+        } else {
+            val totalUnidades = novoResumo.sumOf { it.quantidade }
+            val msgFinal = "Recebimento múltiplo concluído! ${novoResumo.size} ${if (novoResumo.size == 1) "item guardado" else "itens guardados"} ($totalUnidades un)."
+            _uiState.update {
+                it.copy(
+                    step = RecebimentoStep.SUCCESS,
+                    resumoRecebimentoMultiplo = novoResumo,
+                    successMessage = msgFinal,
+                    snackbarMessage = msgPasso,
+                    unmappedTagErrorUid = null,
+                    isErrorFlashingRed = false
                 )
             }
         }
@@ -224,7 +425,7 @@ class RecebimentoViewModel(
     }
 
     /**
-     * Confirmação de Entrada (Seção 3.4.3 e 3.4.4):
+     * Confirmação de Entrada no Modo Único (Seção 3.4.3 e 3.4.4):
      * - Valida Posição, Item selecionado e Quantidade > 0.
      * - Incrementa o saldo do item na tabela EstoquePosicao.
      * - Registra Movimentacao ENTRADA.
@@ -269,9 +470,18 @@ class RecebimentoViewModel(
             feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
             val msg = "Entrada registrada: ${item.nome} × $qtd em ${state.enderecoFormatado}"
 
+            val resumoUnico = ItemRecebidoResumo(
+                item = item,
+                quantidade = qtd,
+                posicao = pos,
+                enderecoFormatado = state.enderecoFormatado,
+                tagUid = state.resolvedTagUid
+            )
+
             _uiState.update {
                 it.copy(
                     step = RecebimentoStep.SUCCESS,
+                    resumoRecebimentoMultiplo = listOf(resumoUnico),
                     successMessage = msg,
                     snackbarMessage = msg,
                     formErrorMessage = null
@@ -281,16 +491,24 @@ class RecebimentoViewModel(
     }
 
     /**
-     * Limpa os campos do formulário e retorna à leitura NFC para o próximo lote (Seção 3.4.4 - [Nova Entrada]).
+     * Limpa os campos do formulário e retorna ao início do modo selecionado ([Nova Entrada]).
      */
     fun iniciarNovaEntrada() {
+        val modoAtual = _uiState.value.modo
         _uiState.update {
-            RecebimentoUiState(step = RecebimentoStep.SCAN_NFC)
+            RecebimentoUiState(
+                modo = modoAtual,
+                step = if (modoAtual == ModoRecebimento.UNICO) {
+                    RecebimentoStep.SCAN_NFC
+                } else {
+                    RecebimentoStep.MONTAGEM_LISTA
+                }
+            )
         }
     }
 
     /**
-     * Descarta preenchimento em andamento e retorna à leitura NFC (Seção 3.7).
+     * Descarta preenchimento em andamento e retorna ao passo inicial do modo ativo (Seção 3.7).
      */
     fun descartarFormularioEVoltarParaScan() {
         iniciarNovaEntrada()
@@ -309,4 +527,3 @@ class RecebimentoViewModel(
         _uiState.update { it.copy(snackbarMessage = null) }
     }
 }
-

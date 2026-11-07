@@ -30,10 +30,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,8 +54,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.uniso.wms.pickbylight.domain.model.Posicao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.nfc.NfcManager
@@ -79,7 +82,7 @@ fun RecebimentoScreen(
     onNavigateBack: () -> Unit,
     onNavigateEnderecosComUid: (String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RecebimentoViewModel = remember(repository, feedbackController) {
+    viewModel: RecebimentoViewModel = viewModel {
         RecebimentoViewModel(repository, feedbackController)
     }
 ) {
@@ -124,9 +127,9 @@ fun RecebimentoScreen(
         }
     }
 
-    // Escuta eventos globais do NfcManager quando na etapa SCAN_NFC
-    LaunchedEffect(uiState.step) {
-        if (uiState.step == RecebimentoStep.SCAN_NFC) {
+    // Escuta eventos globais do NfcManager quando em etapa de leitura NFC (Único ou Guiado Múltiplo)
+    LaunchedEffect(uiState.step, uiState.passoGuiadoIndex) {
+        if (uiState.step == RecebimentoStep.SCAN_NFC || uiState.step == RecebimentoStep.GUIADO_NFC) {
             NfcManager.scannedTagFlow.collectLatest { uid ->
                 viewModel.processarLeituraNfc(uid)
             }
@@ -137,7 +140,14 @@ fun RecebimentoScreen(
     val handleBackNavigation = {
         when (uiState.step) {
             RecebimentoStep.SCAN_NFC -> onNavigateBack()
-            RecebimentoStep.FORM -> {
+            RecebimentoStep.MONTAGEM_LISTA -> {
+                if (uiState.hasDirtyForm) {
+                    showDiscardConfirmDialog = true
+                } else {
+                    onNavigateBack()
+                }
+            }
+            RecebimentoStep.FORM, RecebimentoStep.GUIADO_NFC -> {
                 if (uiState.hasDirtyForm) {
                     showDiscardConfirmDialog = true
                 } else {
@@ -198,11 +208,69 @@ fun RecebimentoScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Seletor de Modo no topo: [Recebimento Único] e [Recebimento Múltiplo]
+            if (uiState.step == RecebimentoStep.SCAN_NFC || uiState.step == RecebimentoStep.MONTAGEM_LISTA) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val isUnico = uiState.modo == ModoRecebimento.UNICO
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isUnico) ShelfRackBlue else Color.Transparent,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.selecionarModo(ModoRecebimento.UNICO) }
+                        ) {
+                            Text(
+                                text = "Recebimento Único",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isUnico) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        val isMultiplo = uiState.modo == ModoRecebimento.MULTIPLO
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isMultiplo) ShelfRackBlue else Color.Transparent,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.selecionarModo(ModoRecebimento.MULTIPLO) }
+                        ) {
+                            Text(
+                                text = "Recebimento Múltiplo",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isMultiplo) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             when (uiState.step) {
                 // =========================================================================
-                // ETAPA 1: Leitura NFC de Destino (Seção 3.4.1)
+                // MODO ÚNICO — ETAPA 1: Leitura NFC de Destino (Seção 3.4.1)
                 // =========================================================================
                 RecebimentoStep.SCAN_NFC -> {
                     Card(
@@ -218,7 +286,6 @@ fun RecebimentoScreen(
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Animação visual pulsante de ondas NFC
                             val infiniteTransition = rememberInfiniteTransition()
                             val scale by infiniteTransition.animateFloat(
                                 initialValue = 0.92f,
@@ -264,7 +331,6 @@ fun RecebimentoScreen(
 
                             Spacer(modifier = Modifier.height(24.dp))
 
-                            // Botão de seleção manual de contingência (Seção 3.4.1)
                             PrimaryButton(
                                 text = "Selecionar Endereço Manualmente",
                                 onClick = { showManualAddressDialog = true },
@@ -274,7 +340,6 @@ fun RecebimentoScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Botão de simulação NFC (para ambiente emulador e web)
                             PrimaryButton(
                                 text = "Simular Leitura NFC",
                                 onClick = { showNfcSimulator = true },
@@ -285,12 +350,11 @@ fun RecebimentoScreen(
                 }
 
                 // =========================================================================
-                // ETAPA 2: Formulário Pós-NFC (Seção 3.4.3)
+                // MODO ÚNICO — ETAPA 2: Formulário Pós-NFC (Seção 3.4.3)
                 // =========================================================================
                 RecebimentoStep.FORM -> {
                     val pos = uiState.resolvedPosicao
 
-                    // Cabeçalho fixo com o endereço validado e o UID da tag
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = EmeraldSuccess.copy(alpha = 0.12f)),
@@ -371,7 +435,6 @@ fun RecebimentoScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Dropdown com busca integrada por SKU ou Nome + Atalho "+ Novo Item"
                             ExposedDropdownMenuBox(
                                 expanded = itemDropdownExpanded,
                                 onExpandedChange = { itemDropdownExpanded = !itemDropdownExpanded }
@@ -447,7 +510,6 @@ fun RecebimentoScreen(
                                 }
                             }
 
-                            // Exibe resumo de saldo do item selecionado na posição de destino
                             val selected = uiState.selectedItem
                             if (selected != null && pos != null) {
                                 val itemAgr = itensComEstoque.find { it.item.id == selected.id }
@@ -473,7 +535,6 @@ fun RecebimentoScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Stepper de Quantidade
                             Text(
                                 text = "Quantidade a Inserir:",
                                 style = MaterialTheme.typography.labelLarge,
@@ -486,12 +547,13 @@ fun RecebimentoScreen(
                                 value = uiState.quantidade,
                                 onValueChange = { viewModel.setQuantidade(it) },
                                 min = 1,
-                                max = 99999
+                                max = 99999,
+                                expandField = true,
+                                modifier = Modifier.fillMaxWidth()
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Campo Observação Opcional
                             OutlinedTextField(
                                 value = uiState.observacao,
                                 onValueChange = { viewModel.setObservacao(it) },
@@ -512,7 +574,6 @@ fun RecebimentoScreen(
 
                             Spacer(modifier = Modifier.height(24.dp))
 
-                            // Botão Primário Confirmar Entrada (>= 56dp)
                             PrimaryButton(
                                 text = "Confirmar Entrada",
                                 onClick = { viewModel.confirmarEntrada() },
@@ -524,7 +585,376 @@ fun RecebimentoScreen(
                 }
 
                 // =========================================================================
-                // ETAPA 3: Pós-Confirmação (Seção 3.4.4)
+                // MODO MÚLTIPLO — ETAPA M1: Montagem da Lista de Itens
+                // =========================================================================
+                RecebimentoStep.MONTAGEM_LISTA -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(dimensions.cardCornerRadius)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(dimensions.paddingMedium)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Adicionar Item ao Lote",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Monte a lista de itens recebidos. As prateleiras serão bipadas passo a passo em seguida.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                TextButton(onClick = { showNovoItemDialog = true }) {
+                                    Text(
+                                        text = "+ Novo Item",
+                                        color = ShelfRackBlue,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            ExposedDropdownMenuBox(
+                                expanded = itemDropdownExpanded,
+                                onExpandedChange = { itemDropdownExpanded = !itemDropdownExpanded }
+                            ) {
+                                OutlinedTextField(
+                                    value = uiState.selectedItem?.let { "${it.sku} - ${it.nome}" } ?: uiState.itemSearchQuery,
+                                    onValueChange = {
+                                        viewModel.setItemSearchQuery(it)
+                                        itemDropdownExpanded = true
+                                    },
+                                    label = { Text("Selecione o Item (SKU ou Nome)") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = itemDropdownExpanded) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+
+                                val itensFiltrados = itens.filter {
+                                    uiState.itemSearchQuery.isBlank() ||
+                                        it.sku.contains(uiState.itemSearchQuery, ignoreCase = true) ||
+                                        it.nome.contains(uiState.itemSearchQuery, ignoreCase = true)
+                                }
+
+                                ExposedDropdownMenu(
+                                    expanded = itemDropdownExpanded,
+                                    onDismissRequest = { itemDropdownExpanded = false }
+                                ) {
+                                    itensFiltrados.forEach { item ->
+                                        val itemAgr = itensComEstoque.find { it.item.id == item.id }
+                                        val saldoTotal = itemAgr?.saldoTotal ?: 0
+
+                                        DropdownMenuItem(
+                                            text = {
+                                                Column {
+                                                    Text(
+                                                        text = "${item.sku} - ${item.nome}",
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = "Cat: ${item.categoria} • Saldo Total: $saldoTotal ${item.unidade}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                viewModel.selecionarItem(item)
+                                                itemDropdownExpanded = false
+                                            }
+                                        )
+                                    }
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = "+ Novo Item (Criar no Catálogo)",
+                                                color = ShelfRackBlue,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        },
+                                        onClick = {
+                                            itemDropdownExpanded = false
+                                            showNovoItemDialog = true
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Text(
+                                text = "Quantidade:",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            QuantityStepper(
+                                value = uiState.quantidade,
+                                onValueChange = { viewModel.setQuantidade(it) },
+                                min = 1,
+                                max = 99999,
+                                expandField = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = uiState.observacao,
+                                onValueChange = { viewModel.setObservacao(it) },
+                                label = { Text("Observação opcional (NF, lote)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+
+                            if (uiState.formErrorMessage != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = uiState.formErrorMessage ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CoralError,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            PrimaryButton(
+                                text = "Adicionar à Lista",
+                                onClick = { viewModel.adicionarItemAoLote() },
+                                enabled = uiState.canAddToList,
+                                containerColor = ShelfRackBlue
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Lista de Itens Adicionados ao Recebimento Múltiplo
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        shape = RoundedCornerShape(dimensions.cardCornerRadius)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(dimensions.paddingMedium)
+                        ) {
+                            Text(
+                                text = "📦 Lista para Recebimento (${uiState.itensLote.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            if (uiState.itensLote.isEmpty()) {
+                                Text(
+                                    text = "Nenhum item adicionado ainda. Selecione um item acima e clique em [Adicionar à Lista].",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                uiState.itensLote.forEachIndexed { idx, loteItem ->
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "${idx + 1}. ${loteItem.item.nome}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = "SKU: ${loteItem.item.sku} • Qtd: ${loteItem.quantidade} ${loteItem.item.unidade}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = ShelfRackBlue,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+
+                                            TextButton(
+                                                onClick = { viewModel.removerItemDoLote(loteItem.id) }
+                                            ) {
+                                                Text("Remover", color = CoralError, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            PrimaryButton(
+                                text = "Iniciar Recebimento Guiado",
+                                onClick = { viewModel.iniciarRecebimentoGuiado() },
+                                enabled = uiState.itensLote.isNotEmpty(),
+                                containerColor = EmeraldSuccess
+                            )
+                        }
+                    }
+                }
+
+                // =========================================================================
+                // MODO MÚLTIPLO — ETAPA M2: Guarda Guiada Passo a Passo via NFC
+                // =========================================================================
+                RecebimentoStep.GUIADO_NFC -> {
+                    val itemAtual = uiState.itemGuiadoAtual
+                    if (itemAtual != null) {
+                        // Cabeçalho de Progresso "Passo X de Y: Item A (10 un)"
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Passo ${uiState.passoGuiadoIndex + 1} de ${uiState.totalPassosGuiados}: ${itemAtual.item.nome} (${itemAtual.quantidade} ${itemAtual.item.unidade})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ShelfRackBlue
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "SKU: ${itemAtual.item.sku} • Quantidade a guardar: ${itemAtual.quantidade} ${itemAtual.item.unidade}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                LinearProgressIndicator(
+                                    progress = { uiState.progressoGuiadoFracao },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = ShelfRackBlue
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Card de Leitura NFC da Prateleira onde o item atual será guardado
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(3.dp, scanCardBorderColor, RoundedCornerShape(dimensions.cardCornerRadius)),
+                            colors = CardDefaults.cardColors(containerColor = scanCardBgColor),
+                            shape = RoundedCornerShape(dimensions.cardCornerRadius)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                val infiniteTransition = rememberInfiniteTransition()
+                                val scale by infiniteTransition.animateFloat(
+                                    initialValue = 0.92f,
+                                    targetValue = 1.08f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(1000),
+                                        repeatMode = RepeatMode.Reverse
+                                    )
+                                )
+
+                                val circleColor = if (uiState.isErrorFlashingRed) CoralError else EmeraldSuccess
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(130.dp)
+                                        .scale(scale)
+                                        .background(circleColor.copy(alpha = 0.15f), CircleShape)
+                                        .border(2.dp, circleColor, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (uiState.isErrorFlashingRed) "⚠️" else "🏷️",
+                                        style = MaterialTheme.typography.displayMedium
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(18.dp))
+
+                                Text(
+                                    text = "Bipe a Tag NFC da prateleira onde vai guardar:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = "${itemAtual.item.nome} (${itemAtual.quantidade} ${itemAtual.item.unidade})",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (uiState.isErrorFlashingRed) CoralError else EmeraldSuccess,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                PrimaryButton(
+                                    text = "Simular Leitura NFC",
+                                    onClick = { showNfcSimulator = true },
+                                    containerColor = ShelfRackBlue
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                PrimaryButton(
+                                    text = "Selecionar Endereço Manualmente",
+                                    onClick = { showManualAddressDialog = true },
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // =========================================================================
+                // ETAPA FINAL: Pós-Confirmação e Resumo de Sucesso (Único e Múltiplo)
                 // =========================================================================
                 RecebimentoStep.SUCCESS -> {
                     Card(
@@ -558,8 +988,53 @@ fun RecebimentoScreen(
                                 text = uiState.successMessage,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
                             )
+
+                            if (uiState.resumoRecebimentoMultiplo.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    uiState.resumoRecebimentoMultiplo.forEach { resumo ->
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "• ${resumo.item.nome}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.weight(1f),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "+${resumo.quantidade} ${resumo.item.unidade}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = EmeraldSuccess
+                                                )
+                                            }
+                                            Text(
+                                                text = "📍 ${resumo.enderecoFormatado}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = ShelfRackBlue,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(24.dp))
 
@@ -650,7 +1125,7 @@ fun RecebimentoScreen(
                 Text("Descartar entrada em andamento?", fontWeight = FontWeight.Bold)
             },
             text = {
-                Text("Os dados preenchidos deste lote serão perdidos. Deseja realmente retornar à leitura NFC?")
+                Text("Os dados preenchidos deste lote serão perdidos. Deseja realmente descartar?")
             },
             confirmButton = {
                 TextButton(
