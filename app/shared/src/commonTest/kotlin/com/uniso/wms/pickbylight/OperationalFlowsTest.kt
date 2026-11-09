@@ -26,11 +26,11 @@ class OperationalFlowsTest {
 
     @Test
     fun testRecebimentoFluxoComTagValida() = runTest {
-        // Tag válida do seed vinculada a POS_A2_05 (Kit Fita de LED WS2812)
+        // Tag válida do seed vinculada a POS_A2_01 (Fita de LED WS2812)
         val validTagUid = "04:A1:2B:3C:4D:5E:04"
         val tag = repository.getTagByUid(validTagUid)
         assertNotNull(tag, "Tag deve existir no banco")
-        assertEquals("POS_A2_05", tag.posicaoId)
+        assertEquals("POS_A2_01", tag.posicaoId)
 
         val itemAntes = repository.getItemBySku("LED-WS2812")
         assertNotNull(itemAntes)
@@ -128,7 +128,7 @@ class OperationalFlowsTest {
         val movManual = Movimentacao(
             tipo = TipoMovimentacao.SAIDA,
             itemId = item.id,
-            posicaoId = "POS_B1_01",
+            posicaoId = "POS_A3_02",
             quantidade = 2,
             modoManual = true
         )
@@ -143,7 +143,7 @@ class OperationalFlowsTest {
     @Test
     fun testPokaYokeValidacaoTagsDivergentes() = runTest {
         val tagPosicaoA = repository.getTagByPosicaoId("POS_A1_01")
-        val tagPosicaoB = repository.getTagByPosicaoId("POS_A2_05")
+        val tagPosicaoB = repository.getTagByPosicaoId("POS_A2_01")
         assertNotNull(tagPosicaoA)
         assertNotNull(tagPosicaoB)
 

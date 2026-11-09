@@ -46,16 +46,16 @@ class HomologacaoCenariosTest {
     fun cenario01_InsercaoComTagValidaResolveEnderecoEAbreFormulario() = runTest {
         val viewModel = RecebimentoViewModel(repository, feedbackController, this)
 
-        // Tag NFC cadastrada para POS_A2_05: "04:A1:2B:3C:4D:5E:04"
+        // Tag NFC cadastrada para POS_A2_01: "04:A1:2B:3C:4D:5E:04"
         viewModel.processarLeituraNfc("04:A1:2B:3C:4D:5E:04")
         testScheduler.runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(RecebimentoStep.FORM, state.step)
-        assertEquals("POS_A2_05", state.resolvedPosicao?.id)
-        assertTrue(state.enderecoFormatado.contains("Estante A"))
+        assertEquals("POS_A2_01", state.resolvedPosicao?.id)
+        assertTrue(state.enderecoFormatado.contains("Estante Principal"))
         assertTrue(state.enderecoFormatado.contains("PRAT-A2"))
-        assertTrue(state.enderecoFormatado.contains("POS-05"))
+        assertTrue(state.enderecoFormatado.contains("POS-01"))
     }
 
     @Test
@@ -290,7 +290,7 @@ class HomologacaoCenariosTest {
         recebimentoVM.confirmarEntrada()
         testScheduler.runCurrent()
 
-        // 2. Realiza 1 Saída de 2 unidades do ITEM_3 na POS_A2_05
+        // 2. Realiza 1 Saída de 2 unidades do ITEM_3 na POS_A2_01
         val itens = repository.getItens().first()
         val posicoes = repository.getPosicoes().first()
         val prateleiras = repository.getPrateleiras().first()

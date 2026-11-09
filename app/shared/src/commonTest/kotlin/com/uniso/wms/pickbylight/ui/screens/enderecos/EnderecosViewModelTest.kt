@@ -32,13 +32,13 @@ class EnderecosViewModelTest {
 
     @Test
     fun testSeedInicialEContadoresDoUiState() = runTest {
-        // Ao inicializar o seed: 8 posições, 6 vinculadas e 2 pendentes
+        // Ao inicializar o seed 3x3: 9 posições, 9 vinculadas e 0 pendentes, 1 estante
         val state = viewModel.uiState.first { it is EnderecosUiState.Success } as EnderecosUiState.Success
 
-        assertEquals(8, state.totalPosicoes)
-        assertEquals(6, state.posicoesVinculadasCount)
-        assertEquals(2, state.posicoesPendentesCount)
-        assertEquals(2, state.estantes.size)
+        assertEquals(9, state.totalPosicoes)
+        assertEquals(9, state.posicoesVinculadasCount)
+        assertEquals(0, state.posicoesPendentesCount)
+        assertEquals(1, state.estantes.size)
     }
 
     @Test
@@ -56,10 +56,11 @@ class EnderecosViewModelTest {
         assertTrue(todasPosicoesVinculadas.isNotEmpty())
         assertTrue(todasPosicoesVinculadas.all { it.isVinculado && it.tagNfc != null })
 
-        // 2. Filtro PENDENTE
+        // 2. Desvincula uma posição para testar o Filtro PENDENTE
+        viewModel.desvincularTag("04:A1:2B:3C:4D:5E:09")
         viewModel.setFiltroNfc(FiltroNfc.PENDENTE)
         val statePendente = viewModel.uiState.first {
-            it is EnderecosUiState.Success && it.filtroNfc == FiltroNfc.PENDENTE
+            it is EnderecosUiState.Success && it.filtroNfc == FiltroNfc.PENDENTE && it.posicoesPendentesCount == 1
         } as EnderecosUiState.Success
 
         val todasPosicoesPendentes = statePendente.estantes
@@ -105,23 +106,22 @@ class EnderecosViewModelTest {
 
     @Test
     fun testVinculacaoNfcUnicidadeEAtômica() = runTest {
-        // Posição POS_B2_01 é pendente de vinculação no seed
-        val posPendente = repository.getPosicaoById("POS_B2_01")
-        assertNotNull(posPendente)
+        val posAlvo = repository.getPosicaoById("POS_A3_03")
+        assertNotNull(posAlvo)
 
         // 1. Tentar vincular uma tag já vinculada a outra posição (POS_A1_01 usa "04:A1:2B:3C:4D:5E:01")
-        val resDuplicado = viewModel.vincularTag("POS_B2_01", "04:A1:2B:3C:4D:5E:01")
+        val resDuplicado = viewModel.vincularTag("POS_A3_03", "04:A1:2B:3C:4D:5E:01")
         assertFalse(resDuplicado.isSuccess)
         assertTrue(resDuplicado.exceptionOrNull()?.message?.contains("Tag já cadastrada em") == true)
 
-        // 2. Vincular uma tag nova e livre
-        val resNovo = viewModel.vincularTag("POS_B2_01", "04:AA:BB:CC:DD:EE:01")
+        // 2. Vincular uma tag nova e livre à posição POS_A3_03
+        val resNovo = viewModel.vincularTag("POS_A3_03", "04:AA:BB:CC:DD:EE:01")
         assertTrue(resNovo.isSuccess)
 
         // 3. Confirmar que gravou exclusivamente na tabela TagNFC
         val tagGravada = repository.getTagByUid("04:AA:BB:CC:DD:EE:01")
         assertNotNull(tagGravada)
-        assertEquals("POS_B2_01", tagGravada.posicaoId)
+        assertEquals("POS_A3_03", tagGravada.posicaoId)
     }
 
     @Test

@@ -72,9 +72,12 @@ class AddressCatalogFlowsTest {
 
     @Test
     fun testVinculacaoNfcUnicaEExclusiva() = runTest {
-        // POS_B2_01 é uma das posições pendentes do seed inicial
-        val posId = "POS_B2_01"
-        val tagUid = "04:A1:2B:3C:4D:5E:07"
+        // Desvincula tags de POS_A3_02 e POS_A3_03 para testar novo vínculo e unicidade
+        repository.desvincularTag("04:A1:2B:3C:4D:5E:08")
+        repository.desvincularTag("04:A1:2B:3C:4D:5E:09")
+
+        val posId = "POS_A3_02"
+        val tagUid = "04:A1:2B:3C:4D:5E:88"
 
         val novaTag = TagNFC(
             uid = tagUid,
@@ -84,16 +87,16 @@ class AddressCatalogFlowsTest {
         val resVincular = repository.vincularTag(novaTag)
         assertTrue(resVincular.isSuccess)
 
-        // Tentativa de vincular a MESMA tag a outra posição (POS_B2_02) -> Deve falhar
+        // Tentativa de vincular a MESMA tag a outra posição (POS_A3_03) -> Deve falhar
         val tagDuplicada = TagNFC(
             uid = tagUid,
-            posicaoId = "POS_B2_02",
+            posicaoId = "POS_A3_03",
             dataVinculo = 123456790L
         )
         val resDuplicada = repository.vincularTag(tagDuplicada)
         assertTrue(resDuplicada.isFailure, "Não pode permitir duplicar tag em posições diferentes")
 
-        // Tentativa de vincular OUTRA tag à mesma posição (POS_B2_01) -> Deve falhar
+        // Tentativa de vincular OUTRA tag à mesma posição (POS_A3_02) -> Deve falhar
         val outraTag = TagNFC(
             uid = "04:A1:2B:3C:4D:5E:99",
             posicaoId = posId,
@@ -111,7 +114,7 @@ class AddressCatalogFlowsTest {
         assertNotNull(estoqueOrigem)
         assertEquals(25, estoqueOrigem.quantidade)
 
-        val posDestino = "POS_B1_01"
+        val posDestino = "POS_A1_03"
 
         // 1. Executa moverItem com origem, destino e quantidade
         val resMover = repository.moverItem(item.id, "POS_A1_01", posDestino, 10)

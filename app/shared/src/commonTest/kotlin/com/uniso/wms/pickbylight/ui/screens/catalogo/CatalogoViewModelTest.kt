@@ -189,7 +189,7 @@ class CatalogoViewModelTest {
         val item = repository.getItemBySku("ARD-ESP32")
         assertNotNull(item)
         val posOrigem = "POS_A1_01"
-        val posDestino = "POS_B1_01"
+        val posDestino = "POS_A1_03"
 
         // 1. Mover para a mesma posição deve falhar
         val resMesmaPos = viewModel.moverItem(item.id, posOrigem, posOrigem, 5)

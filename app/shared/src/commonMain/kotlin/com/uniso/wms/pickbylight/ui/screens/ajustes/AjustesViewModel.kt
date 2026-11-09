@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 data class AjustesUiState(
     val brokerUrl: String = "",
     val pingStatusText: String? = null,
+    val resetStatusText: String? = null,
     val isTestingConnection: Boolean = false,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true
@@ -118,8 +119,22 @@ class AjustesViewModel(
 
     fun resetarDadosDemo() {
         scope.launch {
-            repository.resetarDadosDemo()
-            feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+            val result = repository.resetarDadosDemo()
+            if (result.isSuccess) {
+                _uiState.update {
+                    it.copy(
+                        resetStatusText = "Dados resetados! Maquete 3x3 carregada (1 Estante, 3 Prateleiras, 9 Posições, 9 Tags NFC e 5 Itens)."
+                    )
+                }
+                feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+            } else {
+                _uiState.update {
+                    it.copy(
+                        resetStatusText = "Falha ao resetar dados: ${result.exceptionOrNull()?.message}"
+                    )
+                }
+                feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
+            }
         }
     }
 }

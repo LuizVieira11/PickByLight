@@ -152,7 +152,7 @@ fun NfcSimulatorDialog(
                             ) {
                                 Column {
                                     Text(
-                                        text = posicao?.codigo ?: tag.posicaoId,
+                                        text = if (posicao != null) "${tag.posicaoId} (${posicao.codigo})" else tag.posicaoId,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = ShelfRackBlue

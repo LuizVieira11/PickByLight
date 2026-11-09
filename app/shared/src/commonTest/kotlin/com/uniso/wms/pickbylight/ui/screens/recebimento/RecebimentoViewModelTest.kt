@@ -31,17 +31,17 @@ class RecebimentoViewModelTest {
 
         assertEquals(RecebimentoStep.SCAN_NFC, viewModel.uiState.value.step)
 
-        // Tag cadastrada no seed para POS_A2_05: "04:A1:2B:3C:4D:5E:04"
+        // Tag cadastrada no seed 3x3 para POS_A2_01: "04:A1:2B:3C:4D:5E:04"
         viewModel.processarLeituraNfc("04:A1:2B:3C:4D:5E:04")
         testScheduler.runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(RecebimentoStep.FORM, state.step)
         assertNotNull(state.resolvedPosicao)
-        assertEquals("POS_A2_05", state.resolvedPosicao?.id)
+        assertEquals("POS_A2_01", state.resolvedPosicao?.id)
         assertEquals("04:A1:2B:3C:4D:5E:04", state.resolvedTagUid)
         assertTrue(state.enderecoFormatado.contains("PRAT-A2"))
-        assertTrue(state.enderecoFormatado.contains("POS-05"))
+        assertTrue(state.enderecoFormatado.contains("POS-01"))
         assertFalse(state.isErrorFlashingRed)
         assertNull(state.unmappedTagErrorUid)
     }
@@ -69,33 +69,33 @@ class RecebimentoViewModelTest {
     fun testFallbackSelecaoManualDeEnderecoAvancaParaFormulario() = runTest {
         val viewModel = RecebimentoViewModel(repository, feedbackController, this)
 
-        // Seleciona manualmente uma posição sem tag NFC vinculada (POS_B2_01)
-        val posSemTag = repository.getPosicaoById("POS_B2_01")
-        assertNotNull(posSemTag)
+        // Seleciona manualmente a posição POS_A3_03 da maquete 3x3
+        val posManual = repository.getPosicaoById("POS_A3_03")
+        assertNotNull(posManual)
 
-        viewModel.selecionarEnderecoManualmente(posSemTag)
+        viewModel.selecionarEnderecoManualmente(posManual)
         testScheduler.runCurrent()
 
         val state = viewModel.uiState.value
         assertEquals(RecebimentoStep.FORM, state.step)
-        assertEquals("POS_B2_01", state.resolvedPosicao?.id)
-        assertNull(state.resolvedTagUid)
-        assertTrue(state.enderecoFormatado.contains("PRAT-B2"))
-        assertTrue(state.enderecoFormatado.contains("POS-01"))
+        assertEquals("POS_A3_03", state.resolvedPosicao?.id)
+        assertEquals("04:A1:2B:3C:4D:5E:09", state.resolvedTagUid)
+        assertTrue(state.enderecoFormatado.contains("PRAT-A3"))
+        assertTrue(state.enderecoFormatado.contains("POS-03"))
     }
 
     @Test
     fun testConfirmarEntradaAtualizaEstoquePosicaoERegistraMovimentacaoEntrada() = runTest {
         val viewModel = RecebimentoViewModel(repository, feedbackController, this)
 
-        // 1. Bipa tag da POS_A2_05
+        // 1. Bipa tag da POS_A2_01 ("04:A1:2B:3C:4D:5E:04")
         viewModel.processarLeituraNfc("04:A1:2B:3C:4D:5E:04")
         testScheduler.runCurrent()
 
-        // 2. Seleciona item LED-WS2812 (que já possui 12 UN em POS_A2_05 no seed)
+        // 2. Seleciona item LED-WS2812 (que já possui 12 UN em POS_A2_01 no seed)
         val item = repository.getItemBySku("LED-WS2812")
         assertNotNull(item)
-        val saldoInicial = repository.getEstoque(item.id, "POS_A2_05")?.quantidade ?: 0
+        val saldoInicial = repository.getEstoque(item.id, "POS_A2_01")?.quantidade ?: 0
         assertEquals(12, saldoInicial)
 
         viewModel.selecionarItem(item)
@@ -117,7 +117,7 @@ class RecebimentoViewModelTest {
         assertEquals(state.successMessage, state.snackbarMessage)
 
         // 4. Verifica atualização na tabela EstoquePosicao (12 + 8 = 20)
-        val estoqueAtualizado = repository.getEstoque(item.id, "POS_A2_05")
+        val estoqueAtualizado = repository.getEstoque(item.id, "POS_A2_01")
         assertNotNull(estoqueAtualizado)
         assertEquals(20, estoqueAtualizado.quantidade)
 
@@ -126,7 +126,7 @@ class RecebimentoViewModelTest {
         val movEntrada = movs.find {
             it.tipo == TipoMovimentacao.ENTRADA &&
                 it.itemId == item.id &&
-                it.posicaoId == "POS_A2_05"
+                it.posicaoId == "POS_A2_01"
         }
         assertNotNull(movEntrada)
         assertEquals(8, movEntrada.quantidade)

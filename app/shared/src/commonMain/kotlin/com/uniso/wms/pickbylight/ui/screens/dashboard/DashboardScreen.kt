@@ -385,8 +385,8 @@ fun DashboardScreen(
                 coroutineScope.launch {
                     val result = mqttService.testarLed(
                         estanteLedId = "EST_A_LED1",
-                        prateleiraLedId = "PRAT_A2_LED1",
-                        posicaoLedId = "POS_A2_05",
+                        prateleiraLedId = "PRAT_A1_LED1",
+                        posicaoLedId = "POS_A1_01",
                         cor = "AZUL",
                         duracaoMs = 3000
                     )

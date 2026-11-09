@@ -34,10 +34,10 @@ class SeparacaoViewModelTest {
     fun testAgrupamentoMultiplosItensNaMesmaPosicaoFisicaEOrdenacaoDeRota() = runTest {
         val viewModel = SeparacaoViewModel(repository, mqttService, feedbackController, this)
 
-        // Criamos um item extra alocado na mesma posição que o ITEM_3 (POS_A2_05)
+        // Criamos um item extra alocado na mesma posição que o ITEM_3 (POS_A2_01)
         val itemExtraNaMesmaPos = Item(
-            id = "ITEM_EXTRA_A2_05",
-            sku = "SKU-EXTRA-A2-05",
+            id = "ITEM_EXTRA_A2_01",
+            sku = "SKU-EXTRA-A2-01",
             nome = "Cabo de Programação USB",
             categoria = "Acessórios",
             unidade = "UN",
@@ -45,7 +45,7 @@ class SeparacaoViewModelTest {
             emSeparacao = false
         )
         repository.salvarItem(itemExtraNaMesmaPos)
-        repository.atualizarEstoquePosicao("ITEM_EXTRA_A2_05", "POS_A2_05", 10)
+        repository.atualizarEstoquePosicao("ITEM_EXTRA_A2_01", "POS_A2_01", 10)
 
         val itens = repository.getItens().first()
         val posicoes = repository.getPosicoes().first()
@@ -55,12 +55,12 @@ class SeparacaoViewModelTest {
 
         // Selecionamos:
         // - ITEM_1 na POS_A1_01 (1 unidade)
-        // - ITEM_3 na POS_A2_05 (2 unidades)
-        // - ITEM_EXTRA_A2_05 na POS_A2_05 (1 unidade)
+        // - ITEM_3 na POS_A2_01 (2 unidades)
+        // - ITEM_EXTRA_A2_01 na POS_A2_01 (1 unidade)
         val selecao = mapOf(
             "ITEM_1" to 1,
             "ITEM_3" to 2,
-            "ITEM_EXTRA_A2_05" to 1
+            "ITEM_EXTRA_A2_01" to 1
         )
 
         viewModel.iniciarColeta(
@@ -78,12 +78,12 @@ class SeparacaoViewModelTest {
         val state = viewModel.uiState.value
 
         // Validação da Aglutinação (Grouping):
-        // Eram 3 itens selecionados, mas como 2 residem em POS_A2_05, foram gerados apenas 2 passos de rota!
+        // Eram 3 itens selecionados, mas como 2 residem em POS_A2_01, foram gerados apenas 2 passos de rota!
         assertEquals(2, state.totalPassos)
         assertEquals(EtapaSeparacao.VALIDACAO_NFC, state.etapa)
         assertEquals(0, state.passoAtualIndex)
 
-        // Validação da Ordenação Sequencial de Rota (POS_A1_01 -> POS_A2_05)
+        // Validação da Ordenação Sequencial de Rota (POS_A1_01 -> POS_A2_01)
         val primeiroPasso = state.passos[0]
         val segundoPasso = state.passos[1]
 
@@ -91,18 +91,18 @@ class SeparacaoViewModelTest {
         assertEquals(1, primeiroPasso.itens.size)
         assertEquals("ITEM_1", primeiroPasso.itens[0].item.id)
 
-        assertEquals("POS_A2_05", segundoPasso.posicao.id)
+        assertEquals("POS_A2_01", segundoPasso.posicao.id)
         assertEquals(2, segundoPasso.itens.size) // 2 itens agrupados no mesmo endereço!
 
         val idsNoPasso2 = segundoPasso.itens.map { it.item.id }
         assertTrue(idsNoPasso2.contains("ITEM_3"))
-        assertTrue(idsNoPasso2.contains("ITEM_EXTRA_A2_05"))
+        assertTrue(idsNoPasso2.contains("ITEM_EXTRA_A2_01"))
 
         // Validação do Lock Otimista
         val itensAtualizados = repository.getItens().first()
         assertTrue(itensAtualizados.find { it.id == "ITEM_1" }!!.emSeparacao)
         assertTrue(itensAtualizados.find { it.id == "ITEM_3" }!!.emSeparacao)
-        assertTrue(itensAtualizados.find { it.id == "ITEM_EXTRA_A2_05" }!!.emSeparacao)
+        assertTrue(itensAtualizados.find { it.id == "ITEM_EXTRA_A2_01" }!!.emSeparacao)
     }
 
     @Test
@@ -739,10 +739,10 @@ class SeparacaoViewModelTest {
 
         assertEquals("POS_A1_01", viewModel.uiState.value.passoAtual?.posicao?.id)
 
-        // Operador no chão de fábrica bipa a tag da POS_A2_01 ("04:A1:2B:3C:4D:5E:03"),
+        // Operador no chão de fábrica bipa a tag da POS_A2_01 ("04:A1:2B:3C:4D:5E:04"),
         // que TAMBÉM possui o ITEM_1 com saldo suficiente (10 >= 2)!
         viewModel.processarLeituraNfc(
-            scannedUid = "04:A1:2B:3C:4D:5E:03",
+            scannedUid = "04:A1:2B:3C:4D:5E:04",
             allTags = tags,
             allPosicoes = posicoes,
             allPrateleiras = prateleiras,
@@ -785,7 +785,7 @@ class SeparacaoViewModelTest {
         val estantes = repository.getEstantes().first()
         val tags = repository.getTagsNFC().first()
 
-        // Inicia coleta com 2 paradas: ITEM_1 (POS_A1_01) e ITEM_3 (POS_A2_05)
+        // Inicia coleta com 2 paradas: ITEM_1 (POS_A1_01) e ITEM_3 (POS_A2_01)
         viewModel.iniciarColeta(
             itensDisponiveis = itens,
             posicoes = posicoes,
@@ -817,16 +817,16 @@ class SeparacaoViewModelTest {
         viewModel.finalizarRetiradaPassoAtual(mapOf("ITEM_1" to 2))
         testScheduler.runCurrent()
 
-        // Deve ter apagado o LED de POS_A1_01 e acendido o LED de POS_A2_05 (Passo 2 de 2)
+        // Deve ter apagado o LED de POS_A1_01 e acendido o LED de POS_A2_01 (Passo 2 de 2)
         assertEquals(EtapaSeparacao.VALIDACAO_NFC, viewModel.uiState.value.etapa)
         assertEquals(1, viewModel.uiState.value.passoAtualIndex)
         assertEquals(3, mqttService.sentCommands.size)
         assertTrue(mqttService.sentCommands[1].contains("\"acao\":\"APAGAR\""))
         assertTrue(mqttService.sentCommands[1].contains("\"posicao_led_id\":\"POS_A1_01\""))
         assertTrue(mqttService.sentCommands[2].contains("\"acao\":\"ACENDER\""))
-        assertTrue(mqttService.sentCommands[2].contains("\"posicao_led_id\":\"POS_A2_05\""))
+        assertTrue(mqttService.sentCommands[2].contains("\"posicao_led_id\":\"POS_A2_01\""))
 
-        // Operador bipa NFC da POS_A2_05 e confirma retirada do Passo 2
+        // Operador bipa NFC da POS_A2_01 e confirma retirada do Passo 2
         viewModel.processarLeituraNfc(
             scannedUid = "04:A1:2B:3C:4D:5E:04",
             allTags = tags,
@@ -837,11 +837,11 @@ class SeparacaoViewModelTest {
         viewModel.finalizarRetiradaPassoAtual(mapOf("ITEM_3" to 3))
         testScheduler.runCurrent()
 
-        // Deve ter apagado o LED de POS_A2_05 e concluído a rota
+        // Deve ter apagado o LED de POS_A2_01 e concluído a rota
         assertEquals(EtapaSeparacao.CONCLUIDO, viewModel.uiState.value.etapa)
         assertEquals(4, mqttService.sentCommands.size)
         assertTrue(mqttService.sentCommands[3].contains("\"acao\":\"APAGAR\""))
-        assertTrue(mqttService.sentCommands[3].contains("\"posicao_led_id\":\"POS_A2_05\""))
+        assertTrue(mqttService.sentCommands[3].contains("\"posicao_led_id\":\"POS_A2_01\""))
     }
 
     @Test

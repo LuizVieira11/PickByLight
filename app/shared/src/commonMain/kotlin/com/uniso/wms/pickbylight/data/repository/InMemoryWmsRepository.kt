@@ -43,13 +43,21 @@ class InMemoryWmsRepository(
     }
 
     private fun popularSeed() {
+        // Apaga todos os dados anteriores antes de inserir o novo seed da maquete 3x3
+        estantesState.value = emptyList()
+        prateleirasState.value = emptyList()
+        posicoesState.value = emptyList()
+        tagsNfcState.value = emptyList()
+        itensState.value = emptyList()
+        estoquesPosicaoState.value = emptyList()
+        movimentacoesState.value = emptyList()
+
         estantesState.value = WmsSeeder.seedEstantes()
         prateleirasState.value = WmsSeeder.seedPrateleiras()
         posicoesState.value = WmsSeeder.seedPosicoes()
         tagsNfcState.value = WmsSeeder.seedTagsNFC()
         itensState.value = WmsSeeder.seedItens()
         estoquesPosicaoState.value = WmsSeeder.seedEstoquesPosicao()
-        movimentacoesState.value = emptyList()
     }
 
     // --- Estantes ---

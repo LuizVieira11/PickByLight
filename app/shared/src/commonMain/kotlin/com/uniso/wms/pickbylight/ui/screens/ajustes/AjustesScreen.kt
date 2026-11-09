@@ -291,6 +291,16 @@ fun AjustesScreen(
                     containerColor = AmberWarning,
                     contentColor = Color.White
                 )
+
+                if (uiState.resetStatusText != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = uiState.resetStatusText ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (uiState.resetStatusText?.startsWith("Dados resetados") == true) EmeraldSuccess else CoralError
+                    )
+                }
             }
         }
     }
