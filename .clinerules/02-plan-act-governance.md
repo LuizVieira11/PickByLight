@@ -1,6 +1,7 @@
 # Governança Plan / Act (9Router + Cline)
 
 Este projeto usa modelos distintos no Cline: **Plan Mode (`planner`)** para raciocínio/arquitetura e **Act Mode (`executor`)** para edição de código e testes.
+**Orquestração exclusiva via Plan/Act (9Router):** Não tente disparar subagentes paralelos nem utilize as skills `subagent-driven-development` ou `dispatching-parallel-agents`.
 
 ## Regras para Plan Mode (`planner`)
 1. **Leia antes de propor**: Consulte `especificacao/ESPECIFICACAO.md` e os arquivos reais envolvidos (ViewModels, repositórios, payloads, testes) antes de desenhar qualquer solução.
