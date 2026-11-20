@@ -445,6 +445,10 @@ interface MqttService {
 - *O ESP32 deve apagar o LED automaticamente após `duracao_ms` (default $3\text{ s}$), sem necessidade de comando `APAGAR` adicional.*
 - *Resposta esperada no tópico `ack`: `{"acao":"ACK","posicao_led_id":"...","status":"OK"}`.*
 
+### 4.4. Gerenciamento de ESPs e compatibilidade MQTT
+
+A descoberta e configuração de ESPs, o mapeamento de IDs lógicos para canais GPIO, o firmware e a compatibilidade MQTT 5/MQTT 3.1.1 estão especificados em [`MQTT5_E_ESP32.md`](MQTT5_E_ESP32.md). Os contratos legados permanecem inalterados: tópicos `wms/pickbylight/comando`, `wms/pickbylight/ack` e `wms/pickbylight/status/app`, payloads, nomes de campos e semântica operacional continuam válidos.
+
 ---
 
 ## 5. Tratamento de Falhas e Timeouts (Casos de Exceção)

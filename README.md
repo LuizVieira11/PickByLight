@@ -1,6 +1,6 @@
 # 📦 WMS Pick-by-Light — Sistema de Gerenciamento de Armazém com IoT (MQTT) e NFC
 
-Sistema **WMS (Warehouse Management System)** multiplataforma desenvolvido em **Kotlin Multiplatform (KMP)** e **Compose Multiplatform**, integrando dispositivos móveis **Android** (com leitura física NFC e cliente nativo MQTT Eclipse Paho) e interface **Web/Wasm** ao protótipo físico de estantes iluminadas controladas por **ESP32 + Fitas de LED endereçáveis WS2812B**.
+Sistema **WMS (Warehouse Management System)** multiplataforma desenvolvido em **Kotlin Multiplatform (KMP)** e **Compose Multiplatform**, integrando dispositivos móveis **Android** (com leitura física NFC e cliente nativo MQTT Eclipse Paho) e interface **Web/Wasm** ao protótipo físico de estantes iluminadas controladas por **ESP32 + LEDs discretos monocromáticos, um por canal GPIO**.
 
 ---
 
