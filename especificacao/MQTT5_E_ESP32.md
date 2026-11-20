@@ -1060,6 +1060,7 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 12. **README:** além da linha 3 (WS2812B → LEDs discretos), recebe uma seção nova com broker/ACL, toolchain do ESP, ligação dos LEDs e link para `esp32/TESTES_BANCADA.md`. Os exemplos de comando passam a ter a forma Windows (`gradlew.bat`).
 13. **GPIO16/17, GPIO5/14/15 e corrente:** regras preventivas, confirmadas na placa real durante a bancada (casos 16–18) e pela medição de corrente.
 14. **Recebimento v1 tolerante:** o app decodifica `status`, `config/state` e `config/result` ignorando chaves desconhecidas (um firmware mais novo pode acrescentar campos sem quebrar o app). Continuam inválidos (`INVALID_SCHEMA`): campo obrigatório ausente, enum desconhecido, `request_id` em `status`, `capabilities` ou `request_id` em OFFLINE. A validação de `config/set`, `config/get` e `discovery/request` (espelho do ESP) segue estrita, pois os schemas têm `additionalProperties: false`.
+15. **Autenticação adiada:** o broker do protótipo roda sem usuário, senha ou ACL. A seção 12 fica como configuração-alvo para uma fase posterior. O app e o firmware devem funcionar com credenciais **vazias** (conexão anônima). As credenciais são opcionais em toda a implementação, e nenhum fluxo pode exigi-las.
 
 
 ## 17. Pendências `[PREENCHER]`

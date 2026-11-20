@@ -1,0 +1,238 @@
+package com.uniso.wms.pickbylight.data.mqtt
+
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class PahoMqttServiceTransportTest {
+
+    private data class RecordedPublish(
+        val topic: String,
+        val payload: String,
+        val qos: Int,
+        val retained: Boolean
+    )
+
+    private class FakeMqttTransport : MqttTransport {
+        override var isConnected: Boolean = false
+        var registeredCallbacks: MqttTransportCallbacks? = null
+        val connectConfigs = mutableListOf<MqttConnectConfig>()
+        val subscriptions = mutableListOf<MqttSubscription>()
+        val publishes = mutableListOf<RecordedPublish>()
+        var failNextConnect: Boolean = false
+        var remainingFailuresOnCommand: Int = 0
+        var onPublish: ((FakeMqttTransport, RecordedPublish) -> Unit)? = null
+
+        override fun setCallbacks(callbacks: MqttTransportCallbacks?) {
+            this.registeredCallbacks = callbacks
+        }
+
+        override suspend fun connect(config: MqttConnectConfig): Result<MqttConnectResult> {
+            connectConfigs.add(config)
+            if (failNextConnect) {
+                isConnected = false
+                return Result.failure(IllegalStateException("Falha simulada ao conectar"))
+            }
+            isConnected = true
+            return Result.success(MqttConnectResult(MqttProtocol.V3_1_1, returnCode = 0))
+        }
+
+        override suspend fun subscribe(
+            subscriptions: List<MqttSubscription>,
+            timeoutMs: Long
+        ): Result<MqttSubscribeResult> {
+            this.subscriptions.addAll(subscriptions)
+            return Result.success(MqttSubscribeResult(subscriptions.associate { it.topicFilter to 0 }))
+        }
+
+        override suspend fun publish(
+            topic: String,
+            payload: ByteArray,
+            qos: Int,
+            retained: Boolean,
+            properties: MqttMessageProperties?,
+            timeoutMs: Long
+        ): Result<MqttPublishResult> {
+            val rec = RecordedPublish(topic, String(payload, Charsets.UTF_8), qos, retained)
+            if (topic == "wms/pickbylight/comando" && remainingFailuresOnCommand > 0) {
+                remainingFailuresOnCommand--
+                return Result.failure(IllegalStateException("Falha simulada de fila"))
+            }
+            publishes.add(rec)
+            onPublish?.invoke(this, rec)
+            return Result.success(MqttPublishResult(reasonCode = null))
+        }
+
+        override suspend fun disconnectForcibly(quiesceTimeoutMs: Long, disconnectTimeoutMs: Long) {
+            isConnected = false
+        }
+
+        fun deliverAck(json: String) {
+            registeredCallbacks?.onMessageArrived(
+                MqttIncomingMessage(
+                    topic = "wms/pickbylight/ack",
+                    payload = json.toByteArray(Charsets.UTF_8)
+                )
+            )
+        }
+    }
+
+    @Test
+    fun connectConfiguresLwtAnonymousCleanSessionSubscribesAckAndPublishesOnline() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val transport = FakeMqttTransport()
+        val service = PahoMqttServiceImpl(
+            scope = backgroundScope,
+            transportFactory = { transport },
+            clientIdProvider = { "WmsMobile_TEST" },
+            ioDispatcher = dispatcher
+        )
+
+        service.connect("tcp://10.0.0.10:1883")
+
+        val cfg = transport.connectConfigs.single()
+        assertEquals("tcp://10.0.0.10:1883", cfg.brokerUrl)
+        assertEquals("WmsMobile_TEST", cfg.clientId)
+        assertTrue(cfg.cleanSession)
+        assertEquals(5, cfg.connectionTimeoutSeconds)
+        assertEquals(30, cfg.keepAliveSeconds)
+        assertNull(cfg.username)
+        assertNull(cfg.password)
+
+        val will = assertNotNull(cfg.will)
+        assertEquals("wms/pickbylight/status/app", will.topic)
+        assertEquals("""{"client":"wms_mobile","status":"OFFLINE"}""", String(will.payload, Charsets.UTF_8))
+        assertEquals(1, will.qos)
+        assertTrue(will.retained)
+
+        assertEquals(listOf(MqttSubscription("wms/pickbylight/ack", qos = 1)), transport.subscriptions)
+        val onlinePub = transport.publishes.single()
+        assertEquals("wms/pickbylight/status/app", onlinePub.topic)
+        assertEquals("""{"client":"wms_mobile","status":"ONLINE"}""", onlinePub.payload)
+        assertEquals(1, onlinePub.qos)
+        assertTrue(onlinePub.retained)
+        assertEquals(MqttConnectionState.CONNECTED, service.connectionState.value)
+    }
+
+    @Test
+    fun publishesFourLegacyCommandsWithExactTopicQosRetainAndGoldenJson() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val transport = FakeMqttTransport().apply {
+            onPublish = { t, rec ->
+                if (rec.topic == "wms/pickbylight/comando") {
+                    when {
+                        rec.payload.contains("ACENDER") -> t.deliverAck("""{"acao":"ACK","posicao_led_id":"POS_A2_05","status":"OK"}""")
+                        rec.payload.contains("PING") -> t.deliverAck("""{"acao":"PONG","status":"OK"}""")
+                    }
+                }
+            }
+        }
+        val service = PahoMqttServiceImpl(backgroundScope, { transport }, { "WmsMobile_TEST" }, dispatcher)
+        service.connect("tcp://10.0.0.10:1883")
+        transport.publishes.clear()
+
+        assertTrue(service.acenderLed("EST_A_LED1", "PRAT_A2_LED1", "POS_A2_05", "VERDE").isSuccess)
+        assertTrue(service.apagarLed("EST_A_LED1", "PRAT_A2_LED1", "POS_A2_05").isSuccess)
+        assertTrue(service.enviarPing().isSuccess)
+        assertTrue(service.testarLed("EST_A_LED1", null, null, "AZUL", 3000).isSuccess)
+
+        assertEquals(4, transport.publishes.size)
+        transport.publishes.forEach {
+            assertEquals("wms/pickbylight/comando", it.topic)
+            assertEquals(1, it.qos)
+            assertFalse(it.retained)
+        }
+        assertEquals(
+            listOf(
+                """{"acao":"ACENDER","estante_led_id":"EST_A_LED1","prateleira_led_id":"PRAT_A2_LED1","posicao_led_id":"POS_A2_05","cor":"VERDE"}""",
+                """{"acao":"APAGAR","estante_led_id":"EST_A_LED1","prateleira_led_id":"PRAT_A2_LED1","posicao_led_id":"POS_A2_05"}""",
+                """{"acao":"PING"}""",
+                """{"acao":"TESTE_LED","estante_led_id":"EST_A_LED1","prateleira_led_id":null,"posicao_led_id":null,"cor":"AZUL","duracao_ms":3000}"""
+            ),
+            transport.publishes.map { it.payload }
+        )
+    }
+
+    @Test
+    fun queuesWhenDisconnectedAndRetriesUpToMaxThreeAttempts() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val transport = FakeMqttTransport()
+        val service = PahoMqttServiceImpl(backgroundScope, { transport }, { "WmsMobile_TEST" }, dispatcher)
+
+        val offlineRes = service.apagarLed("EST_A_LED1", "PRAT_A1_LED1", "POS_A1_01")
+        assertTrue(offlineRes.isFailure)
+        assertEquals(1, service.pendingCommandsCount.value)
+
+        // Falha nas 3 tentativas seguintes de envio de comando: após esgotar 3, próxima reconexão descarta.
+        transport.remainingFailuresOnCommand = 5
+        repeat(3) {
+            service.connect("tcp://10.0.0.10:1883")
+            advanceUntilIdle()
+            assertEquals(1, service.pendingCommandsCount.value)
+        }
+
+        // Na 4ª reconexão, tentativas já == 3: remove sem consumir nova tentativa de publish.
+        service.connect("tcp://10.0.0.10:1883")
+        advanceUntilIdle()
+        assertEquals(0, service.pendingCommandsCount.value)
+        assertEquals(2, transport.remainingFailuresOnCommand, "máximo 3 tentativas de envio")
+
+        service.disconnect()
+        advanceUntilIdle()
+        transport.remainingFailuresOnCommand = 0
+        assertTrue(service.apagarLed("EST_A_LED1", "PRAT_A1_LED1", "POS_A1_01").isFailure)
+        assertEquals(1, service.pendingCommandsCount.value)
+
+        service.connect("tcp://10.0.0.10:1883")
+        advanceUntilIdle()
+        assertEquals(0, service.pendingCommandsCount.value)
+        assertTrue(transport.publishes.any { it.topic == "wms/pickbylight/comando" && it.payload.contains("APAGAR") })
+    }
+
+    @Test
+    fun resolvesPendingAckAndRespects5sTimeout() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val transport = FakeMqttTransport()
+        val service = PahoMqttServiceImpl(backgroundScope, { transport }, { "WmsMobile_TEST" }, dispatcher)
+        service.connect("tcp://10.0.0.10:1883")
+
+        transport.onPublish = { t, rec ->
+            if (rec.topic == "wms/pickbylight/comando") {
+                t.deliverAck("""{"acao":"ACK","posicao_led_id":"POS_A1_01","status":"ERRO"}""")
+            }
+        }
+        assertTrue(service.acenderLed("EST_A", "PRAT_A1", "POS_A1_01").isFailure)
+
+        transport.onPublish = null
+        val start = currentTime
+        val timeoutRes = service.acenderLed("EST_A", "PRAT_A1", "POS_A1_01")
+        assertTrue(timeoutRes.isFailure)
+        assertTrue(currentTime - start >= 5_000L)
+    }
+
+    @Test
+    fun reconnectBackoffStopsAtErrorAfter5AttemptsAndPreservesTiming() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val transport = FakeMqttTransport().apply { failNextConnect = true }
+        val service = PahoMqttServiceImpl(this, { transport }, { "WmsMobile_TEST" }, dispatcher)
+
+        val start = currentTime
+        service.connect("tcp://10.0.0.10:1883")
+        advanceUntilIdle()
+        val elapsed = currentTime - start
+
+        assertEquals(MqttConnectionState.ERROR, service.connectionState.value)
+        // 1 inicial + 5 tentativas de backoff = 6 chamadas connect; 1s + 2s + 4s + 8s + 16s = 31s virtuais.
+        assertEquals(6, transport.connectConfigs.size)
+        assertEquals(31_000L, elapsed)
+    }
+}
