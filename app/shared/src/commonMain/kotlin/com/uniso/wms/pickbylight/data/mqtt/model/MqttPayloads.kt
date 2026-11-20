@@ -7,6 +7,25 @@ object MqttTopics {
     const val COMANDO = "wms/pickbylight/comando"
     const val ACK = "wms/pickbylight/ack"
     const val STATUS_APP = "wms/pickbylight/status/app"
+
+    // Namespace de gerenciamento v1 (MQTT5_E_ESP32.md, seção 5). Tópicos acima são legados e não mudam.
+    const val V1_ROOT = "wms/pickbylight/v1"
+    const val V1_DISCOVERY_REQUEST = "$V1_ROOT/discovery/request"
+    const val V1_ESP_STATUS_FILTER = "$V1_ROOT/esp/+/status"
+    const val V1_ESP_CONFIG_STATE_FILTER = "$V1_ROOT/esp/+/config/state"
+    const val V1_ESP_CONFIG_RESULT_FILTER = "$V1_ROOT/esp/+/config/result"
+
+    fun espStatus(espId: String) = "$V1_ROOT/esp/$espId/status"
+    fun espConfigGet(espId: String) = "$V1_ROOT/esp/$espId/config/get"
+    fun espConfigState(espId: String) = "$V1_ROOT/esp/$espId/config/state"
+    fun espConfigSet(espId: String) = "$V1_ROOT/esp/$espId/config/set"
+    fun espConfigResult(espId: String) = "$V1_ROOT/esp/$espId/config/result"
+
+    private val ESP_TOPIC_REGEX =
+        Regex("""^wms/pickbylight/v1/esp/(esp-[0-9a-f]{6})/(status|config/(get|state|set|result))$""")
+
+    /** Extrai o `esp_id` de um tópico v1; null se o tópico não segue o contrato. */
+    fun espIdFromTopic(topic: String): String? = ESP_TOPIC_REGEX.matchEntire(topic)?.groupValues?.get(1)
 }
 
 @Serializable
@@ -45,9 +64,17 @@ data class MqttComandoTesteLed(
 data class MqttAck(
     val acao: String = "ACK",
     @SerialName("posicao_led_id") val posicaoLedId: String? = null,
-    val status: String // "OK" ou "ERRO"
+    val status: String, // "OK" ou "ERRO"
+    // Aditivos (MQTT5_E_ESP32.md 6.9). Opcionais: ACK legado continua válido. PONG também decodifica aqui.
+    @SerialName("esp_id") val espId: String? = null,
+    @SerialName("boot_id") val bootId: String? = null,
+    @SerialName("request_id") val requestId: String? = null,
+    // String (não enum) de propósito: código desconhecido não pode derrubar o parse e perder o ACK.
+    @SerialName("error_code") val errorCode: String? = null
 ) {
     val isOk: Boolean get() = status.equals("OK", ignoreCase = true)
+    val isPong: Boolean get() = acao.equals("PONG", ignoreCase = true)
+    val errorCodeEnum: EspErrorCode? get() = EspErrorCode.entries.firstOrNull { it.name == errorCode }
 }
 
 @Serializable
