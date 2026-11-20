@@ -123,6 +123,16 @@ object EspContract {
     fun encodeStatusOffline(status: EspStatusOffline): String =
         outJson.encodeToString(EspStatusOffline.serializer(), status)
 
+    // Encoders ESP -> app usados por simuladores e testes; seguem o mesmo outJson (explicitNulls = false).
+    internal fun encodeStatusOnline(status: EspStatusOnline): String =
+        outJson.encodeToString(EspStatusOnline.serializer(), status)
+
+    internal fun encodeConfigState(state: ConfigState): String =
+        outJson.encodeToString(ConfigState.serializer(), state)
+
+    internal fun encodeConfigResult(result: ConfigResult): String =
+        outJson.encodeToString(ConfigResult.serializer(), result)
+
     private fun encodeLimited(payload: String, maxBytes: Int): ContractResult<String> =
         if (utf8Size(payload) > maxBytes) {
             ContractResult.Invalid(EspErrorCode.PAYLOAD_TOO_LARGE, "${utf8Size(payload)} bytes > $maxBytes")

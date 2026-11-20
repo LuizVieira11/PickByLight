@@ -40,7 +40,7 @@ class FakeMqttEspManagementTest {
     private fun <T> MqttOutcome<T>.value(): T = when (this) {
         is MqttOutcome.Ok -> value
         is MqttOutcome.Erro -> fail("esperado OK, veio ERRO($errorCode)")
-        MqttOutcome.Timeout -> fail("esperado OK, veio TIMEOUT")
+        is MqttOutcome.Timeout -> fail("esperado OK, veio TIMEOUT")
     }
 
     @Test

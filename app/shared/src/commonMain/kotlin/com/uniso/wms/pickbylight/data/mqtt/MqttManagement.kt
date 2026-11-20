@@ -1,9 +1,10 @@
 package com.uniso.wms.pickbylight.data.mqtt
 
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigState
 import com.uniso.wms.pickbylight.data.mqtt.model.EspErrorCode
+import com.uniso.wms.pickbylight.data.mqtt.model.EspOnlineStatus
 import com.uniso.wms.pickbylight.data.mqtt.model.EspStatusOnline
-import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
 
 /**
  * Tipos da API de gerenciamento de ESPs em [MqttService] (especificacao/MQTT5_E_ESP32.md, seções 4.3, 9 e 16).
@@ -12,6 +13,16 @@ import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
 
 /** Protocolo MQTT efetivamente negociado na conexão do app (4.3). `null` no serviço = sem conexão. */
 enum class MqttProtocol { V5_0, V3_1_1 }
+
+/** Preferência configurada em Ajustes (4.3). Etapa 4 persiste em DataStore. */
+enum class MqttProtocolMode { AUTO, V5_0, V3_1_1 }
+
+/** Diagnóstico de transporte (ex.: PUBACK 0x10 No matching subscribers); nunca substitui ACK/config/result (4.2). */
+data class MqttDiagnostic(
+    val code: Int,
+    val message: String,
+    val topic: String? = null
+)
 
 /**
  * O que a conexão atual oferece (4.2). A lógica de negócio decide por aqui, nunca por `if (v5)`.
@@ -48,7 +59,13 @@ data class EspDevice(
     val presence: EspPresence,
     val status: EspStatusOnline?,
     val config: ConfigState? = null
-)
+) {
+    /** Status reportado pelo ESP (ONLINE | CONFIG_INVALID), independente de [presence] (9.3 / 6.2). */
+    val reportedStatus: EspOnlineStatus? get() = status?.status
+
+    /** Código de erro quando [reportedStatus] é `CONFIG_INVALID` (INVALID_CHANNEL_TABLE | STORAGE_FAILURE). */
+    val errorCode: EspErrorCode? get() = status?.errorCode
+}
 
 /**
  * Resultado de uma operação que espera resposta do ESP. Ausência de resposta é [Timeout],
@@ -56,12 +73,23 @@ data class EspDevice(
  * vem como `Result.failure` no método, não aqui.
  */
 sealed interface MqttOutcome<out T> {
-    data class Ok<T>(val value: T) : MqttOutcome<T>
+    val diagnostics: List<MqttDiagnostic>
+
+    data class Ok<T>(
+        val value: T,
+        override val diagnostics: List<MqttDiagnostic> = emptyList()
+    ) : MqttOutcome<T>
 
     /** O ESP respondeu ERRO. [config] traz o `config/result` completo quando a operação é `config/set`. */
-    data class Erro(val errorCode: EspErrorCode?, val config: ConfigResult? = null) : MqttOutcome<Nothing>
+    data class Erro(
+        val errorCode: EspErrorCode?,
+        val config: ConfigResult? = null,
+        override val diagnostics: List<MqttDiagnostic> = emptyList()
+    ) : MqttOutcome<Nothing>
 
-    data object Timeout : MqttOutcome<Nothing>
+    data class Timeout(
+        override val diagnostics: List<MqttDiagnostic> = emptyList()
+    ) : MqttOutcome<Nothing>
 }
 
 /** Janelas e timeouts da seção 9 e do contrato legado (5 s de ACK). */
