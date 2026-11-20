@@ -1,5 +1,8 @@
 package com.uniso.wms.pickbylight.data.mqtt
 
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigSet
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigState
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttAck
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoAcender
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoApagar
@@ -379,6 +382,31 @@ class PahoMqttServiceImpl(
             Result.failure(IllegalStateException("Timeout de resposta ao PING"))
         }
     }
+
+    // ---- Gerenciamento de ESPs: stubs explícitos. A Etapa 4 (adapter Paho v3/v5) os substitui. ----
+
+    override val negotiatedProtocol: StateFlow<MqttProtocol?> = MutableStateFlow<MqttProtocol?>(null).asStateFlow()
+
+    override val capabilities: StateFlow<MqttCapabilities> = MutableStateFlow(MqttCapabilities.NONE).asStateFlow()
+
+    override val espDevices: StateFlow<List<EspDevice>> = MutableStateFlow<List<EspDevice>>(emptyList()).asStateFlow()
+
+    override suspend fun descobrirEsps(): Result<List<EspDevice>> = notImplementedYet()
+
+    override suspend fun obterConfig(espId: String): Result<MqttOutcome<ConfigState>> = notImplementedYet()
+
+    override suspend fun gravarConfig(set: ConfigSet): Result<MqttOutcome<ConfigResult>> = notImplementedYet()
+
+    override suspend fun testarLedComConfirmacao(
+        estanteLedId: String,
+        prateleiraLedId: String?,
+        posicaoLedId: String?,
+        cor: String,
+        duracaoMs: Int
+    ): Result<MqttOutcome<Unit>> = notImplementedYet()
+
+    private fun <T> notImplementedYet(): Result<T> =
+        Result.failure(UnsupportedOperationException("implementado na Etapa 4"))
 
     override fun disconnect() {
         isManualDisconnect = true
