@@ -1,6 +1,6 @@
 # Regras do Projeto Pick by Light (Cline)
 
-Arquivo único. Substitui a antiga pasta `.clinerules/` (backup em `.clinerules_bak/`).
+Arquivo único. Backup da pasta antiga em `.clinerules_bak/`.
 
 ---
 
@@ -137,164 +137,41 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 
 ---
 
-# Skills e Ferramentas
+# Skills, Ferramentas e Workflows
 
-Skills globais em `C:\Users\Luiz Gustav\.claude\skills\`.
-**Regra de economia de tokens:** não leia `SKILL.md` antecipadamente. Leia só o da skill cujo gatilho bateu.
+O Cline lista as skills de `~/.cline/skills/` sozinho. Não repita a lista aqui.
 
-### Restrição Obrigatória (Subagentes no Cline)
-- **NÃO utilize** `subagent-driven-development` nem `dispatching-parallel-agents` (mesmo que outra skill do Superpowers cite).
-- **Motivo:** a orquestração é nativa do **Cline + 9Router**: **Plan Mode** = combo `planner`, **Act Mode** = combo `executioner`. Todo plano é executado direto no Act Mode.
+## ⛔ Subagentes proibidos
+Não use `subagent-driven-development` nem `dispatching-parallel-agents`. A orquestração é Plan Mode (`planner`) e Act Mode (`executioner`), via 9Router.
 
----
+## Qual skill em qual modo
+- **Plan Mode:** brainstorming, writing-plans (gera `SPEC.md`), requesting-code-review, llm-council (decisão com tradeoff), ponytail `ultra`.
+- **Act Mode:** executing-plans, test-driven-development, receiving-code-review, verification-before-completion, ponytail `full`.
+- **Bugs (MQTT, NFC, testes):** systematic-debugging. `planner` investiga, `executioner` corrige.
 
-### Ferramentas MCP (usar antes de ler arquivos)
+## Grafo primeiro (MCP `graphify`)
+Antes de abrir arquivos ou buscar de forma ampla, consulte o Graphify: `query_graph`, `get_node`, `get_neighbors`, `shortest_path`, `god_nodes`, `get_community`, `graph_stats`. Leia o arquivo inteiro só depois que o grafo apontar onde. Em bug, veja os vizinhos do símbolo antes de editar. Grafo defasado: `graphify update .`.
+Outros MCPs: `context7` (APIs de bibliotecas, Plan Mode), `memory` (decisões MQTT/payload), `sequential-thinking`, `github`. O context-mode não existe no Cline.
 
-**Regra "grafo primeiro":** antes de abrir arquivos ou fazer busca ampla, consulte o **Graphify** para localizar símbolos, vizinhos e caminhos. Leia o arquivo inteiro só depois que o grafo apontar onde. Em bug, veja os vizinhos do símbolo antes de editar. Se o grafo estiver defasado, rode `graphify update .`.
-
-MCPs registrados no Cline (`C:\Users\Luiz Gustav\.cline\data\settings\cline_mcp_settings.json`):
-
-| MCP                        | Uso                                                                                                                                                                 | Combo     |
-| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------- |
-| **`graphify`** (principal) | Grafo do código (`graphify-out/graph.json`). Ferramentas: `query_graph`, `get_node`, `get_neighbors`, `shortest_path`, `god_nodes`, `get_community`, `graph_stats`. | ambos     |
-| `context7`                 | Documentação atual de bibliotecas (Compose, Coroutines, Paho, DataStore) antes de especificar assinaturas.                                                          | `planner` |
-| `memory`                   | Decisões e contratos de MQTT/payload entre sessões.                                                                                                                 | ambos     |
-| `sequential-thinking`      | Raciocínio em etapas em problemas difíceis.                                                                                                                         | `planner` |
-| `github`                   | Operações no GitHub (token já configurado; não copie o valor).                                                                                                      | ambos     |
-
-O context-mode **não** está no Cline (só no Claude Code).
-
-### Terminal: RTK
-Use o prefixo `rtk` conforme a seção **RTK** no fim deste arquivo. Se o resultado vier vazio, truncado ou contradizer o exit code, repita sem filtro (`rtk bypass <cmd>`). Nunca use `-q` no Gradle.
+## Workflows
+- **Especificar (Plan Mode):** leia a seção de `ESPECIFICACAO.md` e os testes relacionados, inspecione só o código afetado, escreva `SPEC.md` (objetivo, arquivos, contratos, passos, testes) e pare até eu aprovar.
+- **Revisar (Plan Mode, antes do commit):** `git status` e `git diff`; confira spec, pureza KMP, contratos MQTT e Poka-Yoke NFC, e testes. Parecer: Aprovado ou Ajustes necessários (arquivo, linha, correção).
+- **Verificar (Act Mode):** rode `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks` (e `:app:androidApp:assembleDebug` se pedido). Reporte `BUILD SUCCESSFUL` ou `FAILED` e os testes executados/falhos.
 
 ---
 
-### Estilo de mudança (ponytail)
+# Terminal no Cline (saída crua, comandos longos)
 
-Menor mudança que resolve. Nunca cortar validação de entrada MQTT/NFC, tratamento de erro que evita perda de dados, segurança nem calibração do hardware. No Cline, as regras do ponytail estão na seção **Ponytail** deste arquivo (níveis `lite`, `full`, `ultra`).
+## Saída sem filtro
+- **Não use `rtk`** no Cline. Rode os comandos puros, para ver a saída completa e o exit code real. O RTK só vale no Claude Code, onde um hook o aplica.
+- O context-mode não existe no Cline. Não procure `ctx_*`.
+- `.antigravityrules` vale só para o Antigravity. **Ignore-o no Cline** (`BypassSandbox`, `WaitMsBeforeAsync` e timers não existem aqui). Siga este arquivo.
 
-| Skill                 | Quando usar                                                                                                                           | Combo                                   | Caminho (`SKILL.md`)                                                                                 |
-| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------- | :--------------------------------------------------------------------------------------------------- |
-| **`ponytail`**        | Qualquer tarefa de código. `full` (padrão) no Act Mode; `ultra` no Plan Mode para questionar o escopo; `lite` para mudanças triviais. | `executioner` (full), `planner` (ultra) | `C:\Users\Luiz Gustav\.claude\plugins\cache\ponytail\ponytail\5.3.3\skills\ponytail\SKILL.md`        |
-| **`ponytail-review`** | Revisar uma mudança: lógica, segurança, testes e linhas desnecessárias.                                                               | `planner`                               | `C:\Users\Luiz Gustav\.claude\plugins\cache\ponytail\ponytail\5.3.3\skills\ponytail-review\SKILL.md` |
-| **`ponytail-audit`**  | Auditar o repositório inteiro (bugs, segurança, código sem teste).                                                                    | `planner`                               | `C:\Users\Luiz Gustav\.claude\plugins\cache\ponytail\ponytail\5.3.3\skills\ponytail-audit\SKILL.md`  |
-
----
-
-### Decisão e Segurança
-
-| Skill               | Quando usar                                                                                                                                                 | Combo     | Caminho (`SKILL.md`)                                         |
-| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------- | :----------------------------------------------------------- |
-| **`llm-council`**   | Decisões com tradeoffs reais (*council this*, *pressure-test this*, *which option*). Use conselheiros de provedores diferentes. Não use em sim/não simples. | `planner` | `C:\Users\Luiz Gustav\.claude\skills\llm-council\SKILL.md`   |
-| **`cc-safety-net`** | Diagnosticar comandos bloqueados e proteção contra comandos destrutivos.                                                                                    | ambos     | `C:\Users\Luiz Gustav\.claude\skills\cc-safety-net\SKILL.md` |
-
----
-
-### Superpowers (Fluxo de Engenharia, Plan & Act)
-
-| Skill                                | Quando usar                                                                                                   | Combo         | Caminho (`SKILL.md`)                                                          |
-| :----------------------------------- | :------------------------------------------------------------------------------------------------------------ | :------------ | :---------------------------------------------------------------------------- |
-| **`using-superpowers`**              | Referência inicial de uso do Superpowers (sem subagentes).                                                    | ambos         | `C:\Users\Luiz Gustav\.claude\skills\using-superpowers\SKILL.md`              |
-| **`brainstorming`**                  | **Plan Mode:** refinar requisitos e validar design antes de especificar.                                      | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\brainstorming\SKILL.md`                  |
-| **`writing-plans`**                  | **Plan Mode:** plano passo a passo (`SPEC.md`) para a execução.                                               | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\writing-plans\SKILL.md`                  |
-| **`executing-plans`**                | **Act Mode:** executar plano aprovado em lotes verificáveis, seguindo o `SPEC.md`.                            | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\executing-plans\SKILL.md`                |
-| **`test-driven-development`**        | **Act Mode:** ciclo TDD (teste falhando, implementação, verde).                                               | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\test-driven-development\SKILL.md`        |
-| **`systematic-debugging`**           | **Plan / Act:** bugs de MQTT/NFC ou testes quebrados: causa raiz antes de corrigir.                           | ambos         | `C:\Users\Luiz Gustav\.claude\skills\systematic-debugging\SKILL.md`           |
-| **`verification-before-completion`** | **Act Mode:** antes de declarar concluído, rodar `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`. | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\verification-before-completion\SKILL.md` |
-| **`requesting-code-review`**         | **Plan Mode:** revisar alterações contra a especificação e contratos.                                         | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\requesting-code-review\SKILL.md`         |
-| **`receiving-code-review`**          | **Act Mode:** aplicar feedback de revisão com rigor técnico.                                                  | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\receiving-code-review\SKILL.md`          |
-| **`using-git-worktrees`**            | Isolar mudanças arriscadas com `git worktree` (quando solicitado).                                            | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\using-git-worktrees\SKILL.md`            |
-| **`finishing-a-development-branch`** | Encerrar branch (testes finais, limpeza, merge/PR).                                                           | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\finishing-a-development-branch\SKILL.md` |
-| **`writing-skills`**                 | Criar ou refatorar `SKILL.md`.                                                                                | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\writing-skills\SKILL.md`                 |
-
----
-
-### Documentos e Pesquisa (sob demanda, qualquer combo)
-
-- **`docx`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\docx\SKILL.md`
-- **`pdf`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\pdf\SKILL.md`
-- **`pptx`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\pptx\SKILL.md`
-- **`xlsx`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\xlsx\SKILL.md`
-- **`deep-research`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\deep-research\SKILL.md`
-
----
-
-# Workflows
-
-## Workflow: Especificar Nova Funcionalidade (`/spec-feature`)
-
-Use este workflow em **Plan Mode (`planner`)** antes de implementar qualquer nova funcionalidade ou alteração relevante.
-
-### Passos
-1. **Identifique o escopo na fonte da verdade**:
-   - Leia as seções correspondentes em `especificacao/ESPECIFICACAO.md`.
-   - Verifique se há cenários relacionados em `app/shared/src/commonTest/kotlin/com/uniso/wms/pickbylight/HomologacaoCenariosTest.kt`.
-2. **Inspecione o código atual**:
-   - Leia apenas os ViewModels, Screens, Repositórios e testes diretamente afetados (sem explorar o repositório inteiro desnecessariamente).
-   - Se a tarefa envolver APIs externas (Compose, Coroutines, DataStore, Paho MQTT), consulte o MCP `context7` para confirmar assinaturas.
-3. **Crie ou atualize `SPEC.md`** na raiz do projeto com:
-   - **Objetivo** e referência à seção de `especificacao/ESPECIFICACAO.md`
-   - **Arquivos a criar/modificar** (caminhos exatos)
-   - **Contratos** (modelos em `Entities.kt`, tópicos/payloads MQTT, regras NFC/Poka-Yoke, `UiState`)
-   - **Plano de execução passo a passo** (checklist numerado para o `executioner` no Act Mode)
-   - **Plano de testes** (novos testes unitários/homologação e comando de verificação)
-4. **Pare e aguarde aprovação**: Não edite código-fonte neste workflow. Peça ao usuário para revisar o `SPEC.md` e alternar para **Act Mode** quando estiver aprovado.
-
-## Workflow: Revisar Alterações (`/review-diff`)
-
-Use este workflow em **Plan Mode (`planner`)** após o `executioner` concluir uma implementação, antes de fazer commit.
-
-### Passos
-1. Execute `git status` e `git diff` para listar todos os arquivos modificados e novos.
-2. Confira cada alteração contra:
-   - `especificacao/ESPECIFICACAO.md` (e `SPEC.md`, se existir)
-   - Pureza KMP em `commonMain` (nenhum import `android.*` ou `java.*` em código compartilhado)
-   - Contratos MQTT (`MqttPayloads.kt`, QoS 1, timeouts 5s ACK / 60s operação) e Poka-Yoke NFC
-3. Verifique se há testes cobrindo o novo comportamento e se `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks` passou após a última edição.
-4. Apresente um parecer objetivo:
-   - **Aprovado** ou **Ajustes necessários** (listando arquivo, linha e correção exata para o `executioner`).
-
-## Workflow: Verificar Build e Testes (`/verify-build`)
-
-Use este workflow em **Act Mode (`executioner`)** para validar que o projeto compila e todos os testes passam.
-
-### Passos
-1. Execute os testes multiplataforma no host Android com reexecução forçada:
-   ```cmd
-   gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks
-   ```
-2. Caso o usuário tenha pedido validação de empacotamento Android, execute também:
-   ```cmd
-   gradlew.bat :app:androidApp:assembleDebug
-   ```
-3. Reporte exatamente:
-   - Resultado final (`BUILD SUCCESSFUL` ou `BUILD FAILED`)
-   - Quantidade de testes executados/falhos (ou o erro exato de compilação/teste, se houver).
-
----
-
-# RTK
-
-Prefix external programs with `rtk`: `rtk git status`, `rtk cargo test`,
-`rtk npm run build`, `rtk ls src/`; keep prefixes inside chains such as `rtk git add . &&
-rtk git commit -m "msg"`. Programs without an RTK filter run as-is, so prefixing from `PATH`
-is safe. Do not prefix shell builtins or keywords: `test`, `[`, `read`, `cd`, `echo`, `export`,
-`eval`, `source`, `printf`, or shadowed `env`; run the native command directly when needed.
-
-## Command output
-
-Command output here is condensed to save tokens, keeping every signal and
-dropping costly noise. Treat it as the complete result: run commands
-normally, and batch related commands into one call to avoid extra turns.
-Truncated results state their recovery path in their own output. Re-run a
-command as `rtk bypass <cmd>` only when its result is unusable: empty when
-output was clearly expected, contradicting its exit code, or garbled.
-
-### About RTK
-
-RTK (Rust Token Killer) is a CLI proxy that filters command output to save tokens; behavior and exit code are unchanged.
-
-- `rtk gain` / `rtk gain --history` — token savings, overall and per command.
-- `rtk bypass <cmd>` — run a command unfiltered, still tracked.
-- `RTK_DISABLED=1 <cmd>` — skip RTK for one command.
-- `rtk discover` — find past commands RTK could have condensed.
+## Comandos longos (Gradle, build Wasm)
+1. **Um comando por vez.** O Cline usa um único terminal: iniciar outro comando enquanto o Gradle roda manda `^C` e mata o build.
+2. Rode em primeiro plano e **espere o terminal terminar**. Não redirecione para arquivo nem use `build_logs_*.txt`, a menos que eu peça.
+3. Se precisar acompanhar um log, no máximo **2 leituras seguidas** do mesmo trecho. Se não mudou, **pare e me avise**. Não repita a mesma leitura.
+4. Antes de dizer "ainda rodando", confira se o processo existe: `Get-Process java -ErrorAction SilentlyContinue`. Sem processo e sem `BUILD SUCCESSFUL/FAILED` no log, o build foi interrompido: diga isso.
+5. Não confie em `EXITCODE` se o log tiver `^C` ou `Terminate batch job`.
+6. Nunca use `-q`/`--quiet` no Gradle. Use `--rerun-tasks` ao validar testes.
+7. Se a saída do terminal não vier, avise e pare. Não crie arquivos de log para contornar.

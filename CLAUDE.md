@@ -3,7 +3,7 @@
 App **Kotlin Multiplatform + Compose Multiplatform** (pacote `com.uniso.wms.pickbylight`): Android (NFC read-only, Paho MQTT QoS 1, DataStore) e Web/Wasm. Controla estantes com ESP32 + LEDs via MQTT.
 Módulos Gradle: `:app:androidApp`, `:app:shared`, `:app:webApp`, `:core`. Lógica em `app/shared/src/commonMain`.
 Firmware ESP32: **pasta `esp32/` ainda não existe**. O plano está em `especificacao/MQTT5_E_ESP32.md` (Arduino, `esp32/esp32.ino`).
-Fonte da verdade: `especificacao/ESPECIFICACAO.md`. Regras do Cline no arquivo único `.clinerules` (backup da pasta antiga em `.clinerules_bac/`).
+Fonte da verdade: `especificacao/ESPECIFICACAO.md`. Regras do Cline no arquivo único `.clinerules` (backup da pasta antiga em `.clinerules_bak/`).
 
 ## Comandos (Windows, sempre `gradlew.bat`, nunca `-q`)
 - Testes (obrigatório após mudança de lógica): `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`
@@ -33,7 +33,7 @@ Em bugs: systematic-debugging antes de corrigir.
 
 ## Economia de tokens: RTK + context-mode (regras de convivência)
 Os dois atuam no Claude Code, com papéis diferentes:
-- **RTK 1.2.1** (hook `rtk hook claude`, matcher `Bash|Read`): reescreve comandos para `rtk <cmd>` e filtra a saída na origem. No Cline funciona só por instrução, sem hook. As regras do RTK para o Cline estão no `.clinerules`.
+- **RTK 1.2.1** (hook `rtk hook claude`, matcher `Bash|Read`): reescreve comandos para `rtk <cmd>` e filtra a saída na origem. No Cline o RTK fica **desligado** de propósito: o `.clinerules` manda usar saída crua.
 - **context-mode 2.2.1** (hooks + MCP): desvia Read grande (>16 KB), WebFetch e curl para o sandbox e troca saídas acima de 4 KB por trechos indexados (`ctx_search`).
 
 **R1, RTK em comando conhecido:** `git`, `gradlew.bat`, `ls`, testes. Não prefixar `rtk` à mão no Claude Code; o hook faz isso.
