@@ -108,7 +108,10 @@ object EspContract {
 
     // ---------- Saída (app -> ESP) ----------
 
+    // O app nunca gera um config/set que o ESP rejeitaria (maxItems 14). A checagem de bytes em encodeLimited é
+    // defensiva: com as regras do schema (14 mappings, led_id de até 64 caracteres) um set válido não chega a 2048 bytes.
     fun encodeConfigSet(set: ConfigSet): ContractResult<String> =
+        if (set.mappings.size > MAX_MAPPINGS) schema("mappings > $MAX_MAPPINGS") else
         encodeLimited(outJson.encodeToString(ConfigSet.serializer(), set), MAX_CONFIG_BYTES)
 
     fun encodeConfigGet(get: ConfigGet): ContractResult<String> =

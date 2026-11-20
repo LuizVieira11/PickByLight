@@ -139,16 +139,30 @@ class EspContractConfigSetTest {
         EspContract.parseConfigSet(payload, esp).assertInvalid(EspErrorCode.PAYLOAD_TOO_LARGE)
     }
 
+    private fun mappings(n: Int, ledLen: Int = 64) = List(n) {
+        EspMapping("L".repeat(ledLen - 2) + it.toString().padStart(2, '0'), MappingKind.PRATELEIRA, "CH" + (it + 1).toString().padStart(2, '0'))
+    }
+
     @Test
-    fun encodeConfigSetFitsWorstCaseOf14MappingsAndRejectsOversize() {
-        fun mappings(n: Int, ledLen: Int) = List(n) {
-            EspMapping("L".repeat(ledLen - 2) + it.toString().padStart(2, '0'), MappingKind.PRATELEIRA, "CH" + (it + 1).toString().padStart(2, '0'))
+    fun encodeAcceptsWorstCaseOf14MappingsBelow2048Bytes() {
+        // Pior caso do schema: 14 mappings, led_id de 64 caracteres, kind PRATELEIRA (o mais longo), com opcionais.
+        val worst = EspContract.encodeConfigSet(ConfigSet(1, esp, rid, 4, 1L, 65000L, mappings(14))).valid()
+        val size = EspContract.utf8Size(worst)
+        println("pior caso config/set (14 mappings, led_id de 64): $size bytes de ${EspContract.MAX_CONFIG_BYTES}")
+        assertTrue(size < EspContract.MAX_CONFIG_BYTES, "pior caso = $size bytes")
+    }
+
+    @Test
+    fun encodeRejects15MappingsWithInvalidSchema() {
+        EspContract.encodeConfigSet(ConfigSet(1, esp, rid, 4, mappings = mappings(15)))
+            .assertInvalid(EspErrorCode.INVALID_SCHEMA)
+    }
+
+    @Test
+    fun parseRejects15MappingsWithInvalidSchema() {
+        val many = (1..15).joinToString(",", "[", "]") {
+            """{"led_id":"POS_$it","kind":"POSICAO","channel_id":"CH${it.toString().padStart(2, '0')}"}"""
         }
-        // Pior caso do schema: 14 mappings, led_id de 64 chars, kind mais longo.
-        val worst = EspContract.encodeConfigSet(ConfigSet(1, esp, rid, 4, 1L, 65000L, mappings(14, 64))).valid()
-        assertTrue(EspContract.utf8Size(worst) <= EspContract.MAX_CONFIG_BYTES, "pior caso = ${EspContract.utf8Size(worst)} bytes")
-        // Fora do schema (20 mappings) o encode recusa antes de publicar.
-        EspContract.encodeConfigSet(ConfigSet(1, esp, rid, 4, mappings = mappings(20, 64)))
-            .assertInvalid(EspErrorCode.PAYLOAD_TOO_LARGE)
+        EspContract.parseConfigSet(set(many), esp).assertInvalid(EspErrorCode.INVALID_SCHEMA)
     }
 }
