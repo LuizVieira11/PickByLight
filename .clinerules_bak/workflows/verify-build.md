@@ -1,6 +1,6 @@
 # Workflow: Verificar Build e Testes (`/verify-build`)
 
-Use este workflow em **Act Mode (`executor`)** para validar que o projeto compila e todos os testes passam.
+Use este workflow em **Act Mode (`executioner`)** para validar que o projeto compila e todos os testes passam.
 
 ## Passos
 1. Execute os testes multiplataforma no host Android com reexecução forçada:

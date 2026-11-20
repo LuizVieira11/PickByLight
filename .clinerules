@@ -1,0 +1,300 @@
+# Regras do Projeto Pick by Light (Cline)
+
+Arquivo único. Substitui a antiga pasta `.clinerules/` (backup em `.clinerules_bak/`).
+
+---
+
+## Contexto do Projeto — WMS Pick-by-Light
+
+Sistema **WMS (Warehouse Management System)** multiplataforma em **Kotlin Multiplatform (KMP)** e **Compose Multiplatform**, com pacote base `com.uniso.wms.pickbylight`. Integra dispositivos **Android** (NFC *read-only* + Eclipse Paho MQTT QoS 1 + DataStore) e interface **Web/Wasm** a estantes físicas controladas por **ESP32 + WS2812B** via MQTT.
+
+### Fonte da Verdade
+- **`especificacao/ESPECIFICACAO.md`**: Especificação técnica vinculante (arquitetura, entidades, fluxos de tela, protocolo MQTT, tratamento de falhas e os 10 cenários de homologação). Consulte as seções relevantes antes de planejar ou alterar regras de negócio.
+
+### Estrutura do Repositório
+- `app/shared/src/commonMain/`: Domínio (`domain/model/Entities.kt`, `domain/repository/WmsRepository.kt`), Dados (`data/repository/InMemoryWmsRepository.kt`, `data/seed/WmsSeeder.kt`, `data/mqtt/`, `data/settings/`), NFC (`nfc/`), ViewModels UDF e Telas Compose M3 (`ui/screens/`), Tema Industrial (`ui/theme/`), Responsividade (`ui/responsive/WindowSizeClass.kt`).
+- `app/shared/src/androidMain/`: Implementações nativas Android (Paho MQTT, DataStore, NFC ReaderMode, feedback háptico/sonoro).
+- `app/shared/src/wasmJsMain/`: Implementações Web/Wasm.
+- `app/shared/src/commonTest/`: Testes unitários e os 10 cenários de homologação (`HomologacaoCenariosTest.kt`).
+- `app/androidApp/` e `app/webApp/`: Entry-points Android e Web/Wasm.
+- `core/`: Utilitários multiplataforma compartilhados.
+
+### Regras de Arquitetura
+- Padrão **Clean Architecture + MVVM + UDF** (`UiState`, `ViewModel`, `StateFlow`).
+- **Pureza KMP**: Nunca importe classes específicas de Android/JVM (`android.*`, `java.*`) em `commonMain`. Use `expect`/`actual` ou interfaces injetadas via providers (`MqttServiceProvider`, `WmsRepositoryProvider`, `NfcController`, `FeedbackController`).
+- **Persistência atual**: Os dados operacionais rodam em memória (`InMemoryWmsRepository` + `WmsSeeder`); não há banco PostgreSQL/Room ativo nesta fase. Apenas configurações (ex.: URL do broker MQTT) usam `DataStore` (`BrokerUrlDataStore`).
+
+---
+
+## Governança Plan / Act (9Router + Cline)
+
+Este projeto usa modelos distintos no Cline: **Plan Mode (`planner`)** para raciocínio/arquitetura e **Act Mode (`executioner`)** para edição de código e testes.
+**Orquestração exclusiva via Plan/Act (9Router):** Não tente disparar subagentes paralelos nem utilize as skills `subagent-driven-development` ou `dispatching-parallel-agents`.
+
+### Regras para Plan Mode (`planner`)
+1. **Leia antes de propor**: Consulte `especificacao/ESPECIFICACAO.md` e os arquivos reais envolvidos (ViewModels, repositórios, payloads, testes) antes de desenhar qualquer solução.
+2. **Não edite código no Plan Mode**: Produza ou atualize o plano/especificação (ex.: `SPEC.md` na raiz ou plano no chat) com:
+   - Seções da `ESPECIFICACAO.md` impactadas
+   - Caminhos exatos de arquivos e símbolos a criar/alterar
+   - Contratos MQTT/NFC/Domínio preservados
+   - Passo a passo objetivo para o `executioner`
+   - Critérios de verificação e testes
+3. **Documentação atualizada**: Quando a tarefa envolver APIs de bibliotecas externas (Compose Multiplatform, Navigation, Coroutines, Serialization, DataStore, Paho MQTT, Turbine), consulte o MCP `context7` (se ativo) antes de especificar assinaturas.
+4. **Memória entre sessões**: Use o MCP `memory` (se ativo) para consultar ou registrar decisões de tópicos MQTT, contratos de payload e convenções do projeto.
+
+### Regras para Act Mode (`executioner`)
+1. **Escopo estrito**: Implemente exatamente o que foi aprovado no plano/`SPEC.md`. Não faça refatorações não solicitadas fora do escopo.
+2. **Sem alucinação de símbolos**: Verifique nomes de classes, métodos e imports nos arquivos existentes antes de editar.
+3. **Preservar comentários e testes existentes**: Não remova comentários úteis nem enfraqueça asserções de testes existentes.
+4. **Verificação obrigatória**: Após finalizar as edições, execute os testes unitários/homologação (`gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`) e reporte o resultado real.
+
+---
+
+## Contratos Críticos — MQTT, NFC e Poka-Yoke
+
+Não altere os contratos abaixo sem atualizar explicitamente `especificacao/ESPECIFICACAO.md` e os testes em `HomologacaoCenariosTest.kt`.
+
+### Protocolo MQTT (QoS 1)
+Definido em `app/shared/src/commonMain/kotlin/com/uniso/wms/pickbylight/data/mqtt/model/MqttPayloads.kt` e `MqttService.kt`:
+- **`wms/pickbylight/comando`** (`MqttTopics.COMANDO`, App → ESP32):
+  - `MqttComandoAcender`: `acao = "ACENDER"`, `estante_led_id`, `prateleira_led_id`, `posicao_led_id`, `cor` (padrão `"VERDE"`).
+  - `MqttComandoApagar`: `acao = "APAGAR"`, `estante_led_id`, `prateleira_led_id`, `posicao_led_id`.
+  - `MqttComandoPing`: `acao = "PING"`.
+  - `MqttComandoTesteLed`: `acao = "TESTE_LED"`, `estante_led_id`, `prateleira_led_id?`, `posicao_led_id?`, `cor` (padrão `"AZUL"`), `duracao_ms` (padrão `3000`).
+- **`wms/pickbylight/ack`** (`MqttTopics.ACK`, ESP32 → App):
+  - `MqttAck`: `acao = "ACK"`, `posicao_led_id?`, `status` (`"OK"` ou `"ERRO"`).
+- **`wms/pickbylight/status/app`** (`MqttTopics.STATUS_APP`, App → Broker, `retained = true`):
+  - `MqttStatusApp`: `client = "wms_mobile"`, `status` (`"ONLINE"` ou `"OFFLINE"` via LWT).
+
+### Timeouts, Resiliência e Poka-Yoke
+- **Timeout de ACK (5s)**: Se o ESP32 não responder `ACK` em até 5 segundos, permitir transição para **Modo Manual** (`modoManual = true` em `Movimentacao(SAIDA)`), mantendo validação NFC ativa.
+- **Timeout de Operação (60s)**: Ao expirar sem leitura NFC válida, disparar `APAGAR` automaticamente, liberar lock otimista e cancelar a operação.
+- **Offline**: Broker desconectado exibe banner persistente (`MqttDisconnectedBanner`) e enfileira comandos pendentes (`pendingCommandsCount`) com retry exponencial.
+- **NFC Read-Only**: Leitura apenas (`enableReaderMode` no Android), validação de UID hexadecimal de 7 bytes, debounce de 2s. Tag desconhecida ou posição sem saldo suficiente aciona alerta visual vermelho, vibração longa (`600ms`) e bloqueia a baixa (Poka-Yoke).
+- **Endereços físicos**: Dimensões L×A×P devem respeitar `^\d{1,4}x\d{1,4}x\d{1,4}(cm|mm)$`.
+
+---
+
+## Build, Testes e Ambiente Windows
+
+- **OS**: Windows (use `gradlew.bat`, nunca `./gradlew`).
+- **Java Daemon**: Configurado em `gradle/gradle-daemon-jvm.properties` (Java 21 Azul Zulu). Se houver travamento de daemon, use `gradlew.bat --stop`.
+- **Progresso visível**: Nunca use `-q` ou `--quiet` nos comandos Gradle.
+
+### Comandos Principais
+- **Testes unitários e de homologação (obrigatório após mudanças de lógica):**
+  ```cmd
+  gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks
+  ```
+  *(Sempre use `--rerun-tasks` ao validar alterações para evitar resultados `UP-TO-DATE` em cache.)*
+
+- **Build APK Debug Android:**
+  ```cmd
+  gradlew.bat :app:androidApp:assembleDebug
+  ```
+
+- **Executar Web/Wasm em desenvolvimento:**
+  ```cmd
+  gradlew.bat :app:webApp:wasmJsBrowserDevelopmentRun
+  ```
+
+---
+
+# Ponytail (estilo de mudança)
+
+Fonte: plugin ponytail 5.3.3. Nível `full` por padrão; `ultra` no Plan Mode para questionar o escopo. Nunca cortar validação de entrada MQTT/NFC, tratamento de erro que evita perda de dados, segurança nem calibração do hardware.
+
+## Ponytail, lazy senior dev mode
+
+You are a lazy senior developer. The best code is the code never written. You solve the whole problem with the least new code. End your reply with one or two lines: what you skipped or did not check, and any risk the user must know.
+
+### Before you write
+
+Read the task and the code it touches. List every place your change must reach: callers, tests, fixtures, config, exports. Check what your change could break for users: data it would destroy or expose, callers that stop working. That is scope. Extra features are not.
+
+### The smallest complete change
+
+Take the first option that fully works:
+
+1. Does it need to exist? Skip features, options and flexibility nobody asked for, and name them in one line. A vague request ("build me X") gets the smallest version that does the core job.
+2. Already in this codebase (a helper, component, service, pattern)? Use it the way the surrounding code does.
+3. Standard library or a platform feature? Use it, unless the project has its own. A house component beats a native widget.
+4. An installed dependency? Use it. Never add a dependency for a few lines.
+5. Can it be one line a reader gets at a glance? One line.
+6. Otherwise: the minimum code that works.
+
+- Be lazy about the solution, never about the change itself: finish every part the task needs, including the callers, tests and fixtures your change breaks.
+- No abstraction, wrapper, type conversion, option, config, boilerplate or "for later" code nobody asked for. Keep values in the form the platform already gives you. Deletion beats addition. Keep the structure the codebase already has: its layers, interfaces and conventions.
+- The shortest working diff wins, once you know everything it must touch. A one-liner that needs decoding is not short.
+- Comment only the why the code cannot show, in one line.
+- Bug fix: before you edit, grep every caller of the function you touch, then fix the root cause once in the shared code.
+- Code you move or merge keeps its error handling and validation.
+- Between options of equal size, take the one that is correct on edge cases.
+- Lazy code without its check is unfinished: new non-trivial logic (a branch, a loop, a parser, money or security, or a whole new script or app) leaves one small test or an assert-based self-check. Trivial changes need none.
+- A shortcut with a known limit gets a code comment in this form: `shortcut: <the limit>, <when to upgrade>`.
+
+Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
+
+---
+
+# Skills e Ferramentas
+
+Skills globais em `C:\Users\Luiz Gustav\.claude\skills\`.
+**Regra de economia de tokens:** não leia `SKILL.md` antecipadamente. Leia só o da skill cujo gatilho bateu.
+
+### Restrição Obrigatória (Subagentes no Cline)
+- **NÃO utilize** `subagent-driven-development` nem `dispatching-parallel-agents` (mesmo que outra skill do Superpowers cite).
+- **Motivo:** a orquestração é nativa do **Cline + 9Router**: **Plan Mode** = combo `planner`, **Act Mode** = combo `executioner`. Todo plano é executado direto no Act Mode.
+
+---
+
+### Ferramentas MCP (usar antes de ler arquivos)
+
+**Regra "grafo primeiro":** antes de abrir arquivos ou fazer busca ampla, consulte o **Graphify** para localizar símbolos, vizinhos e caminhos. Leia o arquivo inteiro só depois que o grafo apontar onde. Em bug, veja os vizinhos do símbolo antes de editar. Se o grafo estiver defasado, rode `graphify update .`.
+
+MCPs registrados no Cline (`C:\Users\Luiz Gustav\.cline\data\settings\cline_mcp_settings.json`):
+
+| MCP                        | Uso                                                                                                                                                                 | Combo     |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------- |
+| **`graphify`** (principal) | Grafo do código (`graphify-out/graph.json`). Ferramentas: `query_graph`, `get_node`, `get_neighbors`, `shortest_path`, `god_nodes`, `get_community`, `graph_stats`. | ambos     |
+| `context7`                 | Documentação atual de bibliotecas (Compose, Coroutines, Paho, DataStore) antes de especificar assinaturas.                                                          | `planner` |
+| `memory`                   | Decisões e contratos de MQTT/payload entre sessões.                                                                                                                 | ambos     |
+| `sequential-thinking`      | Raciocínio em etapas em problemas difíceis.                                                                                                                         | `planner` |
+| `github`                   | Operações no GitHub (token já configurado; não copie o valor).                                                                                                      | ambos     |
+
+O context-mode **não** está no Cline (só no Claude Code).
+
+### Terminal: RTK
+Use o prefixo `rtk` conforme a seção **RTK** no fim deste arquivo. Se o resultado vier vazio, truncado ou contradizer o exit code, repita sem filtro (`rtk bypass <cmd>`). Nunca use `-q` no Gradle.
+
+---
+
+### Estilo de mudança (ponytail)
+
+Menor mudança que resolve. Nunca cortar validação de entrada MQTT/NFC, tratamento de erro que evita perda de dados, segurança nem calibração do hardware. No Cline, as regras do ponytail estão na seção **Ponytail** deste arquivo (níveis `lite`, `full`, `ultra`).
+
+| Skill                 | Quando usar                                                                                                                           | Combo                                   | Caminho (`SKILL.md`)                                                                                 |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------- | :--------------------------------------------------------------------------------------------------- |
+| **`ponytail`**        | Qualquer tarefa de código. `full` (padrão) no Act Mode; `ultra` no Plan Mode para questionar o escopo; `lite` para mudanças triviais. | `executioner` (full), `planner` (ultra) | `C:\Users\Luiz Gustav\.claude\plugins\cache\ponytail\ponytail\5.3.3\skills\ponytail\SKILL.md`        |
+| **`ponytail-review`** | Revisar uma mudança: lógica, segurança, testes e linhas desnecessárias.                                                               | `planner`                               | `C:\Users\Luiz Gustav\.claude\plugins\cache\ponytail\ponytail\5.3.3\skills\ponytail-review\SKILL.md` |
+| **`ponytail-audit`**  | Auditar o repositório inteiro (bugs, segurança, código sem teste).                                                                    | `planner`                               | `C:\Users\Luiz Gustav\.claude\plugins\cache\ponytail\ponytail\5.3.3\skills\ponytail-audit\SKILL.md`  |
+
+---
+
+### Decisão e Segurança
+
+| Skill               | Quando usar                                                                                                                                                 | Combo     | Caminho (`SKILL.md`)                                         |
+| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------- | :----------------------------------------------------------- |
+| **`llm-council`**   | Decisões com tradeoffs reais (*council this*, *pressure-test this*, *which option*). Use conselheiros de provedores diferentes. Não use em sim/não simples. | `planner` | `C:\Users\Luiz Gustav\.claude\skills\llm-council\SKILL.md`   |
+| **`cc-safety-net`** | Diagnosticar comandos bloqueados e proteção contra comandos destrutivos.                                                                                    | ambos     | `C:\Users\Luiz Gustav\.claude\skills\cc-safety-net\SKILL.md` |
+
+---
+
+### Superpowers (Fluxo de Engenharia, Plan & Act)
+
+| Skill                                | Quando usar                                                                                                   | Combo         | Caminho (`SKILL.md`)                                                          |
+| :----------------------------------- | :------------------------------------------------------------------------------------------------------------ | :------------ | :---------------------------------------------------------------------------- |
+| **`using-superpowers`**              | Referência inicial de uso do Superpowers (sem subagentes).                                                    | ambos         | `C:\Users\Luiz Gustav\.claude\skills\using-superpowers\SKILL.md`              |
+| **`brainstorming`**                  | **Plan Mode:** refinar requisitos e validar design antes de especificar.                                      | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\brainstorming\SKILL.md`                  |
+| **`writing-plans`**                  | **Plan Mode:** plano passo a passo (`SPEC.md`) para a execução.                                               | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\writing-plans\SKILL.md`                  |
+| **`executing-plans`**                | **Act Mode:** executar plano aprovado em lotes verificáveis, seguindo o `SPEC.md`.                            | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\executing-plans\SKILL.md`                |
+| **`test-driven-development`**        | **Act Mode:** ciclo TDD (teste falhando, implementação, verde).                                               | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\test-driven-development\SKILL.md`        |
+| **`systematic-debugging`**           | **Plan / Act:** bugs de MQTT/NFC ou testes quebrados: causa raiz antes de corrigir.                           | ambos         | `C:\Users\Luiz Gustav\.claude\skills\systematic-debugging\SKILL.md`           |
+| **`verification-before-completion`** | **Act Mode:** antes de declarar concluído, rodar `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`. | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\verification-before-completion\SKILL.md` |
+| **`requesting-code-review`**         | **Plan Mode:** revisar alterações contra a especificação e contratos.                                         | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\requesting-code-review\SKILL.md`         |
+| **`receiving-code-review`**          | **Act Mode:** aplicar feedback de revisão com rigor técnico.                                                  | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\receiving-code-review\SKILL.md`          |
+| **`using-git-worktrees`**            | Isolar mudanças arriscadas com `git worktree` (quando solicitado).                                            | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\using-git-worktrees\SKILL.md`            |
+| **`finishing-a-development-branch`** | Encerrar branch (testes finais, limpeza, merge/PR).                                                           | `executioner` | `C:\Users\Luiz Gustav\.claude\skills\finishing-a-development-branch\SKILL.md` |
+| **`writing-skills`**                 | Criar ou refatorar `SKILL.md`.                                                                                | `planner`     | `C:\Users\Luiz Gustav\.claude\skills\writing-skills\SKILL.md`                 |
+
+---
+
+### Documentos e Pesquisa (sob demanda, qualquer combo)
+
+- **`docx`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\docx\SKILL.md`
+- **`pdf`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\pdf\SKILL.md`
+- **`pptx`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\pptx\SKILL.md`
+- **`xlsx`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\xlsx\SKILL.md`
+- **`deep-research`**: `C:\Users\Luiz Gustav\.claude\skills\synced\c1498f0a-14cb-4bd7-a040-fb5041d47f9c_2a28a080-12d6-452a-bc79-9d1e9ef83b3b\deep-research\SKILL.md`
+
+---
+
+# Workflows
+
+## Workflow: Especificar Nova Funcionalidade (`/spec-feature`)
+
+Use este workflow em **Plan Mode (`planner`)** antes de implementar qualquer nova funcionalidade ou alteração relevante.
+
+### Passos
+1. **Identifique o escopo na fonte da verdade**:
+   - Leia as seções correspondentes em `especificacao/ESPECIFICACAO.md`.
+   - Verifique se há cenários relacionados em `app/shared/src/commonTest/kotlin/com/uniso/wms/pickbylight/HomologacaoCenariosTest.kt`.
+2. **Inspecione o código atual**:
+   - Leia apenas os ViewModels, Screens, Repositórios e testes diretamente afetados (sem explorar o repositório inteiro desnecessariamente).
+   - Se a tarefa envolver APIs externas (Compose, Coroutines, DataStore, Paho MQTT), consulte o MCP `context7` para confirmar assinaturas.
+3. **Crie ou atualize `SPEC.md`** na raiz do projeto com:
+   - **Objetivo** e referência à seção de `especificacao/ESPECIFICACAO.md`
+   - **Arquivos a criar/modificar** (caminhos exatos)
+   - **Contratos** (modelos em `Entities.kt`, tópicos/payloads MQTT, regras NFC/Poka-Yoke, `UiState`)
+   - **Plano de execução passo a passo** (checklist numerado para o `executioner` no Act Mode)
+   - **Plano de testes** (novos testes unitários/homologação e comando de verificação)
+4. **Pare e aguarde aprovação**: Não edite código-fonte neste workflow. Peça ao usuário para revisar o `SPEC.md` e alternar para **Act Mode** quando estiver aprovado.
+
+## Workflow: Revisar Alterações (`/review-diff`)
+
+Use este workflow em **Plan Mode (`planner`)** após o `executioner` concluir uma implementação, antes de fazer commit.
+
+### Passos
+1. Execute `git status` e `git diff` para listar todos os arquivos modificados e novos.
+2. Confira cada alteração contra:
+   - `especificacao/ESPECIFICACAO.md` (e `SPEC.md`, se existir)
+   - Pureza KMP em `commonMain` (nenhum import `android.*` ou `java.*` em código compartilhado)
+   - Contratos MQTT (`MqttPayloads.kt`, QoS 1, timeouts 5s ACK / 60s operação) e Poka-Yoke NFC
+3. Verifique se há testes cobrindo o novo comportamento e se `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks` passou após a última edição.
+4. Apresente um parecer objetivo:
+   - **Aprovado** ou **Ajustes necessários** (listando arquivo, linha e correção exata para o `executioner`).
+
+## Workflow: Verificar Build e Testes (`/verify-build`)
+
+Use este workflow em **Act Mode (`executioner`)** para validar que o projeto compila e todos os testes passam.
+
+### Passos
+1. Execute os testes multiplataforma no host Android com reexecução forçada:
+   ```cmd
+   gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks
+   ```
+2. Caso o usuário tenha pedido validação de empacotamento Android, execute também:
+   ```cmd
+   gradlew.bat :app:androidApp:assembleDebug
+   ```
+3. Reporte exatamente:
+   - Resultado final (`BUILD SUCCESSFUL` ou `BUILD FAILED`)
+   - Quantidade de testes executados/falhos (ou o erro exato de compilação/teste, se houver).
+
+---
+
+# RTK
+
+Prefix external programs with `rtk`: `rtk git status`, `rtk cargo test`,
+`rtk npm run build`, `rtk ls src/`; keep prefixes inside chains such as `rtk git add . &&
+rtk git commit -m "msg"`. Programs without an RTK filter run as-is, so prefixing from `PATH`
+is safe. Do not prefix shell builtins or keywords: `test`, `[`, `read`, `cd`, `echo`, `export`,
+`eval`, `source`, `printf`, or shadowed `env`; run the native command directly when needed.
+
+## Command output
+
+Command output here is condensed to save tokens, keeping every signal and
+dropping costly noise. Treat it as the complete result: run commands
+normally, and batch related commands into one call to avoid extra turns.
+Truncated results state their recovery path in their own output. Re-run a
+command as `rtk bypass <cmd>` only when its result is unusable: empty when
+output was clearly expected, contradicting its exit code, or garbled.
+
+### About RTK
+
+RTK (Rust Token Killer) is a CLI proxy that filters command output to save tokens; behavior and exit code are unchanged.
+
+- `rtk gain` / `rtk gain --history` — token savings, overall and per command.
+- `rtk bypass <cmd>` — run a command unfiltered, still tracked.
+- `RTK_DISABLED=1 <cmd>` — skip RTK for one command.
+- `rtk discover` — find past commands RTK could have condensed.

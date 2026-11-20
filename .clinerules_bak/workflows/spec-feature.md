@@ -13,6 +13,6 @@ Use este workflow em **Plan Mode (`planner`)** antes de implementar qualquer nov
    - **Objetivo** e referência à seção de `especificacao/ESPECIFICACAO.md`
    - **Arquivos a criar/modificar** (caminhos exatos)
    - **Contratos** (modelos em `Entities.kt`, tópicos/payloads MQTT, regras NFC/Poka-Yoke, `UiState`)
-   - **Plano de execução passo a passo** (checklist numerado para o `executor` no Act Mode)
+   - **Plano de execução passo a passo** (checklist numerado para o `executioner` no Act Mode)
    - **Plano de testes** (novos testes unitários/homologação e comando de verificação)
 4. **Pare e aguarde aprovação**: Não edite código-fonte neste workflow. Peça ao usuário para revisar o `SPEC.md` e alternar para **Act Mode** quando estiver aprovado.
