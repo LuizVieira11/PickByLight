@@ -6,10 +6,11 @@ Arquivo único. Backup da pasta antiga em `.clinerules_bak/`.
 
 ## Contexto do Projeto — WMS Pick-by-Light
 
-Sistema **WMS (Warehouse Management System)** multiplataforma em **Kotlin Multiplatform (KMP)** e **Compose Multiplatform**, com pacote base `com.uniso.wms.pickbylight`. Integra dispositivos **Android** (NFC *read-only* + Eclipse Paho MQTT QoS 1 + DataStore) e interface **Web/Wasm** a estantes físicas controladas por **ESP32 + WS2812B** via MQTT.
+Sistema **WMS (Warehouse Management System)** multiplataforma em **Kotlin Multiplatform (KMP)** e **Compose Multiplatform**, com pacote base `com.uniso.wms.pickbylight`. Integra dispositivos **Android** (NFC *read-only* + Eclipse Paho MQTT QoS 1 + DataStore) e interface **Web/Wasm** a estantes físicas controladas por **ESP32 + LEDs discretos de uma cor (1 por GPIO)** via MQTT.
 
 ### Fonte da Verdade
 - **`especificacao/ESPECIFICACAO.md`**: Especificação técnica vinculante (arquitetura, entidades, fluxos de tela, protocolo MQTT, tratamento de falhas e os 10 cenários de homologação). Consulte as seções relevantes antes de planejar ou alterar regras de negócio.
+- **`especificacao/MQTT5_E_ESP32.md`**: fonte da verdade da feature de gerenciamento de ESPs (MQTT 5/3.1.1, contrato v1, firmware `esp32/esp32.ino`).
 
 ### Estrutura do Repositório
 - `app/shared/src/commonMain/`: Domínio (`domain/model/Entities.kt`, `domain/repository/WmsRepository.kt`), Dados (`data/repository/InMemoryWmsRepository.kt`, `data/seed/WmsSeeder.kt`, `data/mqtt/`, `data/settings/`), NFC (`nfc/`), ViewModels UDF e Telas Compose M3 (`ui/screens/`), Tema Industrial (`ui/theme/`), Responsividade (`ui/responsive/WindowSizeClass.kt`).
@@ -46,7 +47,50 @@ Este projeto usa modelos distintos no Cline: **Plan Mode (`planner`)** para raci
 1. **Escopo estrito**: Implemente exatamente o que foi aprovado no plano/`SPEC.md`. Não faça refatorações não solicitadas fora do escopo.
 2. **Sem alucinação de símbolos**: Verifique nomes de classes, métodos e imports nos arquivos existentes antes de editar.
 3. **Preservar comentários e testes existentes**: Não remova comentários úteis nem enfraqueça asserções de testes existentes.
-4. **Verificação obrigatória**: Após finalizar as edições, execute os testes unitários/homologação (`gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`) e reporte o resultado real.
+4. **Verificação obrigatória**: Após finalizar as edições, execute os testes unitários/homologação (`gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks --console=plain`) e reporte o resultado real.
+
+---
+
+## Fonte da verdade e escopo
+- especificacao/MQTT5_E_ESP32.md é a fonte da verdade da feature; ESPECIFICACAO.md dos
+  contratos legados. Divergência entre especificação e código: pare e pergunte.
+- Faça só o escopo da etapa pedida. Não comece a próxima etapa sem autorização.
+- Não altere a especificação, salvo pedido explícito.
+- Um commit por etapa (ou subetapa), sem push. Mensagem com a contagem real de testes.
+
+## Ciclo de desenvolvimento e verificação
+1. Ao terminar qualquer implementação ou correção, VOCÊ roda os comandos de verificação
+   da etapa (sempre com --console=plain) e aguarda o fim do build.
+2. Evidência válida:
+   - a linha final BUILD SUCCESSFUL/FAILED e o EXITCODE;
+   - para testes, os XMLs em app/shared/build/test-results/ com timestamp POSTERIOR ao
+     início desta execução.
+   XML antigo não vale. Se a captura da saída falhar e não houver XML novo, trate como
+   "resultado desconhecido": pare e peça para o usuário rodar.
+   Timeout: siga o item "Comandos longos" (log desacoplado, 10 consultas de 30 s = 5 min).
+   Sem BUILD SUCCESSFUL/FAILED + EXITCODE no log ao final, trate como TIMEOUT:
+   não leia XML, não presuma resultado, pare e peça intervenção do usuário.
+3. Se falhar, corrija e rode de novo. Limite: 3 ciclos de correção por etapa. No terceiro
+   fracasso, pare e reporte os erros, o que tentou e a hipótese da causa.
+4. Os testes representam a especificação:
+   - corrija a LÓGICA DO CÓDIGO para atender o teste;
+   - só altere um teste quando ele estiver tecnicamente errado (erro de compilação,
+     sintaxe, montagem do cenário, fake mal declarado), SEM mudar valores esperados,
+     códigos de erro ou asserções;
+   - mudar o que um teste espera exige aprovação do usuário, citando o trecho da
+     especificação que justifica.
+5. No relatório, toda alteração em arquivo de teste aparece separada, explicando por que
+   é correção técnica e não mudança de expectativa.
+6. Commit só com tudo verde. Etapas com teste manual aguardam o resultado do usuário.
+
+## Anti-alucinação
+- Antes de entregar, liste os símbolos externos usados nos arquivos novos ou alterados,
+  com o arquivo:linha da definição. Não presuma que algo existe.
+- Não declare "testes passando" nem contagem sem XML da execução atual. Reporte números
+  exatos, nunca estimativas apresentadas como resultado.
+- Se a ferramenta de edição falhar ou devolver conteúdo "outdated", pare e avise. Não
+  contorne reescrevendo arquivo pelo terminal.
+- Não use git add amplo: adicione só os arquivos da etapa e mostre git show --stat HEAD.
 
 ---
 
@@ -84,13 +128,13 @@ Definido em `app/shared/src/commonMain/kotlin/com/uniso/wms/pickbylight/data/mqt
 ### Comandos Principais
 - **Testes unitários e de homologação (obrigatório após mudanças de lógica):**
   ```cmd
-  gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks
+  gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks --console=plain
   ```
   *(Sempre use `--rerun-tasks` ao validar alterações para evitar resultados `UP-TO-DATE` em cache.)*
 
 - **Build APK Debug Android:**
   ```cmd
-  gradlew.bat :app:androidApp:assembleDebug
+  gradlew.bat :app:androidApp:assembleDebug --console=plain
   ```
 
 - **Executar Web/Wasm em desenvolvimento:**
@@ -141,7 +185,7 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 
 O Cline lista as skills de `~/.cline/skills/` sozinho. Não repita a lista aqui.
 
-## ⛔ Subagentes proibidos
+## Subagentes proibidos
 Não use `subagent-driven-development` nem `dispatching-parallel-agents`. A orquestração é Plan Mode (`planner`) e Act Mode (`executioner`), via 9Router.
 
 ## Qual skill em qual modo
@@ -156,7 +200,7 @@ Outros MCPs: `context7` (APIs de bibliotecas, Plan Mode), `memory` (decisões MQ
 ## Workflows
 - **Especificar (Plan Mode):** leia a seção de `ESPECIFICACAO.md` e os testes relacionados, inspecione só o código afetado, escreva `SPEC.md` (objetivo, arquivos, contratos, passos, testes) e pare até eu aprovar.
 - **Revisar (Plan Mode, antes do commit):** `git status` e `git diff`; confira spec, pureza KMP, contratos MQTT e Poka-Yoke NFC, e testes. Parecer: Aprovado ou Ajustes necessários (arquivo, linha, correção).
-- **Verificar (Act Mode):** rode `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks` (e `:app:androidApp:assembleDebug` se pedido). Reporte `BUILD SUCCESSFUL` ou `FAILED` e os testes executados/falhos.
+- **Verificar (Act Mode):** rode `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks --console=plain` (e `:app:androidApp:assembleDebug --console=plain` se pedido). Reporte `BUILD SUCCESSFUL` ou `FAILED` e os testes executados/falhos.
 
 ---
 
@@ -169,9 +213,19 @@ Outros MCPs: `context7` (APIs de bibliotecas, Plan Mode), `memory` (decisões MQ
 
 ## Comandos longos (Gradle, build Wasm)
 1. **Um comando por vez.** O Cline usa um único terminal: iniciar outro comando enquanto o Gradle roda manda `^C` e mata o build.
-2. Rode em primeiro plano e **espere o terminal terminar**. Não redirecione para arquivo nem use `build_logs_*.txt`, a menos que eu peça.
-3. Se precisar acompanhar um log, no máximo **2 leituras seguidas** do mesmo trecho. Se não mudou, **pare e me avise**. Não repita a mesma leitura.
+2. **Todo comando Gradle roda desacoplado, com log.** A captura do terminal do Cline corta antes
+   do fim do build; não confie nela. Use sempre estes dois passos (troque <TAREFA>):
+   a) Lançar (o prompt volta na hora):
+      New-Item -ItemType Directory -Force build | Out-Null; Remove-Item build\cline-gradle.log -ErrorAction SilentlyContinue; Start-Process cmd.exe -ArgumentList '/v:on /c "cd /d C:\dev\PickByLight & .\gradlew.bat <TAREFA> --console=plain > build\cline-gradle.log 2>&1 & echo EXITCODE=!ERRORLEVEL!>> build\cline-gradle.log"' -WindowStyle Hidden; "INICIO=$(Get-Date -Format HH:mm:ss)"
+   b) Consultar (repita até aparecer EXITCODE):
+      Start-Sleep 30; if ((Test-Path build\cline-gradle.log) -and (Select-String build\cline-gradle.log -Pattern '^EXITCODE=' -Quiet)) { Get-Content build\cline-gradle.log | Select-String 'BUILD (SUCCESSFUL|FAILED)|EXITCODE=|FAILED|^e: |tests completed' } else { "RODANDO: " + (Get-Content build\cline-gradle.log -Tail 1 -ErrorAction SilentlyContinue) }
+   Use `.\gradlew.bat` (com `.\`); sem ele o cmd pode não achar o arquivo (erro 9009).
+3. **Timeout de 5 minutos:** no máximo 10 consultas (10 × 30 s). Se a captura de uma consulta
+   cortar, repita a consulta; nunca relance o Gradle por isso. Sem `EXITCODE=` após 10 consultas
+   = TIMEOUT: pare, mostre as últimas linhas do log e peça intervenção.
+   Resultado só vale com `BUILD ...` + `EXITCODE=` no log; para testes, mais os XMLs com
+   timestamp posterior ao INICIO.
 4. Antes de dizer "ainda rodando", confira se o processo existe: `Get-Process java -ErrorAction SilentlyContinue`. Sem processo e sem `BUILD SUCCESSFUL/FAILED` no log, o build foi interrompido: diga isso.
 5. Não confie em `EXITCODE` se o log tiver `^C` ou `Terminate batch job`.
 6. Nunca use `-q`/`--quiet` no Gradle. Use `--rerun-tasks` ao validar testes.
-7. Se a saída do terminal não vier, avise e pare. Não crie arquivos de log para contornar.
+7. O único log permitido é `build\cline-gradle.log` (ignorado pelo git). Não crie outros arquivos de log.

@@ -3,11 +3,37 @@
 App **Kotlin Multiplatform + Compose Multiplatform** (pacote `com.uniso.wms.pickbylight`): Android (NFC read-only, Paho MQTT QoS 1, DataStore) e Web/Wasm. Controla estantes com ESP32 + LEDs via MQTT.
 Módulos Gradle: `:app:androidApp`, `:app:shared`, `:app:webApp`, `:core`. Lógica em `app/shared/src/commonMain`.
 Firmware ESP32: **pasta `esp32/` ainda não existe**. O plano está em `especificacao/MQTT5_E_ESP32.md` (Arduino, `esp32/esp32.ino`).
-Fonte da verdade: `especificacao/ESPECIFICACAO.md`. Regras do Cline no arquivo único `.clinerules` (backup da pasta antiga em `.clinerules_bak/`).
+Fonte da verdade: `especificacao/ESPECIFICACAO.md` (contratos legados) e `especificacao/MQTT5_E_ESP32.md` (feature de gerenciamento de ESPs). Regras do Cline no arquivo único `.clinerules` (backup da pasta antiga em `.clinerules_bak/`).
 
-## Comandos (Windows, sempre `gradlew.bat`, nunca `-q`)
-- Testes (obrigatório após mudança de lógica): `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`
-- APK debug: `gradlew.bat :app:androidApp:assembleDebug`
+## Papel padrão: supervisor do Cline
+- Acompanho código e spec, avalio relatórios do Cline e escrevo a próxima mensagem para ele.
+- Não edito produção nem testes, não faço commit/push/stash/reset/checkout. Posso editar
+  `.clinerules`, `CLAUDE.md` e (se pedido) a spec, sempre mostrando o diff antes.
+- Gradle só com confirmação de que o Cline está parado, sempre `--console=plain`.
+- Não confiar em número do Cline: contagem só pelo XML (script abaixo).
+- Quando me pedirem para codificar: valem as regras técnicas do `.clinerules`
+  (fonte da verdade, ciclo de verificação com máx. 3 tentativas, testes = spec,
+  anti-alucinação, commit só verde, sem push).
+
+## Formato da resposta de supervisão
+1. Veredito curto. 2. Problemas com evidência (`arquivo:linha`, saída de comando).
+3. Mensagem para o Cline em bloco de código. 4. O que o usuário deve conferir/rodar.
+
+## Verificação por tipo de mudança
+- commonMain: testes + `:app:shared:compileKotlinWasmJs`
+- androidMain: testes + `:app:androidApp:assembleDebug`
+- tudo: os três. Sempre `.\gradlew.bat ... --console=plain` (JDK 21 Zulu).
+
+Contagem pelo XML (PowerShell):
+```powershell
+$s = Get-ChildItem app\shared\build\test-results -Recurse -Filter 'TEST-*.xml' | ForEach-Object { ([xml](Get-Content $_.FullName -Raw)).testsuite }
+function soma($c) { ($s | ForEach-Object { [int]$_.$c } | Measure-Object -Sum).Sum }
+"classes: $($s.Count) | tests: $(soma 'tests') | failures: $(soma 'failures') | errors: $(soma 'errors') | skipped: $(soma 'skipped')"
+```
+
+## Comandos (Windows, sempre `gradlew.bat`, nunca `-q`, sempre `--console=plain`)
+- Testes (obrigatório após mudança de lógica): `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks --console=plain`
+- APK debug: `gradlew.bat :app:androidApp:assembleDebug --console=plain`
 - Web/Wasm: `gradlew.bat :app:webApp:wasmJsBrowserDevelopmentRun`
 - Daemon travado: `gradlew.bat --stop`
 - ESP32 (previsto na spec, ainda sem firmware): `arduino-cli compile --fqbn esp32:esp32:esp32 esp32 --warnings all`
