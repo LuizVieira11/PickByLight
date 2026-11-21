@@ -44,8 +44,14 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class PahoMqttServiceImpl(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
-    private val transportFactory: () -> MqttTransport = { PahoV3Transport() },
-    private val clientIdProvider: () -> String = { "WmsMobile_${currentTimeMillis()}" },
+    private val transportFactory: (MqttProtocol) -> MqttTransport = { protocol ->
+        when (protocol) {
+            MqttProtocol.V5_0 -> PahoV5Transport()
+            MqttProtocol.V3_1_1 -> PahoV3Transport()
+        }
+    },
+    private val clientIdProvider: suspend () -> String = { AppSettings.getOrCreateClientId() },
+    private val protocolModeProvider: suspend () -> MqttProtocolMode = { AppSettings.resolveProtocolMode() },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : MqttService {
 
@@ -54,6 +60,12 @@ class PahoMqttServiceImpl(
 
     private val _pendingCommandsCount = MutableStateFlow(0)
     override val pendingCommandsCount: StateFlow<Int> = _pendingCommandsCount.asStateFlow()
+
+    private val _negotiatedProtocol = MutableStateFlow<MqttProtocol?>(null)
+    override val negotiatedProtocol: StateFlow<MqttProtocol?> = _negotiatedProtocol.asStateFlow()
+
+    private val _capabilities = MutableStateFlow(MqttCapabilities.NONE)
+    override val capabilities: StateFlow<MqttCapabilities> = _capabilities.asStateFlow()
 
     private var transport: MqttTransport? = null
     private var currentBrokerUrl: String = AppBuildConfig.MQTT_BROKER_URL
@@ -71,6 +83,7 @@ class PahoMqttServiceImpl(
     private data class ComandoPendente(
         val topico: String,
         val payload: String,
+        val properties: MqttMessageProperties? = null,
         var tentativas: Int = 0
     )
     private val pendingCommandsQueue = mutableListOf<ComandoPendente>()
@@ -98,71 +111,36 @@ class PahoMqttServiceImpl(
 
     private suspend fun executeConnect(targetUrl: String, isRetry: Boolean): Boolean = withContext(ioDispatcher) {
         mutex.withLock {
-            var newTransport: MqttTransport? = null
+            _connectionState.value = MqttConnectionState.CONNECTING
+            _negotiatedProtocol.value = null
+            _capabilities.value = MqttCapabilities.NONE
+
             try {
-                _connectionState.value = MqttConnectionState.CONNECTING
+                transport?.setCallbacks(null)
+                transport?.disconnectForcibly(1000, 1000)
+            } catch (_: Exception) {}
+            transport = null
 
-                try {
-                    transport?.setCallbacks(null)
-                    transport?.disconnectForcibly(1000, 1000)
-                } catch (_: Exception) {}
-                transport = null
+            val mode = protocolModeProvider()
+            val clientId = clientIdProvider()
 
-                val created = transportFactory()
-                newTransport = created
-                created.setCallbacks(object : MqttTransportCallbacks {
-                    override fun onConnectionLost(cause: Throwable?) {
-                        _connectionState.value = MqttConnectionState.DISCONNECTED
-                        if (!isManualDisconnect) {
-                            startReconnectBackoff()
+            return@withLock try {
+                val (created, connectResult) = when (mode) {
+                    MqttProtocolMode.AUTO -> {
+                        try {
+                            connectWithProtocol(MqttProtocol.V5_0, targetUrl, clientId)
+                        } catch (unsupported: MqttUnsupportedProtocolException) {
+                            println("[MQTT] Fallback v5->3.1.1: reasonCode=${unsupported.reasonCode} causa=${unsupported.message}")
+                            connectWithProtocol(MqttProtocol.V3_1_1, targetUrl, clientId)
                         }
                     }
-
-                    override fun onMessageArrived(message: MqttIncomingMessage) {
-                        if (message.topic == MqttTopics.ACK) {
-                            val payloadString = String(message.payload, Charsets.UTF_8)
-                            handleAckMessage(payloadString)
-                        }
-                    }
-
-                    override fun onDeliveryComplete(messageId: Int?) {}
-                })
-
-                val lwtPayload = json.encodeToString(
-                    MqttStatusApp(client = "wms_mobile", status = "OFFLINE")
-                )
-                val connectConfig = MqttConnectConfig(
-                    brokerUrl = targetUrl,
-                    clientId = clientIdProvider(),
-                    cleanSession = true,
-                    connectionTimeoutSeconds = 5,
-                    keepAliveSeconds = 30,
-                    will = MqttWillConfig(
-                        topic = MqttTopics.STATUS_APP,
-                        payload = lwtPayload.toByteArray(Charsets.UTF_8),
-                        qos = 1,
-                        retained = true
-                    )
-                )
-
-                created.connect(connectConfig).getOrThrow()
-
-                // Inscrever no tópico de ACK com QoS 1
-                created.subscribe(listOf(MqttSubscription(MqttTopics.ACK, qos = 1)), timeoutMs = 3000L).getOrThrow()
-
-                // Notificar status ONLINE do aplicativo (Retained = true, QoS 1)
-                val onlinePayload = json.encodeToString(
-                    MqttStatusApp(client = "wms_mobile", status = "ONLINE")
-                )
-                created.publish(
-                    topic = MqttTopics.STATUS_APP,
-                    payload = onlinePayload.toByteArray(Charsets.UTF_8),
-                    qos = 1,
-                    retained = true,
-                    timeoutMs = 3000L
-                ).getOrThrow()
+                    MqttProtocolMode.V5_0 -> connectWithProtocol(MqttProtocol.V5_0, targetUrl, clientId)
+                    MqttProtocolMode.V3_1_1 -> connectWithProtocol(MqttProtocol.V3_1_1, targetUrl, clientId)
+                }
 
                 transport = created
+                _negotiatedProtocol.value = connectResult.protocol
+                _capabilities.value = MqttCapabilities.forProtocol(connectResult.protocol)
                 _connectionState.value = MqttConnectionState.CONNECTED
                 reconnectJob?.cancel()
 
@@ -171,10 +149,8 @@ class PahoMqttServiceImpl(
                 true
             } catch (e: Exception) {
                 _connectionState.value = if (isRetry) MqttConnectionState.CONNECTING else MqttConnectionState.DISCONNECTED
-                try {
-                    newTransport?.setCallbacks(null)
-                    newTransport?.disconnectForcibly(500, 500)
-                } catch (_: Exception) {}
+                _negotiatedProtocol.value = null
+                _capabilities.value = MqttCapabilities.NONE
                 transport = null
 
                 if (!isManualDisconnect && !isRetry) {
@@ -182,6 +158,89 @@ class PahoMqttServiceImpl(
                 }
                 false
             }
+        }
+    }
+
+    private suspend fun connectWithProtocol(
+        protocol: MqttProtocol,
+        targetUrl: String,
+        clientId: String
+    ): Pair<MqttTransport, MqttConnectResult> {
+        val created = transportFactory(protocol)
+        try {
+            created.setCallbacks(object : MqttTransportCallbacks {
+                override fun onConnectionLost(cause: Throwable?) {
+                    _connectionState.value = MqttConnectionState.DISCONNECTED
+                    _negotiatedProtocol.value = null
+                    _capabilities.value = MqttCapabilities.NONE
+                    if (!isManualDisconnect) {
+                        startReconnectBackoff()
+                    }
+                }
+
+                override fun onMessageArrived(message: MqttIncomingMessage) {
+                    if (message.topic == MqttTopics.ACK) {
+                        val payloadString = String(message.payload, Charsets.UTF_8)
+                        handleAckMessage(payloadString)
+                    }
+                }
+
+                override fun onDeliveryComplete(messageId: Int?) {}
+            })
+
+            val lwtPayload = json.encodeToString(
+                MqttStatusApp(client = "wms_mobile", status = "OFFLINE")
+            )
+            val connectConfig = MqttConnectConfig(
+                brokerUrl = targetUrl,
+                clientId = clientId,
+                cleanSession = true,
+                connectionTimeoutSeconds = 5,
+                keepAliveSeconds = 15,
+                will = MqttWillConfig(
+                    topic = MqttTopics.STATUS_APP,
+                    payload = lwtPayload.toByteArray(Charsets.UTF_8),
+                    qos = 1,
+                    retained = true,
+                    willDelaySeconds = 5
+                )
+            )
+
+            val connectResult = created.connect(connectConfig).getOrThrow()
+
+            // Inscrever no tópico de ACK com QoS 1 e No Local (seção 4.2)
+            val subResult = created.subscribe(
+                listOf(MqttSubscription(MqttTopics.ACK, qos = 1, noLocal = true)),
+                timeoutMs = 3000L
+            ).getOrThrow()
+            val failedSub = subResult.reasonCodesByFilter.filterValues { it >= 0x80 }
+            if (failedSub.isNotEmpty()) {
+                throw IllegalStateException("SUBACK recusado pelo broker: $failedSub")
+            }
+
+            // Notificar status ONLINE do aplicativo (Retained = true, QoS 1)
+            val onlinePayload = json.encodeToString(
+                MqttStatusApp(client = "wms_mobile", status = "ONLINE")
+            )
+            created.publish(
+                topic = MqttTopics.STATUS_APP,
+                payload = onlinePayload.toByteArray(Charsets.UTF_8),
+                qos = 1,
+                retained = true,
+                properties = MqttMessageProperties(
+                    payloadFormatUtf8 = true,
+                    contentType = JSON_CONTENT_TYPE
+                ),
+                timeoutMs = 3000L
+            ).getOrThrow()
+
+            return created to connectResult
+        } catch (e: Exception) {
+            try {
+                created.setCallbacks(null)
+                created.disconnectForcibly(500, 500)
+            } catch (_: Exception) {}
+            throw e
         }
     }
 
@@ -219,10 +278,14 @@ class PahoMqttServiceImpl(
         } catch (_: Exception) {}
     }
 
-    private suspend fun publishWithQos1(topico: String, payloadString: String): Result<Unit> = withContext(ioDispatcher) {
+    private suspend fun publishWithQos1(
+        topico: String,
+        payloadString: String,
+        properties: MqttMessageProperties
+    ): Result<Unit> = withContext(ioDispatcher) {
         val currentTransport = transport
         if (currentTransport == null || !currentTransport.isConnected) {
-            enqueuePendingCommand(topico, payloadString)
+            enqueuePendingCommand(topico, payloadString, properties)
             return@withContext Result.failure(IllegalStateException("Broker MQTT desconectado. Comando enfileirado."))
         }
 
@@ -231,19 +294,38 @@ class PahoMqttServiceImpl(
             payload = payloadString.toByteArray(Charsets.UTF_8),
             qos = 1,
             retained = false,
+            properties = properties,
             timeoutMs = 5000L
         )
-        if (publishResult.isSuccess) {
-            Result.success(Unit)
-        } else {
-            enqueuePendingCommand(topico, payloadString)
-            Result.failure(publishResult.exceptionOrNull() ?: IllegalStateException("Erro ao publicar comando MQTT"))
+        if (publishResult.isFailure) {
+            enqueuePendingCommand(topico, payloadString, properties)
+            return@withContext Result.failure(
+                publishResult.exceptionOrNull() ?: IllegalStateException("Erro ao publicar comando MQTT")
+            )
+        }
+
+        val rc = publishResult.getOrNull()?.reasonCode
+        when {
+            rc == null || rc == 0x00 -> Result.success(Unit)
+            rc == REASON_NO_MATCHING_SUBSCRIBERS -> {
+                println("[MQTT] Diagnóstico PUBACK 0x10 (No matching subscribers) em $topico")
+                Result.success(Unit)
+            }
+            rc == REASON_NOT_AUTHORIZED || rc == REASON_PACKET_TOO_LARGE -> {
+                // Reenviar 0x87/0x95 não resolve: falha sem enfileirar.
+                Result.failure(IllegalStateException("Publicação recusada pelo broker (reasonCode=0x${rc.toString(16)})"))
+            }
+            rc >= 0x80 -> {
+                enqueuePendingCommand(topico, payloadString, properties)
+                Result.failure(IllegalStateException("Falha PUBACK (reasonCode=0x${rc.toString(16)}). Comando enfileirado."))
+            }
+            else -> Result.success(Unit)
         }
     }
 
-    private fun enqueuePendingCommand(topico: String, payloadString: String) {
+    private fun enqueuePendingCommand(topico: String, payloadString: String, properties: MqttMessageProperties?) {
         synchronized(pendingCommandsQueue) {
-            pendingCommandsQueue.add(ComandoPendente(topico, payloadString, tentativas = 0))
+            pendingCommandsQueue.add(ComandoPendente(topico, payloadString, properties, tentativas = 0))
             _pendingCommandsCount.value = pendingCommandsQueue.size
         }
     }
@@ -262,9 +344,11 @@ class PahoMqttServiceImpl(
                         payload = cmd.payload.toByteArray(Charsets.UTF_8),
                         qos = 1,
                         retained = false,
+                        properties = cmd.properties,
                         timeoutMs = 2000L
                     )
-                    if (result != null && result.isSuccess) {
+                    val rc = result?.getOrNull()?.reasonCode
+                    if (result != null && result.isSuccess && (rc == null || rc < 0x80)) {
                         toRemove.add(cmd)
                     }
                 } else {
@@ -295,7 +379,11 @@ class PahoMqttServiceImpl(
         val ackDeferred = CompletableDeferred<MqttAck>()
         pendingAcks[posicaoLedId] = ackDeferred
 
-        val publishResult = publishWithQos1(MqttTopics.COMANDO, payloadString)
+        val publishResult = publishWithQos1(
+            topico = MqttTopics.COMANDO,
+            payloadString = payloadString,
+            properties = jsonProperties(messageExpirySeconds = 5L)
+        )
         if (publishResult.isFailure) {
             pendingAcks.remove(posicaoLedId)
             return@withContext publishResult
@@ -325,7 +413,11 @@ class PahoMqttServiceImpl(
             posicaoLedId = posicaoLedId
         )
         val payloadString = json.encodeToString(payload)
-        publishWithQos1(MqttTopics.COMANDO, payloadString)
+        publishWithQos1(
+            topico = MqttTopics.COMANDO,
+            payloadString = payloadString,
+            properties = jsonProperties(messageExpirySeconds = 65L)
+        )
     }
 
     override suspend fun testarLed(
@@ -348,7 +440,12 @@ class PahoMqttServiceImpl(
         val ackDeferred = CompletableDeferred<MqttAck>()
         pendingAcks[key] = ackDeferred
 
-        val publishResult = publishWithQos1(MqttTopics.COMANDO, payloadString)
+        val expirySeconds = ((duracaoMs.coerceAtLeast(0) + 999) / 1000).toLong() + 5L
+        val publishResult = publishWithQos1(
+            topico = MqttTopics.COMANDO,
+            payloadString = payloadString,
+            properties = jsonProperties(messageExpirySeconds = expirySeconds)
+        )
         if (publishResult.isFailure) {
             pendingAcks.remove(key)
             return@withContext publishResult
@@ -374,7 +471,11 @@ class PahoMqttServiceImpl(
         val ackDeferred = CompletableDeferred<MqttAck>()
         pendingAcks["PING"] = ackDeferred
 
-        val publishResult = publishWithQos1(MqttTopics.COMANDO, payloadString)
+        val publishResult = publishWithQos1(
+            topico = MqttTopics.COMANDO,
+            payloadString = payloadString,
+            properties = jsonProperties(messageExpirySeconds = 5L)
+        )
         if (publishResult.isFailure) {
             pendingAcks.remove("PING")
             return@withContext Result.failure(publishResult.exceptionOrNull() ?: IllegalStateException("Erro ao enviar PING"))
@@ -393,11 +494,7 @@ class PahoMqttServiceImpl(
         }
     }
 
-    // ---- Gerenciamento de ESPs: stubs explícitos. A Etapa 4 (adapter Paho v3/v5) os substitui. ----
-
-    override val negotiatedProtocol: StateFlow<MqttProtocol?> = MutableStateFlow<MqttProtocol?>(null).asStateFlow()
-
-    override val capabilities: StateFlow<MqttCapabilities> = MutableStateFlow(MqttCapabilities.NONE).asStateFlow()
+    // ---- Gerenciamento de ESPs: stubs explícitos. A Etapa 4b2 os substitui. ----
 
     override val espDevices: StateFlow<List<EspDevice>> = MutableStateFlow<List<EspDevice>>(emptyList()).asStateFlow()
 
@@ -421,6 +518,9 @@ class PahoMqttServiceImpl(
     override fun disconnect() {
         isManualDisconnect = true
         reconnectJob?.cancel()
+        _connectionState.value = MqttConnectionState.DISCONNECTED
+        _negotiatedProtocol.value = null
+        _capabilities.value = MqttCapabilities.NONE
         scope.launch(ioDispatcher) {
             try {
                 transport?.setCallbacks(null)
@@ -428,6 +528,21 @@ class PahoMqttServiceImpl(
             } catch (_: Exception) {}
             transport = null
             _connectionState.value = MqttConnectionState.DISCONNECTED
+            _negotiatedProtocol.value = null
+            _capabilities.value = MqttCapabilities.NONE
         }
+    }
+
+    private fun jsonProperties(messageExpirySeconds: Long) = MqttMessageProperties(
+        messageExpirySeconds = messageExpirySeconds,
+        payloadFormatUtf8 = true,
+        contentType = JSON_CONTENT_TYPE
+    )
+
+    companion object {
+        private const val JSON_CONTENT_TYPE = "application/json"
+        private const val REASON_NO_MATCHING_SUBSCRIBERS = 0x10
+        private const val REASON_NOT_AUTHORIZED = 0x87
+        private const val REASON_PACKET_TOO_LARGE = 0x95
     }
 }

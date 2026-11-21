@@ -2,6 +2,8 @@ package com.uniso.wms.pickbylight.ui.screens.ajustes
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.uniso.wms.pickbylight.data.mqtt.MqttProtocol
+import com.uniso.wms.pickbylight.data.mqtt.MqttProtocolMode
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.data.settings.BrokerUrlDataStore
@@ -23,6 +25,8 @@ import kotlinx.coroutines.launch
  */
 data class AjustesUiState(
     val brokerUrl: String = "",
+    val protocolMode: MqttProtocolMode = MqttProtocolMode.AUTO,
+    val negotiatedProtocol: MqttProtocol? = null,
     val pingStatusText: String? = null,
     val resetStatusText: String? = null,
     val isTestingConnection: Boolean = false,
@@ -56,6 +60,16 @@ class AjustesViewModel(
                 _uiState.update { it.copy(brokerUrl = urlToShow) }
             }
         }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            dataStore.getProtocolMode().collect { savedMode ->
+                _uiState.update { it.copy(protocolMode = savedMode) }
+            }
+        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            mqttService.negotiatedProtocol.collect { protocol ->
+                _uiState.update { it.copy(negotiatedProtocol = protocol) }
+            }
+        }
     }
 
     /**
@@ -63,6 +77,17 @@ class AjustesViewModel(
      */
     fun onBrokerUrlChanged(newUrl: String) {
         _uiState.update { it.copy(brokerUrl = newUrl) }
+    }
+
+    /**
+     * Persiste a preferência de protocolo MQTT (`Automático | 5.0 | 3.1.1`) para a próxima conexão.
+     */
+    fun onProtocolModeSelected(mode: MqttProtocolMode) {
+        _uiState.update { it.copy(protocolMode = mode) }
+        scope.launch {
+            dataStore.saveProtocolMode(mode)
+            AppSettings.saveProtocolMode(mode)
+        }
     }
 
     /**

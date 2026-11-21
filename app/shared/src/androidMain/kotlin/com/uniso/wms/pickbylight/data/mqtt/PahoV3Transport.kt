@@ -101,7 +101,12 @@ class PahoV3Transport : MqttTransport {
             val qoss = subscriptions.map { it.qos }.toIntArray()
             val subToken = currentClient.subscribe(filters, qoss)
             subToken.waitForCompletion(timeoutMs)
-            Result.success(MqttSubscribeResult(subscriptions.associate { it.topicFilter to 0 }))
+            val granted = subToken.grantedQos
+            val byFilter = subscriptions.mapIndexed { index, sub ->
+                val code = if (index < granted.size) granted[index] else 0x80
+                sub.topicFilter to code
+            }.toMap()
+            Result.success(MqttSubscribeResult(byFilter))
         } catch (e: Exception) {
             Result.failure(e)
         }

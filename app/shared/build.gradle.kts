@@ -42,6 +42,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.paho.mqtt)
+            implementation(libs.paho.mqtt.v5)
             implementation(libs.room.runtime)
             implementation(libs.room.ktx)
             implementation(libs.androidx.datastore.preferences.core)

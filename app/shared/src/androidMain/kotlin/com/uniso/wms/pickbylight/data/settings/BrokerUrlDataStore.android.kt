@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.uniso.wms.pickbylight.data.mqtt.MqttProtocolMode
+import com.uniso.wms.pickbylight.util.generateUUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,18 +19,27 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 actual object BrokerUrlDataStore {
     private val KEY_BROKER_URL = stringPreferencesKey("mqtt_broker_url")
+    private val KEY_PROTOCOL_MODE = stringPreferencesKey("mqtt_protocol_mode")
+    private val KEY_CLIENT_ID = stringPreferencesKey("mqtt_client_id")
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val clientIdMutex = Mutex()
 
     @Volatile
     private var dataStoreInstance: DataStore<Preferences>? = null
     private val dataStoreHolder = MutableStateFlow<DataStore<Preferences>?>(null)
 
-    // Espelho reativo sincronizado com o DataStore (e fallback para testes unitários sem Context Android)
+    // Espelhos reativos sincronizados com o DataStore (e fallback para testes unitários sem Context Android)
     private val memoryMirror = MutableStateFlow<String?>(null)
+    private val memoryProtocolMode = MutableStateFlow(MqttProtocolMode.AUTO)
+
+    @Volatile
+    private var memoryClientId: String? = null
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val sharedBrokerUrlFlow: Flow<String?> = dataStoreHolder
@@ -101,4 +112,57 @@ actual object BrokerUrlDataStore {
         }
         return memoryMirror.value
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val sharedProtocolModeFlow: Flow<MqttProtocolMode> = dataStoreHolder
+        .flatMapLatest { ds ->
+            if (ds != null) {
+                ds.data.map { prefs ->
+                    val parsed = parseProtocolMode(prefs[KEY_PROTOCOL_MODE])
+                    memoryProtocolMode.value = parsed
+                    parsed
+                }
+            } else {
+                memoryProtocolMode
+            }
+        }
+        .distinctUntilChanged()
+
+    actual fun getProtocolMode(): Flow<MqttProtocolMode> = sharedProtocolModeFlow
+
+    actual suspend fun saveProtocolMode(mode: MqttProtocolMode) {
+        memoryProtocolMode.value = mode
+        dataStoreInstance?.edit { prefs ->
+            prefs[KEY_PROTOCOL_MODE] = mode.name
+        }
+    }
+
+    actual suspend fun getSavedProtocolMode(): MqttProtocolMode {
+        val ds = dataStoreInstance
+        if (ds != null) {
+            val parsed = parseProtocolMode(ds.data.map { it[KEY_PROTOCOL_MODE] }.first())
+            memoryProtocolMode.value = parsed
+            return parsed
+        }
+        return memoryProtocolMode.value
+    }
+
+    actual suspend fun getOrCreateClientId(): String = clientIdMutex.withLock {
+        val ds = dataStoreInstance
+        if (ds != null) {
+            val fromDisk = ds.data.map { it[KEY_CLIENT_ID] }.first()?.takeIf { it.isNotBlank() }
+            if (fromDisk != null) {
+                memoryClientId = fromDisk
+                return@withLock fromDisk
+            }
+            val generated = "wms_mobile_${generateUUID()}"
+            ds.edit { prefs -> prefs[KEY_CLIENT_ID] = generated }
+            memoryClientId = generated
+            return@withLock generated
+        }
+        memoryClientId ?: "wms_mobile_${generateUUID()}".also { memoryClientId = it }
+    }
+
+    private fun parseProtocolMode(raw: String?): MqttProtocolMode =
+        MqttProtocolMode.entries.firstOrNull { it.name == raw } ?: MqttProtocolMode.AUTO
 }

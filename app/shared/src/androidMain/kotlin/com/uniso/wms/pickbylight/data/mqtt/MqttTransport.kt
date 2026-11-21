@@ -72,6 +72,12 @@ interface MqttTransportCallbacks {
     fun onDeliveryComplete(messageId: Int?)
 }
 
+class MqttUnsupportedProtocolException(
+    val reasonCode: Int?,
+    message: String,
+    cause: Throwable? = null
+) : IllegalStateException(message, cause)
+
 interface MqttTransport {
     val isConnected: Boolean
     fun setCallbacks(callbacks: MqttTransportCallbacks?)

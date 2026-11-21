@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +34,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.uniso.wms.pickbylight.data.mqtt.MqttConnectionState
+import com.uniso.wms.pickbylight.data.mqtt.MqttProtocol
+import com.uniso.wms.pickbylight.data.mqtt.MqttProtocolMode
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
@@ -139,6 +146,21 @@ fun AjustesScreen(
                     }
                 }
 
+                if (mqttState == MqttConnectionState.CONNECTED) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val protocolText = when (uiState.negotiatedProtocol) {
+                        MqttProtocol.V5_0 -> "Conectado via MQTT 5.0"
+                        MqttProtocol.V3_1_1 -> "Conectado via MQTT 3.1.1"
+                        null -> "Conectado"
+                    }
+                    Text(
+                        text = protocolText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = EmeraldSuccess
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
@@ -148,6 +170,55 @@ fun AjustesScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Protocolo MQTT",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Aplicado na próxima conexão",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val options = listOf(
+                        MqttProtocolMode.AUTO to "Automático",
+                        MqttProtocolMode.V5_0 to "5.0",
+                        MqttProtocolMode.V3_1_1 to "3.1.1"
+                    )
+                    options.forEach { (mode, label) ->
+                        val selected = uiState.protocolMode == mode
+                        Button(
+                            onClick = { viewModel.onProtocolModeSelected(mode) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 48.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selected) ShelfRackBlue else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 16.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 

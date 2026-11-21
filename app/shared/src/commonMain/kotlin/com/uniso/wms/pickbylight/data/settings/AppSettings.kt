@@ -1,5 +1,6 @@
 package com.uniso.wms.pickbylight.data.settings
 
+import com.uniso.wms.pickbylight.data.mqtt.MqttProtocolMode
 import com.uniso.wms.pickbylight.util.AppBuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -36,11 +37,19 @@ object AppSettings {
     val brokerUrlFlow: StateFlow<String>
         get() = brokerUrlState
 
+    private val _protocolModeState = MutableStateFlow(MqttProtocolMode.AUTO)
+    val protocolModeState: StateFlow<MqttProtocolMode> = _protocolModeState.asStateFlow()
+
     init {
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             BrokerUrlDataStore.getBrokerUrl().collect { savedUrl ->
                 val urlToShow = savedUrl?.takeIf { it.isNotBlank() } ?: AppBuildConfig.MQTT_BROKER_URL
                 _brokerUrlState.value = urlToShow
+            }
+        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            BrokerUrlDataStore.getProtocolMode().collect { mode ->
+                _protocolModeState.value = mode
             }
         }
     }
@@ -66,4 +75,17 @@ object AppSettings {
         _brokerUrlState.value = resolved
         return resolved
     }
+
+    suspend fun saveProtocolMode(mode: MqttProtocolMode) {
+        _protocolModeState.value = mode
+        BrokerUrlDataStore.saveProtocolMode(mode)
+    }
+
+    suspend fun resolveProtocolMode(): MqttProtocolMode {
+        val resolved = BrokerUrlDataStore.getSavedProtocolMode()
+        _protocolModeState.value = resolved
+        return resolved
+    }
+
+    suspend fun getOrCreateClientId(): String = BrokerUrlDataStore.getOrCreateClientId()
 }
