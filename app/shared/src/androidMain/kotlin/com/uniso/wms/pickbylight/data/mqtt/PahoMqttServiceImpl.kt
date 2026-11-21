@@ -1,8 +1,13 @@
 package com.uniso.wms.pickbylight.data.mqtt
 
+import com.uniso.wms.pickbylight.data.esp.ContractResult
+import com.uniso.wms.pickbylight.data.esp.EspContract
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigGet
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResultStatus
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigSet
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigState
+import com.uniso.wms.pickbylight.data.mqtt.model.DiscoveryRequest
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttAck
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoAcender
 import com.uniso.wms.pickbylight.data.mqtt.model.MqttComandoApagar
@@ -13,6 +18,7 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MqttTopics
 import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.util.AppBuildConfig
 import com.uniso.wms.pickbylight.util.currentTimeMillis
+import com.uniso.wms.pickbylight.util.generateUUID
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -67,6 +73,19 @@ class PahoMqttServiceImpl(
     private val _capabilities = MutableStateFlow(MqttCapabilities.NONE)
     override val capabilities: StateFlow<MqttCapabilities> = _capabilities.asStateFlow()
 
+    private val espRegistry = EspRegistry()
+    private val registryLock = Any()
+    override val espDevices: StateFlow<List<EspDevice>> = espRegistry.espDevices
+
+    internal val discardedObsoleteMessages: List<String>
+        get() = synchronized(registryLock) { espRegistry.discardedObsoleteMessages }
+
+    private val v1SubscribeMutex = Mutex()
+    @Volatile
+    private var isV1Subscribed: Boolean = false
+    @Volatile
+    private var v1SubscriptionsRequested: Boolean = false
+
     private var transport: MqttTransport? = null
     private var currentBrokerUrl: String = AppBuildConfig.MQTT_BROKER_URL
 
@@ -114,7 +133,11 @@ class PahoMqttServiceImpl(
             _connectionState.value = MqttConnectionState.CONNECTING
             _negotiatedProtocol.value = null
             _capabilities.value = MqttCapabilities.NONE
+            isV1Subscribed = false
 
+            if (transport != null) {
+                synchronized(registryLock) { espRegistry.failAllPending("Conexão MQTT reiniciada") }
+            }
             try {
                 transport?.setCallbacks(null)
                 transport?.disconnectForcibly(1000, 1000)
@@ -173,6 +196,8 @@ class PahoMqttServiceImpl(
                     _connectionState.value = MqttConnectionState.DISCONNECTED
                     _negotiatedProtocol.value = null
                     _capabilities.value = MqttCapabilities.NONE
+                    isV1Subscribed = false
+                    synchronized(registryLock) { espRegistry.failAllPending("Conexão MQTT perdida") }
                     if (!isManualDisconnect) {
                         startReconnectBackoff()
                     }
@@ -182,6 +207,8 @@ class PahoMqttServiceImpl(
                     if (message.topic == MqttTopics.ACK) {
                         val payloadString = String(message.payload, Charsets.UTF_8)
                         handleAckMessage(payloadString)
+                    } else {
+                        handleV1Message(message)
                     }
                 }
 
@@ -216,6 +243,19 @@ class PahoMqttServiceImpl(
             val failedSub = subResult.reasonCodesByFilter.filterValues { it >= 0x80 }
             if (failedSub.isNotEmpty()) {
                 throw IllegalStateException("SUBACK recusado pelo broker: $failedSub")
+            }
+
+            synchronized(registryLock) { espRegistry.demoteOnlineDevicesToStale() }
+            if (v1SubscriptionsRequested) {
+                val v1Sub = created.subscribe(v1Subscriptions, timeoutMs = 3000L)
+                val v1Failed = v1Sub.getOrNull()?.reasonCodesByFilter?.filterValues { it >= 0x80 }
+                if (v1Sub.isSuccess && v1Failed != null && v1Failed.isEmpty()) {
+                    isV1Subscribed = true
+                } else {
+                    // Ajuste 2: falha na reassinatura v1 não derruba a conexão legada; próxima operação v1 tenta de novo.
+                    isV1Subscribed = false
+                    println("[MQTT] Reassinatura v1 recusada na reconexão: ${v1Sub.exceptionOrNull()?.message ?: v1Failed}")
+                }
             }
 
             // Notificar status ONLINE do aplicativo (Retained = true, QoS 1)
@@ -272,10 +312,71 @@ class PahoMqttServiceImpl(
     private fun handleAckMessage(payloadString: String) {
         try {
             val ack = json.decodeFromString<MqttAck>(payloadString)
-            val key = ack.posicaoLedId ?: "GLOBAL"
-            pendingAcks[key]?.complete(ack)
-            pendingAcks["PING"]?.complete(ack)
+            if (ack.isPong) {
+                pendingAcks[KEY_PING]?.complete(ack)
+                return
+            }
+            if (ack.acao.equals("ACK", ignoreCase = true)) {
+                val key = ack.posicaoLedId ?: KEY_TESTE_LED_NO_POS
+                pendingAcks[key]?.complete(ack)
+            }
         } catch (_: Exception) {}
+    }
+
+    private fun handleV1Message(message: MqttIncomingMessage) {
+        val espId = MqttTopics.espIdFromTopic(message.topic) ?: return
+        val payloadString = try {
+            String(message.payload, Charsets.UTF_8)
+        } catch (_: Exception) {
+            return
+        }
+        when (message.topic) {
+            MqttTopics.espStatus(espId) -> {
+                when (val online = EspContract.parseStatusOnline(payloadString, espId)) {
+                    is ContractResult.Valid -> synchronized(registryLock) {
+                        espRegistry.applyStatusOnline(online.value, fromRetained = message.retained)
+                    }
+                    is ContractResult.Invalid -> {
+                        when (val offline = EspContract.parseStatusOffline(payloadString, espId)) {
+                            is ContractResult.Valid -> synchronized(registryLock) {
+                                espRegistry.applyStatusOffline(offline.value)
+                            }
+                            is ContractResult.Invalid -> {
+                                println("[MQTT] Status v1 inválido em ${message.topic}: ${online.code} / ${offline.code}")
+                            }
+                        }
+                    }
+                }
+            }
+            MqttTopics.espConfigState(espId) -> {
+                when (val state = EspContract.parseConfigState(payloadString, espId)) {
+                    is ContractResult.Valid -> synchronized(registryLock) {
+                        espRegistry.applyConfigState(state.value, fromRetained = message.retained)
+                    }
+                    is ContractResult.Invalid -> {
+                        println("[MQTT] config/state v1 inválido em ${message.topic}: ${state.code} (${state.detail})")
+                    }
+                }
+            }
+            MqttTopics.espConfigResult(espId) -> {
+                when (val res = EspContract.parseConfigResult(payloadString, espId)) {
+                    is ContractResult.Valid -> {
+                        message.correlationData?.let { corrBytes ->
+                            val corrId = String(corrBytes, Charsets.UTF_8)
+                            if (corrId != res.value.requestId) {
+                                println("[MQTT] Correlation Data divergente do payload em ${message.topic}: corr=$corrId payload=${res.value.requestId}")
+                            }
+                        }
+                        synchronized(registryLock) {
+                            espRegistry.applyConfigResult(res.value)
+                        }
+                    }
+                    is ContractResult.Invalid -> {
+                        println("[MQTT] config/result v1 inválido em ${message.topic}: ${res.code} (${res.detail})")
+                    }
+                }
+            }
+        }
     }
 
     private suspend fun publishWithQos1(
@@ -494,15 +595,81 @@ class PahoMqttServiceImpl(
         }
     }
 
-    // ---- Gerenciamento de ESPs: stubs explícitos. A Etapa 4b2 os substitui. ----
+    // ---- Gerenciamento de ESPs (MQTT5_E_ESP32.md, seções 4, 5, 6, 8, 9 e 16) ----
 
-    override val espDevices: StateFlow<List<EspDevice>> = MutableStateFlow<List<EspDevice>>(emptyList()).asStateFlow()
+    override suspend fun descobrirEsps(): Result<List<EspDevice>> = withContext(ioDispatcher) {
+        val payload = EspContract.encodeDiscoveryRequest(DiscoveryRequest(EspContract.SCHEMA_VERSION, generateUUID()))
+            .toResult().getOrElse { return@withContext Result.failure(it) }
+        ensureV1Subscribed().onFailure { return@withContext Result.failure(it) }
+        publishManagement(
+            topic = MqttTopics.V1_DISCOVERY_REQUEST,
+            payloadString = payload,
+            properties = jsonProperties(messageExpirySeconds = 3L)
+        ).onFailure { return@withContext Result.failure(it) }
+        delay(EspManagementTimings.DISCOVERY_WINDOW_MS)
+        Result.success(espDevices.value)
+    }
 
-    override suspend fun descobrirEsps(): Result<List<EspDevice>> = notImplementedYet()
+    override suspend fun obterConfig(espId: String): Result<MqttOutcome<ConfigState>> = withContext(ioDispatcher) {
+        requireEspId(espId).onFailure { return@withContext Result.failure(it) }
+        val requestId = generateUUID()
+        val payload = EspContract.encodeConfigGet(ConfigGet(EspContract.SCHEMA_VERSION, espId, requestId))
+            .toResult().getOrElse { return@withContext Result.failure(it) }
 
-    override suspend fun obterConfig(espId: String): Result<MqttOutcome<ConfigState>> = notImplementedYet()
+        val deferred = synchronized(registryLock) { espRegistry.registerConfigGet(requestId) }
+        try {
+            ensureV1Subscribed().onFailure { return@withContext Result.failure(it) }
+            val diagnostics = publishManagement(
+                topic = MqttTopics.espConfigGet(espId),
+                payloadString = payload,
+                properties = jsonProperties(messageExpirySeconds = 5L)
+            ).getOrElse { return@withContext Result.failure(it) }
 
-    override suspend fun gravarConfig(set: ConfigSet): Result<MqttOutcome<ConfigResult>> = notImplementedYet()
+            val state = withTimeoutOrNull(EspManagementTimings.CONFIG_TIMEOUT_MS) { deferred.await() }
+                ?: return@withContext Result.success(MqttOutcome.Timeout(diagnostics))
+            Result.success(MqttOutcome.Ok(state, diagnostics))
+        } catch (e: MqttConnectionLostException) {
+            Result.failure(e)
+        } finally {
+            synchronized(registryLock) { espRegistry.unregisterConfigGet(requestId) }
+        }
+    }
+
+    override suspend fun gravarConfig(set: ConfigSet): Result<MqttOutcome<ConfigResult>> = withContext(ioDispatcher) {
+        requireEspId(set.espId).onFailure { return@withContext Result.failure(it) }
+        val payload = EspContract.encodeConfigSet(set).toResult().getOrElse { return@withContext Result.failure(it) }
+
+        val deferred = synchronized(registryLock) { espRegistry.registerConfigSet(set.requestId) }
+        try {
+            ensureV1Subscribed().onFailure { return@withContext Result.failure(it) }
+            val caps = _capabilities.value
+            val properties = MqttMessageProperties(
+                messageExpirySeconds = 5L,
+                responseTopic = if (caps.responseTopic) MqttTopics.espConfigResult(set.espId) else null,
+                correlationData = if (caps.correlationData) set.requestId.toByteArray(Charsets.UTF_8) else null,
+                payloadFormatUtf8 = true,
+                contentType = JSON_CONTENT_TYPE
+            )
+            // config/set nunca entra na fila de pendentes: desconectado ou PUBACK >= 0x80 falha sem enfileirar.
+            val diagnostics = publishManagement(
+                topic = MqttTopics.espConfigSet(set.espId),
+                payloadString = payload,
+                properties = properties
+            ).getOrElse { return@withContext Result.failure(it) }
+
+            val result = withTimeoutOrNull(EspManagementTimings.CONFIG_TIMEOUT_MS) { deferred.await() }
+                ?: return@withContext Result.success(MqttOutcome.Timeout(diagnostics))
+            if (result.status != ConfigResultStatus.OK) {
+                Result.success(MqttOutcome.Erro(result.errorCode, result, diagnostics))
+            } else {
+                Result.success(MqttOutcome.Ok(result, diagnostics))
+            }
+        } catch (e: MqttConnectionLostException) {
+            Result.failure(e)
+        } finally {
+            synchronized(registryLock) { espRegistry.unregisterConfigSet(set.requestId) }
+        }
+    }
 
     override suspend fun testarLedComConfirmacao(
         estanteLedId: String,
@@ -510,14 +677,114 @@ class PahoMqttServiceImpl(
         posicaoLedId: String?,
         cor: String,
         duracaoMs: Int
-    ): Result<MqttOutcome<Unit>> = notImplementedYet()
+    ): Result<MqttOutcome<Unit>> = withContext(ioDispatcher) {
+        val payload = MqttComandoTesteLed(
+            estanteLedId = estanteLedId,
+            prateleiraLedId = prateleiraLedId,
+            posicaoLedId = posicaoLedId,
+            cor = cor,
+            duracaoMs = duracaoMs
+        )
+        val payloadString = json.encodeToString(payload)
+        val key = posicaoLedId ?: KEY_TESTE_LED_NO_POS
+        val ackDeferred = CompletableDeferred<MqttAck>()
+        pendingAcks[key] = ackDeferred
+        try {
+            val expirySeconds = ((duracaoMs.coerceAtLeast(0) + 999) / 1000).toLong() + 5L
+            val diagnostics = publishManagement(
+                topic = MqttTopics.COMANDO,
+                payloadString = payloadString,
+                properties = jsonProperties(messageExpirySeconds = expirySeconds)
+            ).getOrElse { return@withContext Result.failure(it) }
 
-    private fun <T> notImplementedYet(): Result<T> =
-        Result.failure(UnsupportedOperationException("implementado na Etapa 4"))
+            val ack = withTimeoutOrNull(EspManagementTimings.ACK_TIMEOUT_MS) { ackDeferred.await() }
+                ?: return@withContext Result.success(MqttOutcome.Timeout(diagnostics))
+            if (ack.isOk) {
+                Result.success(MqttOutcome.Ok(Unit, diagnostics))
+            } else {
+                Result.success(MqttOutcome.Erro(ack.errorCodeEnum, diagnostics = diagnostics))
+            }
+        } finally {
+            pendingAcks.remove(key)
+        }
+    }
+
+    private suspend fun ensureV1Subscribed(): Result<Unit> = v1SubscribeMutex.withLock {
+        val currentTransport = transport
+        if (currentTransport == null || !currentTransport.isConnected) {
+            return@withLock Result.failure(IllegalStateException("Broker MQTT desconectado"))
+        }
+        if (isV1Subscribed) return@withLock Result.success(Unit)
+        val subResult = currentTransport.subscribe(v1Subscriptions, timeoutMs = 3000L)
+            .getOrElse { return@withLock Result.failure(it) }
+        val failed = subResult.reasonCodesByFilter.filterValues { it >= 0x80 }
+        if (failed.isNotEmpty()) {
+            return@withLock Result.failure(IllegalStateException("SUBACK v1 recusado pelo broker: $failed"))
+        }
+        isV1Subscribed = true
+        v1SubscriptionsRequested = true
+        Result.success(Unit)
+    }
+
+    private suspend fun publishManagement(
+        topic: String,
+        payloadString: String,
+        properties: MqttMessageProperties
+    ): Result<List<MqttDiagnostic>> {
+        val currentTransport = transport
+        if (currentTransport == null || !currentTransport.isConnected) {
+            return Result.failure(IllegalStateException("Broker MQTT desconectado"))
+        }
+        val publishResult = currentTransport.publish(
+            topic = topic,
+            payload = payloadString.toByteArray(Charsets.UTF_8),
+            qos = 1,
+            retained = false,
+            properties = properties,
+            timeoutMs = 5000L
+        )
+        if (publishResult.isFailure) {
+            return Result.failure(
+                publishResult.exceptionOrNull() ?: IllegalStateException("Erro ao publicar em $topic")
+            )
+        }
+        val rc = publishResult.getOrNull()?.reasonCode
+        return when {
+            rc == null || rc == 0x00 -> Result.success(emptyList())
+            rc == REASON_NO_MATCHING_SUBSCRIBERS -> {
+                if (_capabilities.value.reasonCodes) {
+                    Result.success(listOf(MqttDiagnostic(rc, "No matching subscribers (0x10)", topic)))
+                } else {
+                    Result.success(emptyList())
+                }
+            }
+            rc == REASON_NOT_AUTHORIZED -> Result.failure(
+                IllegalStateException("Publicação recusada pelo broker: Not authorized (0x87) em $topic")
+            )
+            rc == REASON_PACKET_TOO_LARGE -> Result.failure(
+                IllegalStateException("Publicação recusada pelo broker: Packet too large (0x95) em $topic")
+            )
+            rc >= 0x80 -> Result.failure(
+                IllegalStateException("Publicação recusada pelo broker (0x${rc.toString(16)}) em $topic")
+            )
+            else -> Result.success(emptyList())
+        }
+    }
+
+    private fun requireEspId(espId: String): Result<Unit> =
+        if (EspContract.ESP_ID_REGEX.matches(espId)) Result.success(Unit)
+        else Result.failure(IllegalArgumentException("esp_id inválido: $espId"))
+
+    private fun ContractResult<String>.toResult(): Result<String> = when (this) {
+        is ContractResult.Valid -> Result.success(value)
+        is ContractResult.Invalid -> Result.failure(IllegalArgumentException("$code: $detail"))
+    }
 
     override fun disconnect() {
         isManualDisconnect = true
         reconnectJob?.cancel()
+        isV1Subscribed = false
+        synchronized(registryLock) { espRegistry.failAllPending("Conexão MQTT encerrada") }
         _connectionState.value = MqttConnectionState.DISCONNECTED
         _negotiatedProtocol.value = null
         _capabilities.value = MqttCapabilities.NONE
@@ -541,8 +808,16 @@ class PahoMqttServiceImpl(
 
     companion object {
         private const val JSON_CONTENT_TYPE = "application/json"
+        private const val KEY_PING = "PING"
+        private const val KEY_TESTE_LED_NO_POS = "TESTE_LED"
         private const val REASON_NO_MATCHING_SUBSCRIBERS = 0x10
         private const val REASON_NOT_AUTHORIZED = 0x87
         private const val REASON_PACKET_TOO_LARGE = 0x95
+
+        private val v1Subscriptions = listOf(
+            MqttSubscription(MqttTopics.V1_ESP_STATUS_FILTER, qos = 1, noLocal = true),
+            MqttSubscription(MqttTopics.V1_ESP_CONFIG_STATE_FILTER, qos = 1, noLocal = true),
+            MqttSubscription(MqttTopics.V1_ESP_CONFIG_RESULT_FILTER, qos = 1, noLocal = true)
+        )
     }
 }

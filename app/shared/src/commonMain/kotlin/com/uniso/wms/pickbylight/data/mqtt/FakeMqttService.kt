@@ -18,7 +18,6 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MqttTopics
 import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.util.AppBuildConfig
 import com.uniso.wms.pickbylight.util.generateUUID
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -237,18 +236,13 @@ class FakeMqttService(
     private val _capabilities = MutableStateFlow(MqttCapabilities.NONE)
     override val capabilities: StateFlow<MqttCapabilities> = _capabilities.asStateFlow()
 
-    private val _espDevices = MutableStateFlow<List<EspDevice>>(emptyList())
-    override val espDevices: StateFlow<List<EspDevice>> = _espDevices.asStateFlow()
+    private val espRegistry = EspRegistry()
+    override val espDevices: StateFlow<List<EspDevice>> = espRegistry.espDevices
 
     private val virtualEsps = linkedMapOf<String, VirtualEsp>()
-    private val knownDevices = linkedMapOf<String, EspDevice>()
     private val retainedStatuses = linkedMapOf<String, EspStatusOnline>()
     private val retainedOfflines = linkedMapOf<String, EspStatusOffline>()
     private val retainedConfigs = linkedMapOf<String, ConfigState>()
-    private val activeBootIdByEsp = mutableMapOf<String, String>()
-    private val retiredBootIdsByEsp = mutableMapOf<String, MutableSet<String>>()
-    private val pendingConfigGets = mutableMapOf<String, CompletableDeferred<ConfigState>>()
-    private val pendingConfigSets = mutableMapOf<String, CompletableDeferred<ConfigResult>>()
     private var isV1Subscribed: Boolean = false
 
     // Mensagens v1 publicadas (tópico, payload). Separado de [sentCommands], que guarda só o legado.
@@ -259,8 +253,7 @@ class FakeMqttService(
     private val _protocolEvents = mutableListOf<String>()
     val protocolEvents: List<String> get() = _protocolEvents.toList()
 
-    private val _discardedObsoleteMessages = mutableListOf<String>()
-    val discardedObsoleteMessages: List<String> get() = _discardedObsoleteMessages.toList()
+    val discardedObsoleteMessages: List<String> get() = espRegistry.discardedObsoleteMessages
 
     init {
         syncProtocol()
@@ -331,7 +324,7 @@ class FakeMqttService(
                 val statusJson = EspContract.encodeStatusOnline(esp.status())
                 simulateIncomingStatus(statusJson, esp.espId, retained = false)
             }
-        return Result.success(_espDevices.value)
+        return Result.success(espDevices.value)
     }
 
     override suspend fun obterConfig(espId: String): Result<MqttOutcome<ConfigState>> {
@@ -340,8 +333,7 @@ class FakeMqttService(
         val payload = EspContract.encodeConfigGet(ConfigGet(EspContract.SCHEMA_VERSION, espId, requestId))
             .toResult().getOrElse { return Result.failure(it) }
 
-        val deferred = CompletableDeferred<ConfigState>()
-        pendingConfigGets[requestId] = deferred
+        val deferred = espRegistry.registerConfigGet(requestId)
         try {
             ensureV1Subscribed().onFailure { return Result.failure(it) }
             val diagnostics = publishManagement(MqttTopics.espConfigGet(espId), payload)
@@ -358,10 +350,10 @@ class FakeMqttService(
             val state = withTimeoutOrNull(EspManagementTimings.CONFIG_TIMEOUT_MS) { deferred.await() }
                 ?: return Result.success(MqttOutcome.Timeout(diagnostics))
             return Result.success(MqttOutcome.Ok(state, diagnostics))
-        } catch (e: ConnectionLostException) {
+        } catch (e: MqttConnectionLostException) {
             return Result.failure(e)
         } finally {
-            pendingConfigGets.remove(requestId)
+            espRegistry.unregisterConfigGet(requestId)
         }
     }
 
@@ -370,8 +362,7 @@ class FakeMqttService(
         // encodeConfigSet recusa mais de 14 mappings: o app nunca publica o que o ESP rejeitaria.
         val payload = EspContract.encodeConfigSet(set).toResult().getOrElse { return Result.failure(it) }
 
-        val deferred = CompletableDeferred<ConfigResult>()
-        pendingConfigSets[set.requestId] = deferred
+        val deferred = espRegistry.registerConfigSet(set.requestId)
         try {
             ensureV1Subscribed().onFailure { return Result.failure(it) }
             // config/set nunca vai para a fila de comandos pendentes: desconectado, falha sem enfileirar (9.2).
@@ -406,10 +397,10 @@ class FakeMqttService(
             } else {
                 Result.success(MqttOutcome.Ok(result, diagnostics))
             }
-        } catch (e: ConnectionLostException) {
+        } catch (e: MqttConnectionLostException) {
             return Result.failure(e)
         } finally {
-            pendingConfigSets.remove(set.requestId)
+            espRegistry.unregisterConfigSet(set.requestId)
         }
     }
 
@@ -521,111 +512,24 @@ class FakeMqttService(
         }
     }
 
-    private fun applyStatusOnline(status: EspStatusOnline, fromRetained: Boolean): Boolean {
-        if (!acceptBootAndRevision(status.espId, status.bootId, status.configRevision, "status")) return false
-        val previous = knownDevices[status.espId]
-        val presence = if (fromRetained) EspPresence.STALE else EspPresence.ONLINE
-        knownDevices[status.espId] = EspDevice(
-            espId = status.espId,
-            presence = presence,
-            status = status,
-            config = previous?.config
-        )
-        _espDevices.value = knownDevices.values.sortedBy { it.espId }
-        return true
-    }
+    private fun applyStatusOnline(status: EspStatusOnline, fromRetained: Boolean): Boolean =
+        espRegistry.applyStatusOnline(status, fromRetained)
 
-    private fun applyStatusOffline(offline: EspStatusOffline): Boolean {
-        if (!acceptBootAndRevision(offline.espId, offline.bootId, revision = null, source = "offline")) return false
-        val previous = knownDevices[offline.espId]
-        knownDevices[offline.espId] = EspDevice(
-            espId = offline.espId,
-            presence = EspPresence.OFFLINE,
-            status = previous?.status,
-            config = previous?.config
-        )
-        _espDevices.value = knownDevices.values.sortedBy { it.espId }
-        return true
-    }
+    private fun applyStatusOffline(offline: EspStatusOffline): Boolean =
+        espRegistry.applyStatusOffline(offline)
 
-    private fun applyConfigState(state: ConfigState, fromRetained: Boolean): Boolean {
-        if (!acceptBootAndRevision(state.espId, state.bootId, state.configRevision, "config/state")) return false
-        val previous = knownDevices[state.espId]
-        val presence = when {
-            !fromRetained -> EspPresence.ONLINE
-            previous != null -> previous.presence
-            else -> EspPresence.STALE
-        }
-        knownDevices[state.espId] = EspDevice(
-            espId = state.espId,
-            presence = presence,
-            status = previous?.status,
-            config = state
-        )
-        _espDevices.value = knownDevices.values.sortedBy { it.espId }
-        if (!fromRetained) {
-            state.lastRequestId?.let { reqId ->
-                pendingConfigGets[reqId]?.complete(state)
-            }
-        }
-        return true
-    }
+    private fun applyConfigState(state: ConfigState, fromRetained: Boolean): Boolean =
+        espRegistry.applyConfigState(state, fromRetained)
 
-    private fun applyConfigResult(result: ConfigResult): Boolean {
-        if (!acceptBootAndRevision(result.espId, result.bootId, revision = null, source = "config/result")) return false
-        val deferred = pendingConfigSets[result.requestId]
-        if (deferred == null) {
-            _discardedObsoleteMessages.add("config/result:${result.espId}:unknown_request=${result.requestId}")
-            return false
-        }
-        return deferred.complete(result)
-    }
-
-    private fun acceptBootAndRevision(espId: String, bootId: String, revision: Long?, source: String): Boolean {
-        val retired = retiredBootIdsByEsp[espId]
-        if (retired != null && bootId in retired) {
-            _discardedObsoleteMessages.add("$source:$espId:retired_boot=$bootId")
-            return false
-        }
-        val activeBoot = activeBootIdByEsp[espId]
-        if (activeBoot != null && activeBoot != bootId) {
-            retiredBootIdsByEsp.getOrPut(espId) { mutableSetOf() }.add(activeBoot)
-            activeBootIdByEsp[espId] = bootId
-            return true
-        }
-        if (activeBoot == null) {
-            activeBootIdByEsp[espId] = bootId
-        }
-        if (revision != null) {
-            val previous = knownDevices[espId]
-            val maxKnownRev = listOfNotNull(previous?.config?.configRevision, previous?.status?.configRevision).maxOrNull()
-            if (maxKnownRev != null && revision < maxKnownRev) {
-                _discardedObsoleteMessages.add("$source:$espId:old_revision=$revision<$maxKnownRev")
-                return false
-            }
-        }
-        return true
-    }
+    private fun applyConfigResult(result: ConfigResult): Boolean =
+        espRegistry.applyConfigResult(result)
 
     private fun demoteOnlineDevicesToStale() {
-        var changed = false
-        for ((id, dev) in knownDevices.entries.toList()) {
-            if (dev.presence == EspPresence.ONLINE) {
-                knownDevices[id] = dev.copy(presence = EspPresence.STALE)
-                changed = true
-            }
-        }
-        if (changed) {
-            _espDevices.value = knownDevices.values.sortedBy { it.espId }
-        }
+        espRegistry.demoteOnlineDevicesToStale()
     }
 
     private fun failPendingManagement(reason: String) {
-        val ex = ConnectionLostException(reason)
-        pendingConfigGets.values.toList().forEach { it.completeExceptionally(ex) }
-        pendingConfigGets.clear()
-        pendingConfigSets.values.toList().forEach { it.completeExceptionally(ex) }
-        pendingConfigSets.clear()
+        espRegistry.failAllPending(reason)
     }
 
     private fun requireEspId(espId: String): Result<Unit> =
@@ -645,8 +549,6 @@ class FakeMqttService(
         is ContractResult.Valid -> Result.success(value)
         is ContractResult.Invalid -> Result.failure(IllegalArgumentException("$code: $detail"))
     }
-
-    private class ConnectionLostException(message: String) : IllegalStateException(message)
 
     companion object {
         const val REASON_NO_MATCHING_SUBSCRIBERS = 0x10
