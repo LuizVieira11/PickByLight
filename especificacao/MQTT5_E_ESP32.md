@@ -147,7 +147,7 @@ Se payload e propriedade MQTT 5 divergirem, **o payload prevalece** e o evento v
 | Correlation Data                        | Bytes UTF-8 do `request_id` em `config/set`/`config/result`.                        | `request_id` no JSON.                                                                                   | Payload é a fonte da verdade.                                                                                                            |
 | Reason codes                            | Diagnóstico de CONNACK, PUBACK, SUBACK e DISCONNECT, quando entregues pelo cliente. | Códigos limitados da API, timeout e `error_code` do JSON.                                               | App apresenta e loga. Testar com a combinação real Paho/Mosquitto.                                                                       |
 | Clean Start / Session Expiry            | Clean Start `true`, Session Expiry `0`.                                             | Clean Session `true`.                                                                                   | App e ESP. Testar desconexão e reconexão sem replay.                                                                                     |
-| Will Delay                              | LWT do app e dos ESPs: 5 s. Keep-alive: 15 s.                                       | LWT sem atraso padronizado.                                                                             | UI aceita OFFLINE com até ~30 s de atraso. Testar queda curta e longa.                                                                   |
+| Will Delay                              | LWT do app e dos ESPs: 5 s configurado, sem efeito com Session Expiry 0 (ver 16, item 16). Keep-alive: 15 s. | LWT sem atraso padronizado.                                                                             | UI aceita OFFLINE com até ~30 s de atraso. Testar queda curta e longa.                                                                   |
 | User Properties                         | Diagnóstico apenas (`schema_version`, `firmware_version`).                          | Não disponíveis; JSON e log.                                                                            | Nunca usadas em regra de domínio.                                                                                                        |
 | Payload Format Indicator / Content Type | `1` e `application/json`.                                                           | JSON UTF-8 por contrato.                                                                                | Publicador garante; testar encoding.                                                                                                     |
 | Maximum Packet Size / Receive Maximum   | Anunciar o limite suportado e poucas mensagens em voo.                              | Limites locais do firmware.                                                                             | ESP testa limites e heap.                                                                                                                |
@@ -694,7 +694,7 @@ sequenceDiagram
 
   E-xB: conexão MQTT perdida
   Note over E: guarda millis() da perda
-  B->>A: LWT OFFLINE (após keep-alive e Will Delay)
+  B->>A: LWT OFFLINE (após detecção pelo keep-alive)
   Note over E: após 65 s, apaga todos os LEDs
   E->>B: reconecta: status ONLINE + config/state
   Note over E: não reacende LEDs sozinho
@@ -987,7 +987,7 @@ Checklist estático:
 Executar em MQTT 5 (`-V mqttv5`) e em MQTT 3.1.1 (`-V mqttv311`) com `mosquitto_pub`/`mosquitto_sub`. Substituir `<BROKER>`, `<ESP_ID>` e credenciais; não deixar senha no histórico do shell. O detalhamento comando a comando fica em `esp32/TESTES_BANCADA.md`.
 
 1. **Boot:** status ONLINE e `config/state` retained publicados; `boot_id` muda a cada reset.
-2. **Corte de energia:** LWT OFFLINE após detecção + Will Delay (v5) ou sem atraso (3.1.1).
+2. **Corte de energia:** LWT OFFLINE após detecção pelo keep-alive (~1,5 × 15 s), em v5 e em 3.1.1 (Will Delay sem efeito, ver 16, item 16). Medir queda curta e longa e registrar se há OFFLINE seguido de ONLINE ("pisca").
 3. **Discovery:** status republicado, sem `request_id`.
 4. **`config/get`:** `config/state` no tópico fixo com `last_request_id`.
 5. **`config/set` válido:** OK, revisão +1, novo state retained; persiste após reboot.
@@ -1061,6 +1061,7 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 13. **GPIO16/17, GPIO5/14/15 e corrente:** regras preventivas, confirmadas na placa real durante a bancada (casos 16–18) e pela medição de corrente.
 14. **Recebimento v1 tolerante:** o app decodifica `status`, `config/state` e `config/result` ignorando chaves desconhecidas (um firmware mais novo pode acrescentar campos sem quebrar o app). Continuam inválidos (`INVALID_SCHEMA`): campo obrigatório ausente, enum desconhecido, `request_id` em `status`, `capabilities` ou `request_id` em OFFLINE. A validação de `config/set`, `config/get` e `discovery/request` (espelho do ESP) segue estrita, pois os schemas têm `additionalProperties: false`.
 15. **Autenticação adiada:** o broker do protótipo roda sem usuário, senha ou ACL. A seção 12 fica como configuração-alvo para uma fase posterior. O app e o firmware devem funcionar com credenciais **vazias** (conexão anônima). As credenciais são opcionais em toda a implementação, e nenhum fluxo pode exigi-las.
+16. **Will Delay com Session Expiry 0 (decisão A):** pela norma MQTT 5, o Will é publicado quando o Will Delay vence ou quando a sessão termina, o que vier primeiro. Com Session Expiry 0 (ADR-4), a sessão termina na queda e o OFFLINE sai sem atraso: o Will Delay de 5 s continua configurado, mas não tem efeito. O OFFLINE aparece após a detecção pelo keep-alive (~1,5 × 15 s ≈ 22 s), dentro da tolerância de ~30 s da UI. Instabilidade curta de Wi-Fi pode gerar OFFLINE seguido de ONLINE. Usar Session Expiry maior que 0 exigiria Clean Start `false` na reconexão, em conflito com o ADR-4; a opção só será reavaliada se a bancada mostrar "pisca" relevante.
 
 
 ## 17. Pendências `[PREENCHER]`
