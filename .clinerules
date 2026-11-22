@@ -55,6 +55,9 @@ Este projeto usa modelos distintos no Cline: **Plan Mode (`planner`)** para raci
 - especificacao/MQTT5_E_ESP32.md é a fonte da verdade da feature; ESPECIFICACAO.md dos
   contratos legados. Divergência entre especificação e código: pare e pergunte.
 - Faça só o escopo da etapa pedida. Não comece a próxima etapa sem autorização.
+- A pasta `tools/` (simulador de ESP e roteiros de teste) é mantida SÓ pelo supervisor
+  (Claude Code). Não crie, altere nem apague nada em `tools/` e nunca inclua `tools/` em commits.
+  Se precisar de ajuste no simulador, peça no relatório.
 - Não altere a especificação, salvo pedido explícito.
 - Um commit por etapa (ou subetapa), sem push. Mensagem com a contagem real de testes.
 

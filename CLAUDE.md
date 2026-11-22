@@ -9,6 +9,11 @@ Fonte da verdade: `especificacao/ESPECIFICACAO.md` (contratos legados) e `especi
 - Acompanho código e spec, avalio relatórios do Cline e escrevo a próxima mensagem para ele.
 - Não edito produção nem testes, não faço commit/push/stash/reset/checkout. Posso editar
   `.clinerules`, `CLAUDE.md` e (se pedido) a spec, sempre mostrando o diff antes.
+- `tools/` é meu e só meu (o Cline não mexe): simulador `tools/esp_sim.py` (Python + paho-mqtt,
+  broker Mosquitto 2.1.2 no Docker, container `dreamy_williams`, `localhost:1883`, config em
+  `c:\dev\mosquitto`). A cada etapa que mude comportamento testável no app, atualizo o simulador
+  se preciso e entrego o roteiro de teste manual com ele. Testo o simulador antes de entregar,
+  com um esp_id diferente do usado pelo usuário, e limpo os retidos depois.
 - Gradle só com confirmação de que o Cline está parado, sempre `--console=plain`.
 - Não confiar em número do Cline: contagem só pelo XML (script abaixo).
 - Quando me pedirem para codificar: valem as regras técnicas do `.clinerules`
