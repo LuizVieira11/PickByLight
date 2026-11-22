@@ -141,6 +141,15 @@ data class ConfigResult(
     val message: String? = null
 )
 
+/** Pedido de restauração de configuração no boot do ESP (seção 6.11). Limite de 512 bytes. */
+@Serializable
+data class ConfigRestore(
+    @SerialName("schema_version") val schemaVersion: Int,
+    @SerialName("esp_id") val espId: String,
+    @SerialName("boot_id") val bootId: String,
+    @SerialName("request_id") val requestId: String
+)
+
 /**
  * Resposta do ESP a PING (6.9). Trafega em `wms/pickbylight/ack` e decodifica como [MqttAck]
  * (status obrigatório). Existe aqui para simuladores/testes montarem o payload exato do firmware.

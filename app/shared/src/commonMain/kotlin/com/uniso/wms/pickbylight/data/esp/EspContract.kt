@@ -1,6 +1,7 @@
 package com.uniso.wms.pickbylight.data.esp
 
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigGet
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigRestore
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResultStatus
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigSet
@@ -135,6 +136,9 @@ object EspContract {
     internal fun encodeConfigResult(result: ConfigResult): String =
         outJson.encodeToString(ConfigResult.serializer(), result)
 
+    internal fun encodeConfigRestore(restore: ConfigRestore): String =
+        outJson.encodeToString(ConfigRestore.serializer(), restore)
+
     private fun encodeLimited(payload: String, maxBytes: Int): ContractResult<String> =
         if (utf8Size(payload) > maxBytes) {
             ContractResult.Invalid(EspErrorCode.PAYLOAD_TOO_LARGE, "${utf8Size(payload)} bytes > $maxBytes")
@@ -185,6 +189,11 @@ object EspContract {
                 else if (r.status == ConfigResultStatus.OK && r.errorCode != null) schema("OK com error_code")
                 else if (r.status == ConfigResultStatus.ERRO && r.errorCode == null) schema("ERRO sem error_code")
                 else null
+        }
+
+    fun parseConfigRestore(payload: String, topicEspId: String): ContractResult<ConfigRestore> =
+        decode<ConfigRestore>(payload, MAX_OTHER_BYTES, tolerant = true) { r ->
+            header(r.schemaVersion, r.espId, topicEspId, bootId = r.bootId, requestId = r.requestId)
         }
 
     /**

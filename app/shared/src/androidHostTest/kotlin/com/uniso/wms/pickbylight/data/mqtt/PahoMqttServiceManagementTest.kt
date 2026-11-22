@@ -79,8 +79,10 @@ class PahoMqttServiceManagementTest {
         val subIdx = transport.events.indexOfFirst { it.startsWith("SUBACK_V1(") }
         val pubIdx = transport.events.indexOf("PUBLISH(${MqttTopics.V1_DISCOVERY_REQUEST})")
         assertTrue(subIdx in 0 until pubIdx, "SUBACK v1 deve preceder PUBLISH: ${transport.events}")
+        // Expectativa atualizada (Etapa 5e, spec 9.1 e 6.11): filtros v1 incluem V1_ESP_CONFIG_RESTORE_FILTER assinado na conexão.
         assertEquals(
             setOf(
+                MqttTopics.V1_ESP_CONFIG_RESTORE_FILTER,
                 MqttTopics.V1_ESP_STATUS_FILTER,
                 MqttTopics.V1_ESP_CONFIG_STATE_FILTER,
                 MqttTopics.V1_ESP_CONFIG_RESULT_FILTER

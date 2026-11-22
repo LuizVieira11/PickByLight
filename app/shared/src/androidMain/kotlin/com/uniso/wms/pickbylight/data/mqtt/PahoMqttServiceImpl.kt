@@ -82,6 +82,7 @@ class PahoMqttServiceImpl(
 
     private val espRegistry = EspRegistry()
     private val registryLock = Any()
+    private val restoreRequestIds = ArrayDeque<String>()
     override val espDevices: StateFlow<List<EspDevice>> = espRegistry.espDevices
 
     internal val discardedObsoleteMessages: List<String>
@@ -317,7 +318,7 @@ class PahoMqttServiceImpl(
 
             val connectResult = created.connect(connectConfig).getOrThrow()
 
-            // Inscrever no tópico de ACK com QoS 1 e No Local (seção 4.2)
+            // Inscrever no tópico de ACK e no filtro de config/restore com QoS 1 e No Local (seções 4.2, 6.11 e 9.1)
             val subResult = created.subscribe(
                 listOf(MqttSubscription(MqttTopics.ACK, qos = 1, noLocal = true)),
                 timeoutMs = 3000L
@@ -325,6 +326,15 @@ class PahoMqttServiceImpl(
             val failedSub = subResult.reasonCodesByFilter.filterValues { it >= 0x80 }
             if (failedSub.isNotEmpty()) {
                 throw IllegalStateException("SUBACK recusado pelo broker: $failedSub")
+            }
+
+            val restoreSub = created.subscribe(
+                listOf(MqttSubscription(MqttTopics.V1_ESP_CONFIG_RESTORE_FILTER, qos = 1, noLocal = true)),
+                timeoutMs = 3000L
+            )
+            val restoreFailed = restoreSub.getOrNull()?.reasonCodesByFilter?.filterValues { it >= 0x80 }
+            if (restoreSub.isFailure || restoreFailed == null || restoreFailed.isNotEmpty()) {
+                println("[MQTT] SUBACK de config/restore recusado: ${restoreSub.exceptionOrNull()?.message ?: restoreFailed}")
             }
 
             synchronized(registryLock) { espRegistry.demoteOnlineDevicesToStale() }
@@ -445,6 +455,13 @@ class PahoMqttServiceImpl(
             MqttTopics.espConfigResult(espId) -> {
                 when (val res = EspContract.parseConfigResult(payloadString, espId)) {
                     is ContractResult.Valid -> {
+                        val isRestoreResult = synchronized(registryLock) {
+                            restoreRequestIds.remove(res.value.requestId)
+                        }
+                        if (isRestoreResult) {
+                            println("[MQTT] config/result de restauração para $espId: status=${res.value.status} error=${res.value.errorCode} rev=${res.value.configRevision}")
+                            return
+                        }
                         message.correlationData?.let { corrBytes ->
                             val corrId = String(corrBytes, Charsets.UTF_8)
                             if (corrId != res.value.requestId) {
@@ -460,6 +477,59 @@ class PahoMqttServiceImpl(
                     }
                 }
             }
+            MqttTopics.espConfigRestore(espId) -> {
+                when (val req = EspContract.parseConfigRestore(payloadString, espId)) {
+                    is ContractResult.Valid -> {
+                        scope.launch(ioDispatcher) {
+                            handleConfigRestore(req.value.espId)
+                        }
+                    }
+                    is ContractResult.Invalid -> {
+                        println("[MQTT] config/restore v1 inválido em ${message.topic}: ${req.code} (${req.detail})")
+                    }
+                }
+            }
+        }
+    }
+
+    /** Seções 6.11 e 9.1: responde config/restore em coroutine própria, sem ConfigLock e sem fila offline. */
+    private suspend fun handleConfigRestore(espId: String) {
+        if (inventoryLoader != null) {
+            ensureInventoryLoaded()
+        }
+        val mappings = synchronized(registryLock) {
+            espRegistry.getDevice(espId)?.config?.mappings ?: emptyList()
+        }
+        val set = ConfigSet(
+            schemaVersion = EspContract.SCHEMA_VERSION,
+            espId = espId,
+            requestId = generateUUID(),
+            expectedRevision = 0L,
+            mappings = mappings
+        )
+        val payload = EspContract.encodeConfigSet(set).toResult().getOrElse { err ->
+            println("[MQTT] Falha ao codificar config/set de restauração para $espId: ${err.message}")
+            return
+        }
+        synchronized(registryLock) {
+            if (restoreRequestIds.size >= 16) restoreRequestIds.removeFirst()
+            restoreRequestIds.addLast(set.requestId)
+        }
+        val caps = _capabilities.value
+        val properties = MqttMessageProperties(
+            messageExpirySeconds = 5L,
+            responseTopic = if (caps.responseTopic) MqttTopics.espConfigResult(espId) else null,
+            correlationData = if (caps.correlationData) set.requestId.toByteArray(Charsets.UTF_8) else null,
+            payloadFormatUtf8 = true,
+            contentType = JSON_CONTENT_TYPE
+        )
+        publishManagement(
+            topic = MqttTopics.espConfigSet(espId),
+            payloadString = payload,
+            properties = properties
+        ).onFailure { err ->
+            synchronized(registryLock) { restoreRequestIds.remove(set.requestId) }
+            println("[MQTT] Falha ao publicar config/set de restauração para $espId: ${err.message}")
         }
     }
 

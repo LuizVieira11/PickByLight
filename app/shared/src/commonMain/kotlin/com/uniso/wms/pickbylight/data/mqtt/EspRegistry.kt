@@ -190,7 +190,10 @@ class EspRegistry {
         }
         if (revision != null) {
             val previous = knownDevices[espId]
-            val maxKnownRev = listOfNotNull(previous?.config?.configRevision, previous?.status?.configRevision).maxOrNull()
+            val maxKnownRev = listOfNotNull(
+                previous?.config?.takeIf { it.bootId == bootId }?.configRevision,
+                previous?.status?.takeIf { it.bootId == bootId }?.configRevision
+            ).maxOrNull()
             if (maxKnownRev != null && revision < maxKnownRev) {
                 _discardedObsoleteMessages.add("$source:$espId:old_revision=$revision<$maxKnownRev")
                 return false

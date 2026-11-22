@@ -47,7 +47,14 @@ class PahoMqttServiceTransportTest {
         assertTrue(will.retained)
         assertEquals(5, will.willDelaySeconds)
 
-        assertEquals(listOf(MqttSubscription("wms/pickbylight/ack", qos = 1, noLocal = true)), transport.subscriptions)
+        // Expectativa atualizada (Etapa 5e, spec 9.1 e 6.11): ACK + config/restore assinados em toda conexão.
+        assertEquals(
+            listOf(
+                MqttSubscription("wms/pickbylight/ack", qos = 1, noLocal = true),
+                MqttSubscription("wms/pickbylight/v1/esp/+/config/restore", qos = 1, noLocal = true)
+            ),
+            transport.subscriptions
+        )
         val onlinePub = transport.publishes.single()
         assertEquals("wms/pickbylight/status/app", onlinePub.topic)
         assertEquals("""{"client":"wms_mobile","status":"ONLINE"}""", onlinePub.payload)

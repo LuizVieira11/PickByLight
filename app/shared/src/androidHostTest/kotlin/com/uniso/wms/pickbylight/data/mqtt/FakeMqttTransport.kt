@@ -21,6 +21,7 @@ internal class FakeMqttTransport(
     var failConnectWith: Throwable? = null
     var subackCodesOverride: Map<String, Int>? = null
     var v1SubackCodesOverride: Map<String, Int>? = null
+    var restoreSubackCodeOverride: Int? = null
     var publishReasonCodeOverride: Int? = null
     val publishReasonCodeByTopic = mutableMapOf<String, Int>()
     var closedCount: Int = 0
@@ -52,10 +53,22 @@ internal class FakeMqttTransport(
         timeoutMs: Long
     ): Result<MqttSubscribeResult> {
         this.subscriptions.addAll(subscriptions)
-        val isV1 = subscriptions.any { it.topicFilter.startsWith("wms/pickbylight/v1/") }
-        val overrideMap = if (isV1 && v1SubackCodesOverride != null) v1SubackCodesOverride else subackCodesOverride
-        val codes = overrideMap ?: subscriptions.associate { it.topicFilter to 0 }
-        events.add(if (isV1) "SUBACK_V1($codes)" else "SUBACK_ACK($codes)")
+        val isRestoreOnly = subscriptions.isNotEmpty() &&
+            subscriptions.all { it.topicFilter == "wms/pickbylight/v1/esp/+/config/restore" }
+        val isV1Lazy = !isRestoreOnly && subscriptions.any { it.topicFilter.startsWith("wms/pickbylight/v1/") }
+        val codes = when {
+            isRestoreOnly -> subscriptions.associate { it.topicFilter to (restoreSubackCodeOverride ?: 0) }
+            isV1Lazy && v1SubackCodesOverride != null -> v1SubackCodesOverride!!
+            !isV1Lazy && subackCodesOverride != null -> subackCodesOverride!!
+            else -> subscriptions.associate { it.topicFilter to 0 }
+        }
+        events.add(
+            when {
+                isRestoreOnly -> "SUBACK_RESTORE($codes)"
+                isV1Lazy -> "SUBACK_V1($codes)"
+                else -> "SUBACK_ACK($codes)"
+            }
+        )
         onSubscribe?.invoke(this, subscriptions)
         return Result.success(MqttSubscribeResult(codes))
     }

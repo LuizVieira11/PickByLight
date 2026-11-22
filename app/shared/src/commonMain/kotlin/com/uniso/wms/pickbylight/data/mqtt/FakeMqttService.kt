@@ -313,6 +313,40 @@ class FakeMqttService(
         return applyConfigResult(parsed.value)
     }
 
+    /**
+     * Simula um `config/restore` recebido do ESP (seção 6.11): monta e publica `config/set` com
+     * `expected_revision = 0` e os mappings conhecidos (ou `[]`), sem ConfigLock.
+     */
+    fun simulateIncomingConfigRestore(payload: String, topicEspId: String): Boolean {
+        if (EspContract.parseConfigRestore(payload, topicEspId) !is ContractResult.Valid) return false
+        _protocolEvents.add("RECEIVE(${MqttTopics.espConfigRestore(topicEspId)})")
+        if (_connectionState.value != MqttConnectionState.CONNECTED) return false
+        val mappings = espRegistry.getDevice(topicEspId)?.config?.mappings ?: emptyList()
+        val requestId = generateUUID()
+        val set = ConfigSet(
+            schemaVersion = EspContract.SCHEMA_VERSION,
+            espId = topicEspId,
+            requestId = requestId,
+            expectedRevision = 0L,
+            mappings = mappings
+        )
+        val setJson = EspContract.encodeConfigSet(set).toResult().getOrNull() ?: return false
+        if (publishManagement(MqttTopics.espConfigSet(topicEspId), setJson).isFailure) return false
+
+        val esp = virtualEsps[topicEspId]
+        if (esp != null && topicEspId !in silentEspIds && topicEspId !in offlineEspIds) {
+            val result = esp.handleConfigSet(requestId, setJson)
+            if (result.status == ConfigResultStatus.OK) {
+                simulateIncomingConfigState(
+                    EspContract.encodeConfigState(esp.state(requestId)),
+                    topicEspId,
+                    retained = false
+                )
+            }
+        }
+        return true
+    }
+
     override suspend fun descobrirEsps(): Result<List<EspDevice>> {
         val payload = EspContract.encodeDiscoveryRequest(DiscoveryRequest(EspContract.SCHEMA_VERSION, generateUUID()))
             .toResult().getOrElse { return Result.failure(it) }
@@ -342,7 +376,7 @@ class FakeMqttService(
             onPublishConfigGet?.invoke(this, espId, requestId)
 
             val esp = virtualEsps[espId]
-            if (esp != null && espId !in silentEspIds && espId !in offlineEspIds) {
+            if (esp != null && !esp.restorePending && espId !in silentEspIds && espId !in offlineEspIds) {
                 val stateJson = EspContract.encodeConfigState(esp.state(requestId))
                 simulateIncomingConfigState(stateJson, espId, retained = false)
             }

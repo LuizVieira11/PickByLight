@@ -2,7 +2,9 @@ package com.uniso.wms.pickbylight.data.mqtt
 
 import com.uniso.wms.pickbylight.data.esp.ContractResult
 import com.uniso.wms.pickbylight.data.esp.EspContract
+import com.uniso.wms.pickbylight.data.mqtt.model.ConfigRestore
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
+import com.uniso.wms.pickbylight.util.generateUUID
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResultStatus
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigState
 import com.uniso.wms.pickbylight.data.mqtt.model.EspCapabilities
@@ -45,6 +47,10 @@ class VirtualEsp(
     var mappings: List<EspMapping> = mappings
         private set
 
+    /** Seção 10.5: em RESTORE_PENDING (após reboot sem NVS), o ESP não publica nem responde config/state. */
+    var restorePending: Boolean = false
+        private set
+
     // Cache em RAM dos últimos 8 request_id (seção 10.5); limpo no reboot().
     private val recentResults = ArrayDeque<Pair<String, ConfigResult>>()
 
@@ -55,6 +61,20 @@ class VirtualEsp(
         bootId = newBootId
         uptimeMs = 1_000L
         recentResults.clear()
+    }
+
+    /** Simula reinício sem persistência (10.5): perde mappings, zera revisão, entra em RESTORE_PENDING e gera ConfigRestore. */
+    fun rebootForRestore(newBootId: String, requestId: String = generateUUID()): ConfigRestore {
+        reboot(newBootId)
+        mappings = emptyList()
+        configRevision = 0L
+        restorePending = true
+        return ConfigRestore(
+            schemaVersion = EspContract.SCHEMA_VERSION,
+            espId = espId,
+            bootId = newBootId,
+            requestId = requestId
+        )
     }
 
     fun status(): EspStatusOnline = EspStatusOnline(
@@ -101,6 +121,7 @@ class VirtualEsp(
             is ContractResult.Valid -> {
                 mappings = parsed.value.mappings
                 configRevision += 1
+                restorePending = false
                 result(requestId, ConfigResultStatus.OK)
             }
             is ContractResult.Invalid -> result(requestId, ConfigResultStatus.ERRO, parsed)

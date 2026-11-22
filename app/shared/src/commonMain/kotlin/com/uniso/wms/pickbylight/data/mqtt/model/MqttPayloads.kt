@@ -14,15 +14,17 @@ object MqttTopics {
     const val V1_ESP_STATUS_FILTER = "$V1_ROOT/esp/+/status"
     const val V1_ESP_CONFIG_STATE_FILTER = "$V1_ROOT/esp/+/config/state"
     const val V1_ESP_CONFIG_RESULT_FILTER = "$V1_ROOT/esp/+/config/result"
+    const val V1_ESP_CONFIG_RESTORE_FILTER = "$V1_ROOT/esp/+/config/restore"
 
     fun espStatus(espId: String) = "$V1_ROOT/esp/$espId/status"
     fun espConfigGet(espId: String) = "$V1_ROOT/esp/$espId/config/get"
     fun espConfigState(espId: String) = "$V1_ROOT/esp/$espId/config/state"
     fun espConfigSet(espId: String) = "$V1_ROOT/esp/$espId/config/set"
     fun espConfigResult(espId: String) = "$V1_ROOT/esp/$espId/config/result"
+    fun espConfigRestore(espId: String) = "$V1_ROOT/esp/$espId/config/restore"
 
     private val ESP_TOPIC_REGEX =
-        Regex("""^wms/pickbylight/v1/esp/(esp-[0-9a-f]{6})/(status|config/(get|state|set|result))$""")
+        Regex("""^wms/pickbylight/v1/esp/(esp-[0-9a-f]{6})/(status|config/(get|state|set|result|restore))$""")
 
     /** Extrai o `esp_id` de um tópico v1; null se o tópico não segue o contrato. */
     fun espIdFromTopic(topic: String): String? = ESP_TOPIC_REGEX.matchEntire(topic)?.groupValues?.get(1)
