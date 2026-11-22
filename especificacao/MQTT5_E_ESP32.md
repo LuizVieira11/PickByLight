@@ -713,6 +713,7 @@ sequenceDiagram
 - Expõe estados UDF `Loading`, `Empty`, `Error`, `Success` e, por ESP, os estados da seção 9.3.
 - Libera o lock ao receber `config/result`. Mostra "Sincronizado" só com `config/state` na revisão confirmada; se não chegar em 5 s, mostra "Aplicado — aguardando estado" e oferece `config/get` manual.
 - Persiste em DataStore (Android), como JSON versionado, o inventário de ESPs e o último snapshot conhecido, sempre exibido como possivelmente antigo (STALE) até confirmação na conexão atual. Wasm sem persistência da feature (ADR-6).
+- Oferece "Esquecer ESP" para ESP OFFLINE ou STALE, com broker conectado: apaga primeiro no broker os retidos do ESP (`status` e `config/state`, publicação vazia com retain) e depois remove do celular tudo o que se sabe dele (entrada da lista, snapshot salvo e filtros de `boot_id`/revisão), gravando o inventário na hora. Com o ESP ONLINE ou com operação dele em andamento, fica desabilitado. Se o ESP voltar, reaparece só com o que publicar dali em diante.
 - Persiste em DataStore o modo de protocolo e as credenciais MQTT; nunca no código-fonte. A resolução da URL do broker continua: parâmetro → DataStore → `BuildConfig.MQTT_BROKER_URL`.
 - Valida antes de publicar: formato dos IDs; existência em `Estante.ledId`/`Prateleira.ledIdPonta`/`Posicao.ledId` coerente com `kind`; unicidade de `led_id` entre ESPs conhecidos; unicidade de `channel_id`; canal existente nas capacidades; tamanho ≤ 2048 bytes.
 - Mantém um lock global de configuração, separado de `Item.emSeparacao`, que vale nos dois sentidos na mesma instância: enquanto um ESP é configurado, impede iniciar separação e editar outro ESP; com uma coleta ativa, impede gravar configuração (evita trocar o mapping de um LED aceso no meio da coleta). É liberado em resultado, rejeição, cancelamento, timeout (5 s sem `config/result`), desconexão e fim da coleta. Não coordena outros aparelhos.
@@ -727,7 +728,7 @@ sequenceDiagram
 - Publicar GPIO ou inferir canal físico.
 - Tratar PUBACK como confirmação de aplicação.
 - Exibir ausência de resposta como "configuração vazia".
-- Publicar comando ou configuração com retain.
+- Publicar comando ou configuração com retain. (Única exceção: a publicação vazia com retain do "Esquecer ESP", que apaga os retidos do ESP.)
 - Reenviar `config/set` com `request_id` novo como retry da mesma operação.
 - Interpretar `issued_at_ms`/`ttl_ms` como prova de idade.
 - Remover campos ou semântica dos comandos legados.
@@ -1062,6 +1063,7 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 14. **Recebimento v1 tolerante:** o app decodifica `status`, `config/state` e `config/result` ignorando chaves desconhecidas (um firmware mais novo pode acrescentar campos sem quebrar o app). Continuam inválidos (`INVALID_SCHEMA`): campo obrigatório ausente, enum desconhecido, `request_id` em `status`, `capabilities` ou `request_id` em OFFLINE. A validação de `config/set`, `config/get` e `discovery/request` (espelho do ESP) segue estrita, pois os schemas têm `additionalProperties: false`.
 15. **Autenticação adiada:** o broker do protótipo roda sem usuário, senha ou ACL. A seção 12 fica como configuração-alvo para uma fase posterior. O app e o firmware devem funcionar com credenciais **vazias** (conexão anônima). As credenciais são opcionais em toda a implementação, e nenhum fluxo pode exigi-las.
 16. **Will Delay com Session Expiry 0 (decisão A):** pela norma MQTT 5, o Will é publicado quando o Will Delay vence ou quando a sessão termina, o que vier primeiro. Com Session Expiry 0 (ADR-4), a sessão termina na queda e o OFFLINE sai sem atraso: o Will Delay de 5 s continua configurado, mas não tem efeito. O OFFLINE aparece após a detecção pelo keep-alive (~1,5 × 15 s ≈ 22 s), dentro da tolerância de ~30 s da UI. Instabilidade curta de Wi-Fi pode gerar OFFLINE seguido de ONLINE. Usar Session Expiry maior que 0 exigiria Clean Start `false` na reconexão, em conflito com o ADR-4; a opção só será reavaliada se a bancada mostrar "pisca" relevante.
+17. **Esquecer ESP:** o app passa a escrever (payload vazio, retain) em `.../status` e `.../config/state` de um ESP só para apagar retidos. Quando a ACL da seção 12 for ativada, o usuário do app precisa de escrita nesses dois tópicos de cada ESP.
 
 
 ## 17. Pendências `[PREENCHER]`
