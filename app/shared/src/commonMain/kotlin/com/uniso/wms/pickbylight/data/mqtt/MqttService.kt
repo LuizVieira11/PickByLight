@@ -66,4 +66,15 @@ interface MqttService {
         cor: String = "AZUL",
         duracaoMs: Int = 3000
     ): Result<MqttOutcome<Unit>>
+
+    /**
+     * Remove um ESP conhecido deste dispositivo após limpar as mensagens retidas no broker (`status` e `config/state`).
+     *
+     * Pré-condições: `esp_id` válido, broker conectado, ESP conhecido e com presença [EspPresence.OFFLINE] ou
+     * [EspPresence.STALE] (nunca [EspPresence.ONLINE]).
+     * Motivos de `Result.failure`: `esp_id` inválido, broker desconectado, ESP desconhecido, ESP ainda `ONLINE`
+     * ("Desligue o ESP antes de esquecer") ou falha/recusa (`PUBACK >= 0x80`, exceto `0x10`) ao apagar os retidos no broker;
+     * em falha no broker, nada é removido localmente.
+     */
+    suspend fun esquecerEsp(espId: String): Result<Unit>
 }

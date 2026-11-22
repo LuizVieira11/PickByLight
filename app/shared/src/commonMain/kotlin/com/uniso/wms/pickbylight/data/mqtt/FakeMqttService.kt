@@ -433,6 +433,25 @@ class FakeMqttService(
         return Result.success(MqttOutcome.Ok(Unit, diagnostics))
     }
 
+    override suspend fun esquecerEsp(espId: String): Result<Unit> {
+        requireEspId(espId).onFailure { return Result.failure(it) }
+        if (_connectionState.value != MqttConnectionState.CONNECTED) {
+            return Result.failure(IllegalStateException("Broker MQTT desconectado"))
+        }
+        val dev = espRegistry.getDevice(espId)
+            ?: return Result.failure(IllegalStateException("ESP desconhecido: $espId"))
+        if (dev.presence == EspPresence.ONLINE) {
+            return Result.failure(IllegalStateException("Desligue o ESP antes de esquecer"))
+        }
+        publishManagement(MqttTopics.espStatus(espId), "").onFailure { return Result.failure(it) }
+        publishManagement(MqttTopics.espConfigState(espId), "").onFailure { return Result.failure(it) }
+        retainedStatuses.remove(espId)
+        retainedOfflines.remove(espId)
+        retainedConfigs.remove(espId)
+        espRegistry.forget(espId)
+        return Result.success(Unit)
+    }
+
     private fun syncProtocol() {
         val protocol = if (_connectionState.value != MqttConnectionState.CONNECTED) {
             null

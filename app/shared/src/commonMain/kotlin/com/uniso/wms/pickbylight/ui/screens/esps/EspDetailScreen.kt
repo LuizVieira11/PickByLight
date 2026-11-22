@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -74,6 +75,9 @@ fun EspDetailScreen(
 
     PlatformBackHandler { onNavigateBack() }
     LaunchedEffect(espId) { viewModel.abrirDetalhe(espId) }
+    LaunchedEffect(uiState.espForgotten) {
+        if (uiState.espForgotten) onNavigateBack()
+    }
 
     Column(
         modifier = modifier
@@ -132,6 +136,8 @@ fun EspDetailScreen(
         EspOperationStatusSection(espId = espId, uiState = uiState, viewModel = viewModel)
         Spacer(modifier = Modifier.height(12.dp))
         EspMappingsEditorSection(uiState = uiState, viewModel = viewModel)
+        Spacer(modifier = Modifier.height(12.dp))
+        EspForgetSection(espId = espId, uiState = uiState, viewModel = viewModel)
     }
 }
 
@@ -566,6 +572,100 @@ private fun MappingRowItem(
         }
     }
 }
+
+@Composable
+private fun EspForgetSection(
+    espId: String,
+    uiState: EspManagementUiState,
+    viewModel: EspManagementViewModel
+) {
+    val dimensions = LocalWmsDimensions.current
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(dimensions.paddingMedium)) {
+            Text(
+                text = "Remover Controlador",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            uiState.forgetDisabledReason?.let { reason ->
+                Text(
+                    text = reason,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            uiState.forgetErrorMessage?.let { error ->
+                Text(
+                    text = error,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = CoralError
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Button(
+                onClick = { showConfirmDialog = true },
+                enabled = uiState.canForgetEsp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CoralError,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = if (uiState.isForgetting) "Esquecendo ESP..." else "Esquecer ESP",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Esquecer $espId?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Esquecer $espId? Ele sai deste celular e as mensagens retidas dele são apagadas do broker. Se ligar de novo, reaparece só com os dados que publicar.",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConfirmDialog = false
+                        viewModel.esquecerEspAtual()
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CoralError, contentColor = Color.White)
+                ) {
+                    Text("Esquecer ESP", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showConfirmDialog = false },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text("Cancelar", fontSize = 16.sp)
+                }
+            }
+        )
+    }
+}
+
 
 
 

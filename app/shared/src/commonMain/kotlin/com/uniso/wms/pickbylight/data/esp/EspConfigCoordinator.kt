@@ -30,4 +30,21 @@ class EspConfigCoordinator(
             }
         }
     }
+
+    suspend fun esquecerEsp(espId: String): Result<Unit> {
+        when (val lockResult = configLock.tryStartConfig(espId)) {
+            is ConfigLockResult.Blocked -> {
+                return Result.failure(
+                    IllegalStateException("Não é possível esquecer ESP: ${lockResult.reason}")
+                )
+            }
+            ConfigLockResult.Acquired -> {
+                return try {
+                    mqttService.esquecerEsp(espId)
+                } finally {
+                    configLock.endConfig(espId)
+                }
+            }
+        }
+    }
 }

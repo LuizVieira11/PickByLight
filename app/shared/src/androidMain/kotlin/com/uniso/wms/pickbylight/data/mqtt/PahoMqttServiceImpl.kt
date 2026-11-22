@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,6 +94,7 @@ class PahoMqttServiceImpl(
     private var v1SubscriptionsRequested: Boolean = false
 
     private val inventoryLoadMutex = Mutex()
+    private val inventorySaveMutex = Mutex()
     @Volatile
     private var inventoryLoaded: Boolean = false
     @Volatile
@@ -141,11 +143,19 @@ class PahoMqttServiceImpl(
                             if (inventorySaveDebounceMs > 0) {
                                 delay(inventorySaveDebounceMs)
                             }
-                            try {
-                                saver(encoded)
-                                lastSavedInventoryJson = encoded
-                            } catch (e: Exception) {
-                                println("[MQTT] Falha ao salvar inventário de ESPs: ${e.message}")
+                            inventorySaveMutex.withLock {
+                                withContext(NonCancellable) {
+                                    val latest = synchronized(registryLock) {
+                                        EspInventoryCodec.encode(espRegistry.espDevices.value)
+                                    }
+                                    if (latest == lastSavedInventoryJson) return@withContext
+                                    try {
+                                        saver(latest)
+                                        lastSavedInventoryJson = latest
+                                    } catch (e: Exception) {
+                                        println("[MQTT] Falha ao salvar inventário de ESPs: ${e.message}")
+                                    }
+                                }
                             }
                         }
                     }
@@ -397,6 +407,8 @@ class PahoMqttServiceImpl(
 
     private fun handleV1Message(message: MqttIncomingMessage) {
         val espId = MqttTopics.espIdFromTopic(message.topic) ?: return
+        // Em MQTT 3.1.1 (sem noLocal) ou limpeza de retained, payload vazio chega no tópico: ignorar silenciosamente.
+        if (message.payload.isEmpty()) return
         val payloadString = try {
             String(message.payload, Charsets.UTF_8)
         } catch (_: Exception) {
@@ -778,6 +790,84 @@ class PahoMqttServiceImpl(
             }
         } finally {
             pendingAcks.remove(key)
+        }
+    }
+
+    override suspend fun esquecerEsp(espId: String): Result<Unit> = withContext(ioDispatcher) {
+        requireEspId(espId).onFailure { return@withContext Result.failure(it) }
+        val currentTransport = transport
+        if (currentTransport == null || !currentTransport.isConnected) {
+            return@withContext Result.failure(IllegalStateException("Broker MQTT desconectado"))
+        }
+        val dev = synchronized(registryLock) { espRegistry.getDevice(espId) }
+            ?: return@withContext Result.failure(IllegalStateException("ESP desconhecido: $espId"))
+        if (dev.presence == EspPresence.ONLINE) {
+            return@withContext Result.failure(IllegalStateException("Desligue o ESP antes de esquecer"))
+        }
+
+        // 1. Limpar primeiro os retidos do broker (status e config/state). Em falha/recusa, não remove localmente.
+        publishRetainedClear(currentTransport, MqttTopics.espStatus(espId))
+            .onFailure { return@withContext Result.failure(it) }
+        publishRetainedClear(currentTransport, MqttTopics.espConfigState(espId))
+            .onFailure { return@withContext Result.failure(it) }
+
+        // 2. Remover do registro local e persistir imediatamente sob o mesmo mutex do debounce.
+        inventorySaveJob?.cancel()
+        val encodedWithoutEsp = synchronized(registryLock) {
+            espRegistry.forget(espId)
+            EspInventoryCodec.encode(espRegistry.espDevices.value)
+        }
+        val saver = inventorySaver
+        if (saver != null) {
+            inventorySaveMutex.withLock {
+                val latestEncoded = synchronized(registryLock) {
+                    EspInventoryCodec.encode(espRegistry.espDevices.value)
+                }
+                try {
+                    saver(latestEncoded)
+                    lastSavedInventoryJson = latestEncoded
+                } catch (e: Exception) {
+                    println("[MQTT] Falha ao gravar inventário após esquecer $espId: ${e.message}")
+                    lastSavedInventoryJson = null
+                }
+            }
+        } else {
+            lastSavedInventoryJson = encodedWithoutEsp
+        }
+
+        Result.success(Unit)
+    }
+
+    private suspend fun publishRetainedClear(
+        currentTransport: MqttTransport,
+        topic: String
+    ): Result<Unit> {
+        val publishResult = currentTransport.publish(
+            topic = topic,
+            payload = ByteArray(0),
+            qos = 1,
+            retained = true,
+            properties = null,
+            timeoutMs = 5000L
+        )
+        if (publishResult.isFailure) {
+            return Result.failure(
+                publishResult.exceptionOrNull() ?: IllegalStateException("Erro ao limpar retido em $topic")
+            )
+        }
+        val rc = publishResult.getOrNull()?.reasonCode
+        return when {
+            rc == null || rc == 0x00 || rc == REASON_NO_MATCHING_SUBSCRIBERS -> Result.success(Unit)
+            rc == REASON_NOT_AUTHORIZED -> Result.failure(
+                IllegalStateException("Limpeza recusada pelo broker: Not authorized (0x87) em $topic")
+            )
+            rc == REASON_PACKET_TOO_LARGE -> Result.failure(
+                IllegalStateException("Limpeza recusada pelo broker: Packet too large (0x95) em $topic")
+            )
+            rc >= 0x80 -> Result.failure(
+                IllegalStateException("Limpeza recusada pelo broker (0x${rc.toString(16)}) em $topic")
+            )
+            else -> Result.success(Unit)
         }
     }
 

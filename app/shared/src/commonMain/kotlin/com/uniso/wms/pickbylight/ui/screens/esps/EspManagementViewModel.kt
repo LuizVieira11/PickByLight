@@ -11,6 +11,8 @@ import com.uniso.wms.pickbylight.data.esp.MappingViolation
 import com.uniso.wms.pickbylight.data.esp.MappingViolationType
 import com.uniso.wms.pickbylight.data.mqtt.EspDevice
 import com.uniso.wms.pickbylight.data.mqtt.EspManagementTimings
+import com.uniso.wms.pickbylight.data.mqtt.EspPresence
+import com.uniso.wms.pickbylight.data.mqtt.MqttConnectionState
 import com.uniso.wms.pickbylight.data.mqtt.MqttDiagnostic
 import com.uniso.wms.pickbylight.data.mqtt.MqttOutcome
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
@@ -103,6 +105,7 @@ data class EspManagementUiState(
     val isDiscovering: Boolean = false,
     val listErrorMessage: String? = null,
     val devices: List<EspDevice> = emptyList(),
+    val connectionState: MqttConnectionState = MqttConnectionState.DISCONNECTED,
     val isColetaActive: Boolean = false,
     val isConfigLockActive: Boolean = false,
     val selectedEspId: String? = null,
@@ -116,6 +119,9 @@ data class EspManagementUiState(
     val infoMessage: String? = null,
     val testingLedId: String? = null,
     val ledTestFeedbackByLedId: Map<String, String> = emptyMap(),
+    val isForgetting: Boolean = false,
+    val espForgotten: Boolean = false,
+    val forgetErrorMessage: String? = null,
     val estantes: List<Estante> = emptyList(),
     val prateleiras: List<Prateleira> = emptyList(),
     val posicoes: List<Posicao> = emptyList()
@@ -156,7 +162,24 @@ data class EspManagementUiState(
         get() = canEditMappings && hasUnsavedChanges && violations.isEmpty() && loadedConfigRevision != null
 
     val canTestLed: Boolean
-        get() = isSupported && !isColetaActive && testingLedId == null
+        get() = isSupported && !isColetaActive && testingLedId == null && !isForgetting
+
+    val isAnyOperationInProgress: Boolean
+        get() = isSaving || isForgetting || detailReadState is EspDetailReadState.Loading || testingLedId != null
+
+    val forgetDisabledReason: String?
+        get() {
+            if (!isSupported) return "Indisponível na versão Web"
+            if (connectionState != MqttConnectionState.CONNECTED) return "Conecte ao broker"
+            if (isColetaActive) return "Coleta em andamento"
+            if (isAnyOperationInProgress || isConfigLockActive) return "Operação em andamento"
+            val dev = selectedDevice ?: return "ESP não encontrado"
+            if (dev.presence == EspPresence.ONLINE) return "Desligue o ESP para esquecê-lo: ele está ONLINE"
+            return null
+        }
+
+    val canForgetEsp: Boolean
+        get() = forgetDisabledReason == null
 
     fun ledIdOptionsFor(kind: MappingKind): List<LedIdOption> {
         val espId = selectedEspId
@@ -231,6 +254,11 @@ class EspManagementViewModel(
 
     init {
         if (isSupported) {
+            scope.launch {
+                mqttService.connectionState.collect { connState ->
+                    _uiState.update { it.copy(connectionState = connState) }
+                }
+            }
             scope.launch {
                 mqttService.espDevices.collect { devices ->
                     onEspDevicesUpdated(devices)
@@ -325,10 +353,38 @@ class EspManagementViewModel(
                 violations = emptyList(),
                 opState = EspConfigOpState.Idle,
                 infoMessage = null,
-                ledTestFeedbackByLedId = emptyMap()
+                ledTestFeedbackByLedId = emptyMap(),
+                isForgetting = false,
+                espForgotten = false,
+                forgetErrorMessage = null
             )
         }
         lerConfiguracao(espId, afterRevisionMismatch = false)
+    }
+
+    fun esquecerEspAtual() {
+        val current = _uiState.value
+        val espId = current.selectedEspId ?: return
+        if (!current.canForgetEsp) return
+        scope.launch {
+            _uiState.update { it.copy(isForgetting = true, forgetErrorMessage = null) }
+            val result = coordinator.esquecerEsp(espId)
+            result.fold(
+                onSuccess = {
+                    feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+                    _uiState.update { it.copy(isForgetting = false, espForgotten = true) }
+                },
+                onFailure = { err ->
+                    feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+                    _uiState.update {
+                        it.copy(
+                            isForgetting = false,
+                            forgetErrorMessage = err.message ?: "Erro ao esquecer ESP"
+                        )
+                    }
+                }
+            )
+        }
     }
 
     /** Esclarecimento 4: usado pelo botão "Recarregar configuração" após REVISION_MISMATCH. */

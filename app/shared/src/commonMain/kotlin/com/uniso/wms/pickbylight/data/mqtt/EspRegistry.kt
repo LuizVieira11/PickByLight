@@ -48,6 +48,22 @@ class EspRegistry {
         pendingConfigSets.remove(requestId)
     }
 
+    fun getDevice(espId: String): EspDevice? = knownDevices[espId]
+
+    /**
+     * Remove todo histórico conhecido de [espId] (entrada na lista, snapshot e filtros de `boot_id`/revisão).
+     * Se o mesmo `esp_id` voltar a publicar no futuro, será aceito como dispositivo novo.
+     */
+    fun forget(espId: String): Boolean {
+        val removed = knownDevices.remove(espId) != null
+        activeBootIdByEsp.remove(espId)
+        retiredBootIdsByEsp.remove(espId)
+        if (removed) {
+            _espDevices.value = knownDevices.values.sortedBy { it.espId }
+        }
+        return removed
+    }
+
     /**
      * Semeia o registro a partir do inventário salvo em disco (seção 9.1).
      * Todo ESP carregado entra como [EspPresence.STALE] ("possivelmente antigo") e
