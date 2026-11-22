@@ -204,7 +204,7 @@ Os comandos legados `ACENDER`, `APAGAR`, `PING`, `TESTE_LED`, o `ACK` e o LWT do
 
 ## 6. JSON Schemas
 
-Os schemas usam JSON Schema Draft 2020-12 e são normativos para o namespace v1. Limites de tamanho: `config/set` e `config/state` até **2048 bytes** UTF-8; demais payloads de gerenciamento até **512 bytes**. O tamanho é verificado antes do parse.
+Os schemas usam JSON Schema Draft 2020-12 e são normativos para o namespace v1. Limites de tamanho: `config/set`, `config/state` e `status` ONLINE/CONFIG_INVALID até **2048 bytes** UTF-8 (o `status` carrega a lista de canais: 14 canais com métricas ≈ 940 bytes); demais payloads de gerenciamento até **512 bytes**. O tamanho é verificado antes do parse.
 
 Convenções: UUIDs com `maxLength: 36`; `esp_id` com `^esp-[0-9a-f]{6}$`; `boot_id` com `^[0-9a-f]{8,32}$`; `channel_id` com `^CH[0-9]{2}$`.
 
@@ -835,7 +835,7 @@ Regras de falha:
 - Tabela inválida: todos os LEDs inativos e status `CONFIG_INVALID` (`INVALID_CHANNEL_TABLE`) quando houver MQTT.
 - Mais de 65 s sem broker: apagar todos os canais; ao reconectar, permanecer apagado até novo `ACENDER` ou `TESTE_LED`.
 - Log serial com níveis ERROR/WARN/INFO/DEBUG selecionáveis por constante. Nunca logar senhas.
-- Limites: 2048 bytes para set/state e 512 bytes para os demais. Documento JSON de capacidade fixa; todo `deserializeJson` tem o retorno verificado.
+- Limites: 2048 bytes para set, state e status ONLINE/CONFIG_INVALID; 512 bytes para os demais. Documento JSON de capacidade fixa; todo `deserializeJson` tem o retorno verificado.
 - `STATUS_LED_GPIO` (GPIO2) é desligado por padrão (constante `USE_STATUS_LED = false`).
 
 ## 11. Matriz de responsabilidades
@@ -1031,7 +1031,7 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 | Broadcast gera ACK múltiplo ou `ERRO` | Só o dono da posição responde                               | 2 ESPs, exatamente 1 ACK                                |
 | Dois ESPs com o mesmo `led_id`        | Bloqueio entre ESPs conhecidos                              | Estado duplicado injetado                               |
 | `if (v5)` espalhado                   | Adapter + capacidades; JSON fonte da verdade                | Mesmos casos nos dois protocolos                        |
-| Payload maior que o buffer            | Limite antes do parse; fila limitada                        | 2048/512 bytes e acima                                  |
+| Payload maior que o buffer            | Limite antes do parse; fila limitada                        | 2048 (set/state/status) / 512 bytes e acima             |
 | Callback disputa estado com o loop    | Fila única; um dono de NVS/GPIO                             | Estresse e revisão estática                             |
 | 3.1.1 sem relógio                     | Não depender de TTL                                         | Broker offline e reconexão                              |
 | Retained apagado por engano           | Nenhuma ação de limpeza na UI operacional                   | Verificar que nenhum fluxo publica payload vazio retido |
