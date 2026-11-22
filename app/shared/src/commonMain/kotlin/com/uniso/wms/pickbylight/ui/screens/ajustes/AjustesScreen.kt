@@ -58,6 +58,7 @@ fun AjustesScreen(
     feedbackController: FeedbackController,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateEsps: (() -> Unit)? = null,
     viewModel: AjustesViewModel = viewModel {
         AjustesViewModel(
             mqttService = mqttService,
@@ -247,6 +248,15 @@ fun AjustesScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (onNavigateEsps != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    PrimaryButton(
+                        text = "Gerenciar ESPs (Pick-by-Light)",
+                        onClick = onNavigateEsps,
+                        containerColor = ShelfRackBlue
+                    )
+                }
             }
         }
 

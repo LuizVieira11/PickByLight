@@ -800,7 +800,7 @@ fun EnderecosScreen(
                     OutlinedTextField(
                         value = ledIdPosicao,
                         onValueChange = { ledIdPosicao = it.uppercase() },
-                        label = { Text("ID da Fita de LED Posicional") },
+                        label = { Text("ID do LED Posicional") },
                         modifier = Modifier.fillMaxWidth()
                     )
 

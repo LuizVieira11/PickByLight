@@ -8,4 +8,10 @@ sealed class Screen(val route: String, val title: String) {
     object Catalogo : Screen("catalogo", "Catálogo de Itens")
     object Historico : Screen("historico", "Histórico de Movimentações")
     object Ajustes : Screen("ajustes", "Ajustes e Conectividade")
+    object EspList : Screen("esps", "Gerenciamento de ESPs")
+    object EspDetail : Screen("esps/{espId}", "Detalhe do ESP") {
+        const val ARG_ESP_ID = "espId"
+        fun createRoute(espId: String): String = "esps/$espId"
+    }
 }
+

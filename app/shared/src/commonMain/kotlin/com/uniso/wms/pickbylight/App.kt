@@ -14,9 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.uniso.wms.pickbylight.data.mqtt.MqttServiceProvider
@@ -28,6 +30,8 @@ import com.uniso.wms.pickbylight.ui.screens.ajustes.AjustesScreen
 import com.uniso.wms.pickbylight.ui.screens.catalogo.CatalogoScreen
 import com.uniso.wms.pickbylight.ui.screens.dashboard.DashboardScreen
 import com.uniso.wms.pickbylight.ui.screens.enderecos.EnderecosScreen
+import com.uniso.wms.pickbylight.ui.screens.esps.EspDetailScreen
+import com.uniso.wms.pickbylight.ui.screens.esps.EspListScreen
 import com.uniso.wms.pickbylight.ui.screens.historico.HistoricoScreen
 import com.uniso.wms.pickbylight.ui.screens.recebimento.RecebimentoScreen
 import com.uniso.wms.pickbylight.ui.screens.separacao.SeparacaoScreen
@@ -157,6 +161,33 @@ fun App(
 
                             composable(Screen.Ajustes.route) {
                                 AjustesScreen(
+                                    mqttService = mqttService,
+                                    repository = repository,
+                                    feedbackController = feedbackController,
+                                    onNavigateBack = safePopBackStack,
+                                    onNavigateEsps = { navController.navigate(Screen.EspList.route) }
+                                )
+                            }
+
+                            composable(Screen.EspList.route) {
+                                EspListScreen(
+                                    mqttService = mqttService,
+                                    repository = repository,
+                                    feedbackController = feedbackController,
+                                    onNavigateBack = safePopBackStack,
+                                    onOpenEspDetail = { espId ->
+                                        navController.navigate(Screen.EspDetail.createRoute(espId))
+                                    }
+                                )
+                            }
+
+                            composable(
+                                route = Screen.EspDetail.route,
+                                arguments = listOf(navArgument(Screen.EspDetail.ARG_ESP_ID) { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val espId = backStackEntry.arguments?.getString(Screen.EspDetail.ARG_ESP_ID) ?: ""
+                                EspDetailScreen(
+                                    espId = espId,
                                     mqttService = mqttService,
                                     repository = repository,
                                     feedbackController = feedbackController,
