@@ -34,4 +34,9 @@ actual object BrokerUrlDataStore {
 
     actual suspend fun getOrCreateClientId(): String =
         savedClientId ?: "wms_mobile_${generateUUID()}".also { savedClientId = it }
+
+    // ADR-6: Web/Wasm não persiste o inventário da feature de gerenciamento de ESPs.
+    actual suspend fun saveEspInventoryJson(rawJson: String) {}
+
+    actual suspend fun getSavedEspInventoryJson(): String? = null
 }

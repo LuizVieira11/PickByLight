@@ -39,4 +39,10 @@ expect object BrokerUrlDataStore {
 
     /** Retorna o Client ID único da instalação (`wms_mobile_<uuid>`), gerando e persistindo na 1ª leitura. */
     suspend fun getOrCreateClientId(): String
+
+    /** Persiste o JSON versionado do inventário de ESPs e último snapshot conhecido (ADR-5; no-op em Wasm). */
+    suspend fun saveEspInventoryJson(rawJson: String)
+
+    /** Lê o JSON versionado do inventário de ESPs persistido (ou `null` se ausente/Wasm). */
+    suspend fun getSavedEspInventoryJson(): String?
 }

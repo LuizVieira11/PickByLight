@@ -2,6 +2,8 @@ package com.uniso.wms.pickbylight.ui.screens.separacao
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.uniso.wms.pickbylight.data.esp.ConfigLock
+import com.uniso.wms.pickbylight.data.esp.ConfigLockProvider
 import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.domain.model.Estante
 import com.uniso.wms.pickbylight.domain.model.EstoquePosicao
@@ -104,7 +106,8 @@ class SeparacaoViewModel(
     private val repository: WmsRepository,
     private val mqttService: MqttService,
     private val feedbackController: FeedbackController,
-    coroutineScope: kotlinx.coroutines.CoroutineScope? = null
+    coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
+    private val configLock: ConfigLock = ConfigLockProvider.getLock()
 ) : ViewModel() {
 
     private val scope: kotlinx.coroutines.CoroutineScope = coroutineScope ?: viewModelScope
@@ -114,6 +117,14 @@ class SeparacaoViewModel(
 
     private var operatorTimerJob: Job? = null
     private var ackTimeoutJob: Job? = null
+    private var holdsColetaLock: Boolean = false
+
+    private fun releaseColetaLock() {
+        if (holdsColetaLock) {
+            holdsColetaLock = false
+            configLock.endColeta()
+        }
+    }
 
     /**
      * Algoritmo de Alocação de Estoque Inteligente (Best Fit + Fracionamento + Wave Picking).
@@ -377,12 +388,25 @@ class SeparacaoViewModel(
         val tarefasValidas = tarefas.filter { it.quantidadeAlocada > 0 }
         if (tarefasValidas.isEmpty()) return
 
+        // 0. Lock global de configuração de ESP (MQTT5_E_ESP32.md, seções 9.1 e 16.7)
+        if (!holdsColetaLock) {
+            if (!configLock.tryStartColeta()) {
+                _uiState.update {
+                    it.copy(showConcurrencyLockError = "Configuração de ESP em andamento. Aguarde para iniciar a coleta.")
+                }
+                feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+                return
+            }
+            holdsColetaLock = true
+        }
+
         // 1. Verificação de Concorrência / Lock Otimista (Seção 5.5)
         val itemIds = tarefasValidas.map { it.itemId }.distinct()
         val itensBloqueados = itemIds.mapNotNull { id ->
             itensDisponiveis.find { it.id == id && it.emSeparacao }
         }
         if (itensBloqueados.isNotEmpty()) {
+            releaseColetaLock()
             val primeiro = itensBloqueados.first()
             _uiState.update {
                 it.copy(showConcurrencyLockError = "Item [${primeiro.sku}] está em separação por outro operador.")
@@ -402,7 +426,10 @@ class SeparacaoViewModel(
             Triple(item, tarefa.quantidadeAlocada, tag) to Triple(pos, prat, est)
         }
 
-        if (tarefasComLocalizacao.isEmpty()) return
+        if (tarefasComLocalizacao.isEmpty()) {
+            releaseColetaLock()
+            return
+        }
 
         // 2. OTIMIZAÇÃO DE ROTA: Aglutinação (grouping) por posição física e ordenação por endereço
         val passosAgrupados = tarefasComLocalizacao
@@ -601,24 +628,28 @@ class SeparacaoViewModel(
         val passosParaLiberar = _uiState.value.passos
 
         scope.launch {
-            if (passo != null) {
-                mqttService.apagarLed(
-                    estanteLedId = passo.estante.ledId,
-                    prateleiraLedId = passo.prateleira.ledIdPonta,
-                    posicaoLedId = passo.posicao.ledId
-                )
-            }
-
-            passosParaLiberar.forEach { p ->
-                p.itens.forEach { item ->
-                    repository.setEmSeparacao(item.item.id, false)
+            try {
+                if (passo != null) {
+                    mqttService.apagarLed(
+                        estanteLedId = passo.estante.ledId,
+                        prateleiraLedId = passo.prateleira.ledIdPonta,
+                        posicaoLedId = passo.posicao.ledId
+                    )
                 }
-            }
 
-            _uiState.update {
-                SeparacaoUiState(
-                    timeoutCancelMessage = "Tempo esgotado. Operação cancelada."
-                )
+                passosParaLiberar.forEach { p ->
+                    p.itens.forEach { item ->
+                        repository.setEmSeparacao(item.item.id, false)
+                    }
+                }
+
+                _uiState.update {
+                    SeparacaoUiState(
+                        timeoutCancelMessage = "Tempo esgotado. Operação cancelada."
+                    )
+                }
+            } finally {
+                releaseColetaLock()
             }
         }
     }
@@ -814,6 +845,7 @@ class SeparacaoViewModel(
                 iniciarTimerOperador()
             } else {
                 // Fim da rota: todas as paradas concluídas!
+                releaseColetaLock()
                 _uiState.update {
                     it.copy(
                         etapa = EtapaSeparacao.CONCLUIDO,
@@ -832,24 +864,29 @@ class SeparacaoViewModel(
      */
     fun cancelarColetaEVoltar(onComplete: () -> Unit = {}) {
         operatorTimerJob?.cancel()
+        ackTimeoutJob?.cancel()
         val passo = _uiState.value.passoAtual
 
         scope.launch {
-            if (passo != null) {
-                mqttService.apagarLed(
-                    estanteLedId = passo.estante.ledId,
-                    prateleiraLedId = passo.prateleira.ledIdPonta,
-                    posicaoLedId = passo.posicao.ledId
-                )
-            }
-
-            _uiState.value.passos.forEach { p ->
-                p.itens.forEach { item ->
-                    repository.setEmSeparacao(item.item.id, false)
+            try {
+                if (passo != null) {
+                    mqttService.apagarLed(
+                        estanteLedId = passo.estante.ledId,
+                        prateleiraLedId = passo.prateleira.ledIdPonta,
+                        posicaoLedId = passo.posicao.ledId
+                    )
                 }
-            }
 
-            _uiState.update { SeparacaoUiState() }
+                _uiState.value.passos.forEach { p ->
+                    p.itens.forEach { item ->
+                        repository.setEmSeparacao(item.item.id, false)
+                    }
+                }
+
+                _uiState.update { SeparacaoUiState() }
+            } finally {
+                releaseColetaLock()
+            }
             onComplete()
         }
     }
@@ -900,6 +937,15 @@ class SeparacaoViewModel(
 
     fun resetarParaSelecao() {
         operatorTimerJob?.cancel()
+        ackTimeoutJob?.cancel()
+        releaseColetaLock()
         _uiState.update { SeparacaoUiState() }
+    }
+
+    override fun onCleared() {
+        operatorTimerJob?.cancel()
+        ackTimeoutJob?.cancel()
+        releaseColetaLock()
+        super.onCleared()
     }
 }

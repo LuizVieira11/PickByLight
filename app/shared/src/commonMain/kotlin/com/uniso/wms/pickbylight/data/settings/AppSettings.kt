@@ -88,4 +88,10 @@ object AppSettings {
     }
 
     suspend fun getOrCreateClientId(): String = BrokerUrlDataStore.getOrCreateClientId()
+
+    suspend fun saveEspInventoryJson(rawJson: String) {
+        BrokerUrlDataStore.saveEspInventoryJson(rawJson)
+    }
+
+    suspend fun getSavedEspInventoryJson(): String? = BrokerUrlDataStore.getSavedEspInventoryJson()
 }

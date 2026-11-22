@@ -27,6 +27,7 @@ actual object BrokerUrlDataStore {
     private val KEY_BROKER_URL = stringPreferencesKey("mqtt_broker_url")
     private val KEY_PROTOCOL_MODE = stringPreferencesKey("mqtt_protocol_mode")
     private val KEY_CLIENT_ID = stringPreferencesKey("mqtt_client_id")
+    private val KEY_ESP_INVENTORY = stringPreferencesKey("mqtt_esp_inventory_json")
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val clientIdMutex = Mutex()
 
@@ -40,6 +41,9 @@ actual object BrokerUrlDataStore {
 
     @Volatile
     private var memoryClientId: String? = null
+
+    @Volatile
+    private var memoryEspInventoryJson: String? = null
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val sharedBrokerUrlFlow: Flow<String?> = dataStoreHolder
@@ -161,6 +165,30 @@ actual object BrokerUrlDataStore {
             return@withLock generated
         }
         memoryClientId ?: "wms_mobile_${generateUUID()}".also { memoryClientId = it }
+    }
+
+    actual suspend fun saveEspInventoryJson(rawJson: String) {
+        val clean = rawJson.trim()
+        memoryEspInventoryJson = clean.ifBlank { null }
+        dataStoreInstance?.edit { prefs ->
+            if (clean.isBlank()) {
+                prefs.remove(KEY_ESP_INVENTORY)
+            } else {
+                prefs[KEY_ESP_INVENTORY] = clean
+            }
+        }
+    }
+
+    actual suspend fun getSavedEspInventoryJson(): String? {
+        val ds = dataStoreInstance
+        if (ds != null) {
+            val fromDisk = ds.data.map { it[KEY_ESP_INVENTORY] }.first()?.takeIf { it.isNotBlank() }
+            if (fromDisk != null) {
+                memoryEspInventoryJson = fromDisk
+                return fromDisk
+            }
+        }
+        return memoryEspInventoryJson
     }
 
     private fun parseProtocolMode(raw: String?): MqttProtocolMode =

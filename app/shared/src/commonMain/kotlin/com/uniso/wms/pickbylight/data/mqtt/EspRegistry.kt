@@ -1,5 +1,6 @@
 package com.uniso.wms.pickbylight.data.mqtt
 
+import com.uniso.wms.pickbylight.data.esp.PersistedEspSnapshot
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigState
 import com.uniso.wms.pickbylight.data.mqtt.model.EspStatusOffline
@@ -45,6 +46,33 @@ class EspRegistry {
 
     fun unregisterConfigSet(requestId: String) {
         pendingConfigSets.remove(requestId)
+    }
+
+    /**
+     * Semeia o registro a partir do inventário salvo em disco (seção 9.1).
+     * Todo ESP carregado entra como [EspPresence.STALE] ("possivelmente antigo") e
+     * um `espId` já visto na sessão atual nunca é sobrescrito pelo snapshot persistido.
+     */
+    fun seedFromPersisted(snapshots: List<PersistedEspSnapshot>): Int {
+        var added = 0
+        for (snap in snapshots) {
+            if (snap.espId in knownDevices) continue
+            knownDevices[snap.espId] = EspDevice(
+                espId = snap.espId,
+                presence = EspPresence.STALE,
+                status = snap.status,
+                config = snap.config
+            )
+            val bootId = snap.status?.bootId ?: snap.config?.bootId
+            if (bootId != null) {
+                activeBootIdByEsp[snap.espId] = bootId
+            }
+            added++
+        }
+        if (added > 0) {
+            _espDevices.value = knownDevices.values.sortedBy { it.espId }
+        }
+        return added
     }
 
     fun applyStatusOnline(status: EspStatusOnline, fromRetained: Boolean): Boolean {

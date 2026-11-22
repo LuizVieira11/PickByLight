@@ -2,6 +2,7 @@ package com.uniso.wms.pickbylight.data.mqtt
 
 import com.uniso.wms.pickbylight.data.esp.ContractResult
 import com.uniso.wms.pickbylight.data.esp.EspContract
+import com.uniso.wms.pickbylight.data.esp.EspInventoryCodec
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigGet
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResult
 import com.uniso.wms.pickbylight.data.mqtt.model.ConfigResultStatus
@@ -29,6 +30,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -58,7 +61,10 @@ class PahoMqttServiceImpl(
     },
     private val clientIdProvider: suspend () -> String = { AppSettings.getOrCreateClientId() },
     private val protocolModeProvider: suspend () -> MqttProtocolMode = { AppSettings.resolveProtocolMode() },
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val inventoryLoader: (suspend () -> String?)? = null,
+    private val inventorySaver: (suspend (String) -> Unit)? = null,
+    private val inventorySaveDebounceMs: Long = 500L
 ) : MqttService {
 
     private val _connectionState = MutableStateFlow(MqttConnectionState.DISCONNECTED)
@@ -85,6 +91,13 @@ class PahoMqttServiceImpl(
     private var isV1Subscribed: Boolean = false
     @Volatile
     private var v1SubscriptionsRequested: Boolean = false
+
+    private val inventoryLoadMutex = Mutex()
+    @Volatile
+    private var inventoryLoaded: Boolean = false
+    @Volatile
+    private var lastSavedInventoryJson: String? = null
+    private var inventorySaveJob: Job? = null
 
     private var transport: MqttTransport? = null
     private var currentBrokerUrl: String = AppBuildConfig.MQTT_BROKER_URL
@@ -113,6 +126,62 @@ class PahoMqttServiceImpl(
     private val maxReconnectAttempts = 5
     private var isManualDisconnect = false
 
+    init {
+        if (inventoryLoader != null || inventorySaver != null) {
+            scope.launch(ioDispatcher) {
+                ensureInventoryLoaded()
+                val saver = inventorySaver ?: return@launch
+                espRegistry.espDevices
+                    .map { devices -> EspInventoryCodec.encode(devices) }
+                    .distinctUntilChanged()
+                    .collect { encoded ->
+                        inventorySaveJob?.cancel()
+                        if (encoded == lastSavedInventoryJson) return@collect
+                        inventorySaveJob = scope.launch(ioDispatcher) {
+                            if (inventorySaveDebounceMs > 0) {
+                                delay(inventorySaveDebounceMs)
+                            }
+                            try {
+                                saver(encoded)
+                                lastSavedInventoryJson = encoded
+                            } catch (e: Exception) {
+                                println("[MQTT] Falha ao salvar inventário de ESPs: ${e.message}")
+                            }
+                        }
+                    }
+            }
+        }
+    }
+
+    private suspend fun ensureInventoryLoaded() {
+        val loader = inventoryLoader
+        if (loader == null) {
+            if (!inventoryLoaded) {
+                lastSavedInventoryJson = synchronized(registryLock) {
+                    EspInventoryCodec.encode(espRegistry.espDevices.value)
+                }
+                inventoryLoaded = true
+            }
+            return
+        }
+        if (inventoryLoaded) return
+        inventoryLoadMutex.withLock {
+            if (inventoryLoaded) return@withLock
+            val rawJson = try {
+                loader()
+            } catch (e: Exception) {
+                println("[MQTT] Falha ao carregar inventário de ESPs: ${e.message}")
+                null
+            }
+            val snapshots = EspInventoryCodec.decode(rawJson)
+            synchronized(registryLock) {
+                espRegistry.seedFromPersisted(snapshots)
+                lastSavedInventoryJson = EspInventoryCodec.encode(espRegistry.espDevices.value)
+            }
+            inventoryLoaded = true
+        }
+    }
+
     override suspend fun connect(brokerUrl: String?): Unit = withContext<Unit>(ioDispatcher) {
         val explicitUrl = brokerUrl?.trim()?.takeIf { it.isNotBlank() }
         if (explicitUrl != null) {
@@ -129,6 +198,9 @@ class PahoMqttServiceImpl(
     }
 
     private suspend fun executeConnect(targetUrl: String, isRetry: Boolean): Boolean = withContext(ioDispatcher) {
+        if (inventoryLoader != null) {
+            ensureInventoryLoaded()
+        }
         mutex.withLock {
             _connectionState.value = MqttConnectionState.CONNECTING
             _negotiatedProtocol.value = null
