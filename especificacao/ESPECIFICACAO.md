@@ -199,7 +199,7 @@ Fluxo em cascata (*Estante -> Prateleira -> Posição*) para mapear o armazém f
   3. **Tela de Cadastro de Posição (Vinculação NFC):** Contexto da Prateleira selecionada.
      * **Código da Posição:** Obrigatório, único dentro da prateleira.
      * **Limites Físicos (L×A×P):** Campo de texto com máscara e validação regex `^\d{1,4}x\d{1,4}x\d{1,4}(cm|mm)$` (ex.: `30x20x40cm`). Exibir erro inline se inválido: *"Formato esperado: 30x20x40cm ou 150x80x200mm"*.
-     * **ID da Fita de LED Posicional:** Obrigatório, único. Botão `[Testar LED]` (dispara MQTT `TESTE_LED` — ver Seção 4.3).
+     * **ID do LED Posicional:** Obrigatório, único. Botão `[Testar LED]` (dispara MQTT `TESTE_LED` — ver Seção 4.3).
      * **Ação Chave — `[Escanear Etiqueta NFC]`:** Abre um *BottomSheet* ou Modal com animação de ondas de rádio: *"Aproxime a traseira do celular da etiqueta fixa na prateleira"*.
      * Ao detectar a tag: valida o formato hexadecimal de 7 bytes, aplica debounce de $2\text{ s}$ e verifica unicidade. A vinculação deve ser gravada **exclusivamente** como um novo registro na tabela `TagNFC` (nunca em `Posicao`). Garantir transação atômica (`@Transaction` no Room):
        * Se válida e livre: vibra curto, exibe o UID lido em destaque verde e habilita `[Concluir Cadastro]`.
