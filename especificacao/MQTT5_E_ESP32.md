@@ -712,10 +712,10 @@ sequenceDiagram
 - Correlaciona `config/result` pelo `request_id` do payload; em v5, Correlation Data é reforço.
 - Expõe estados UDF `Loading`, `Empty`, `Error`, `Success` e, por ESP, os estados da seção 9.3.
 - Libera o lock ao receber `config/result`. Mostra "Sincronizado" só com `config/state` na revisão confirmada; se não chegar em 5 s, mostra "Aplicado — aguardando estado" e oferece `config/get` manual.
-- Persiste em Room (Android) o inventário de ESPs e o último snapshot conhecido, sempre exibido como possivelmente antigo até confirmação.
+- Persiste em DataStore (Android), como JSON versionado, o inventário de ESPs e o último snapshot conhecido, sempre exibido como possivelmente antigo (STALE) até confirmação na conexão atual. Wasm sem persistência da feature (ADR-6).
 - Persiste em DataStore o modo de protocolo e as credenciais MQTT; nunca no código-fonte. A resolução da URL do broker continua: parâmetro → DataStore → `BuildConfig.MQTT_BROKER_URL`.
 - Valida antes de publicar: formato dos IDs; existência em `Estante.ledId`/`Prateleira.ledIdPonta`/`Posicao.ledId` coerente com `kind`; unicidade de `led_id` entre ESPs conhecidos; unicidade de `channel_id`; canal existente nas capacidades; tamanho ≤ 2048 bytes.
-- Mantém um lock global de configuração, separado de `Item.emSeparacao`. Ele impede iniciar separação e editar outro ESP na mesma instância, e é liberado em resultado, rejeição, cancelamento, timeout (5 s sem `config/result`) ou desconexão. Não coordena outros aparelhos.
+- Mantém um lock global de configuração, separado de `Item.emSeparacao`, que vale nos dois sentidos na mesma instância: enquanto um ESP é configurado, impede iniciar separação e editar outro ESP; com uma coleta ativa, impede gravar configuração (evita trocar o mapping de um LED aceso no meio da coleta). É liberado em resultado, rejeição, cancelamento, timeout (5 s sem `config/result`), desconexão e fim da coleta. Não coordena outros aparelhos.
 - Oferece telas: lista de ESPs, detalhe (canais, protocolo, firmware, revisão), edição de mappings (só canais livres) e "Testar LED".
 - "Testar LED" publica `TESTE_LED` legado, nunca `config/set` (ver 16.5).
 - Respeita a UI existente: toque ≥ 48 dp, botões primários ≥ 56 dp, texto ≥ 16 sp, breakpoints e feedback háptico atual.
@@ -914,10 +914,10 @@ pattern read  wms/pickbylight/v1/esp/%u/config/set
 
 ### ADR-5 — Persistência no app
 
-- **Contexto:** `RoomWmsRepositoryImpl` (androidMain), `InMemoryWmsRepository` (commonMain), `BrokerUrlDataStore` guardando a URL do broker.
-- **Decisão:** Room versionado para ESPs e snapshot; DataStore para protocolo, credenciais e Client ID. Wasm sem persistência da feature.
-- **Alternativa:** tudo em DataStore (rejeitada).
-- **Consequência:** nova entidade/DAO/migration sem tocar nas entidades operacionais; o reset de demo não apaga os dados de ESP.
+- **Contexto:** `RoomWmsRepositoryImpl` e `WmsDatabase` existem em androidMain, mas o Room nunca foi ativado (sem KSP/room-compiler, banco nunca instanciado); o app usa `InMemoryWmsRepository` também no Android. `BrokerUrlDataStore` guarda URL, protocolo e Client ID.
+- **Decisão:** inventário de ESPs e último snapshot em DataStore, serializados como JSON versionado, no mesmo arquivo de preferências. Wasm sem persistência da feature.
+- **Alternativa:** ativar o Room só para ESPs (rejeitada: exige toolchain nova, KSP compatível com Kotlin 2.4.20, para poucos ESPs × 14 mappings).
+- **Consequência:** sem entidade, DAO ou migration; os dados de ESP ficam fora do repositório operacional, então o reset de demo não os apaga. Mudança de formato exige incrementar a versão do JSON; versão desconhecida ou JSON corrompido são ignorados com log.
 
 ### ADR-6 — Web/Wasm
 
@@ -957,7 +957,7 @@ Novos testes em `commonTest` (`FakeMqttService` + Turbine):
 14. validação de mappings (canal inexistente, duplicado, tamanho);
 15. Client ID estável entre reconexões;
 16. Wasm mostra indisponibilidade sem tentar Paho;
-17. migration Room testada.
+17. persistência do inventário de ESPs testada (ida e volta do JSON, JSON corrompido/versão desconhecida ignorados, reset de demo não apaga).
 
 Integração opcional com Mosquitto 2.1.2, desativada por padrão e ativada por propriedade Gradle explícita: conexão v5 e 3.1.1, retain, expiry, Response Topic, Correlation Data, ACL e reason codes efetivamente entregues.
 
@@ -1053,7 +1053,7 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 5. **`testarLed()`:** o comportamento atual (sucesso também em timeout) é preservado para não afetar fluxos existentes. Para a tela de ESPs, adicionar o método novo `testarLedComConfirmacao(...)`, que retorna se houve ACK OK, ERRO ou timeout. A tela mostra "Sem confirmação do ESP" quando houver timeout.
 6. **`apagarLed()`:** continua sem aguardar ACK; o ESP envia o ACK mesmo assim, e o app o ignora.
 7. **Lock:** novo `ConfigLock` global; `SeparacaoViewModel` consulta o lock antes de iniciar a coleta e continua usando `Item.emSeparacao`.
-8. **Persistência:** inspecionar `WmsDatabase` (versão e migrations) antes de criar entidade/DAO; o DataStore ganha chaves de protocolo, credenciais e Client ID ao lado de `BrokerUrlDataStore`.
+8. **Persistência:** o Room não está ativo no projeto (ver ADR-5). O inventário de ESPs e o snapshot vão em JSON no DataStore, ao lado das chaves de protocolo e Client ID de `BrokerUrlDataStore`. Credenciais seguem adiadas (item 15).
 9. **Client ID:** passa de `WmsMobile_${currentTimeMillis()}` para `wms_mobile_<uuid>` persistido.
 10. **Backoff:** mantido como está no código (1/2/4/8/16 s, até 5 tentativas); qualquer mudança exige decisão separada.
 11. **Firmware:** não existe hoje; `esp32/esp32.ino` é criado do zero.
