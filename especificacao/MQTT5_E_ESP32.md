@@ -187,6 +187,7 @@ O app oferece em Ajustes `Automático | 5.0 | 3.1.1`, persistido em DataStore (p
 | `wms/pickbylight/v1/esp/{esp_id}/config/state`                | ESP → App                         |    1 |    Sim |                                                                           — | Não                          | Snapshot aplicado (6.7).                                                                                                                                                                              |
 | `wms/pickbylight/v1/esp/{esp_id}/config/set`                  | App → ESP específico              |    1 |    Não |                                                                         5 s | `.../{esp_id}/config/result` | Configuração desejada integral (6.6). Nunca enfileirada para envio tardio.                                                                                                                            |
 | `wms/pickbylight/v1/esp/{esp_id}/config/result`               | ESP → App                         |    1 |    Não |                                                                        10 s | —                            | Confirmação ou rejeição (6.8).                                                                                                                                                                        |
+| `wms/pickbylight/v1/esp/{esp_id}/config/restore`              | ESP → App                         |    1 |    Não |                                                                        10 s | Não                          | Pedido de restauração no boot (6.11): `schema_version`, `esp_id`, `boot_id`, `request_id`. O app responde com `config/set` (mappings conhecidos ou lista vazia).                                      |
 
 Os comandos legados `ACENDER`, `APAGAR`, `PING`, `TESTE_LED`, o `ACK` e o LWT do app mantêm tópicos, campos e semântica.
 
@@ -518,6 +519,10 @@ Formatos aditivos novos (compatíveis com `ignoreUnknownKeys = true`; `MqttAck.s
 
 Payload Format Indicator = `1`; Content Type = `application/json`; User Properties apenas para diagnóstico. Em `config/set`: Response Topic = tópico `config/result` do mesmo ESP e Correlation Data = bytes do `request_id`. Se divergirem, o payload vence.
 
+### 6.11 `config/restore`
+
+Publicado pelo ESP depois de conectar, enquanto não recebeu configuração (estado `RESTORE_PENDING`). Campos obrigatórios: `schema_version` (1), `esp_id` (igual ao do tópico), `boot_id` e `request_id` (UUID); limite de 512 bytes. O app responde com um `config/set` normal para o mesmo ESP, com `expected_revision` 0 e os mappings do último `config/state` que conhece daquele ESP; se não o conhece (nunca visto ou esquecido), responde com `mappings: []`. O ESP repete o pedido, com `request_id` novo, a cada 10 s, dobrando até 60 s, até aplicar o primeiro `config/set` válido; depois não pede mais até o próximo boot.
+
 ## 7. Códigos de erro
 
 Usados em `config/result`:
@@ -714,6 +719,7 @@ sequenceDiagram
 - Libera o lock ao receber `config/result`. Mostra "Sincronizado" só com `config/state` na revisão confirmada; se não chegar em 5 s, mostra "Aplicado — aguardando estado" e oferece `config/get` manual.
 - Persiste em DataStore (Android), como JSON versionado, o inventário de ESPs e o último snapshot conhecido, sempre exibido como possivelmente antigo (STALE) até confirmação na conexão atual. Wasm sem persistência da feature (ADR-6).
 - Oferece "Esquecer ESP" para ESP OFFLINE ou STALE, com broker conectado: apaga primeiro no broker os retidos do ESP (`status` e `config/state`, publicação vazia com retain) e depois remove do celular tudo o que se sabe dele (entrada da lista, snapshot salvo e filtros de `boot_id`/revisão), gravando o inventário na hora. Com o ESP ONLINE ou com operação dele em andamento, fica desabilitado. Se o ESP voltar, reaparece só com o que publicar dali em diante.
+- Escuta `config/restore` de todos os ESPs desde a conexão com o broker (independente da tela aberta) e responde a cada pedido com um `config/set` montado do inventário salvo: os mappings do último `config/state` daquele ESP, ou `mappings: []` se ele for desconhecido ou esquecido. Essa resposta não passa pelo lock de configuração (restaura o que já existia, inclusive durante uma coleta). Com mais de um aparelho respondendo, vale o primeiro `config/set` aplicado pelo ESP; os demais recebem `REVISION_MISMATCH` e são ignorados sem erro visível (limitação até existir o servidor).
 - Persiste em DataStore o modo de protocolo e as credenciais MQTT; nunca no código-fonte. A resolução da URL do broker continua: parâmetro → DataStore → `BuildConfig.MQTT_BROKER_URL`.
 - Valida antes de publicar: formato dos IDs; existência em `Estante.ledId`/`Prateleira.ledIdPonta`/`Posicao.ledId` coerente com `kind`; unicidade de `led_id` entre ESPs conhecidos; unicidade de `channel_id`; canal existente nas capacidades; tamanho ≤ 2048 bytes.
 - Mantém um lock global de configuração, separado de `Item.emSeparacao`, que vale nos dois sentidos na mesma instância: enquanto um ESP é configurado, impede iniciar separação e editar outro ESP; com uma coleta ativa, impede gravar configuração (evita trocar o mapping de um LED aceso no meio da coleta). É liberado em resultado, rejeição, cancelamento, timeout (5 s sem `config/result`), desconexão e fim da coleta. Não coordena outros aparelhos.
@@ -784,40 +790,40 @@ Depois, máquina de estados não bloqueante `BOOT → WIFI_CONNECTING → MQTT_C
 
 - `esp_id` vem do MAC de fábrica (`esp_efuse_mac_get_default`), não do MAC da interface Wi-Fi. O mesmo valor é usado no Client ID, nos tópicos e no JSON.
 - `boot_id`: 8 dígitos hexadecimais de `esp_random()` a cada boot.
-- `config_revision`: monotônica e persistida; nunca diminui. Incrementa só após persistência confirmada. Tipo `uint32_t` (rollover fora do horizonte do protótipo, documentado).
+- `config_revision`: monotônica dentro do boot; começa em 0 a cada boot (o ESP não persiste configuração, ver 10.5) e incrementa a cada `config/set` aplicado. O app distingue os boots pelo `boot_id`. Tipo `uint32_t`.
 
 Ao conectar:
 
 1. publicar `status` retained (`ONLINE`, ou `CONFIG_INVALID` com `error_code`) com capacidades, `config_revision` e métricas;
-2. publicar `config/state` retained da configuração ativa;
+2. entrar em `RESTORE_PENDING` e publicar `config/restore` (6.11); o `config/state` só é publicado depois de aplicar o `config/set` da restauração;
 3. não acender LED automaticamente.
 
 Republicar status a cada discovery e a cada 60 s (heartbeat de métricas). LWT: OFFLINE retained com `reason: "LWT"`, Will Delay 5 s em v5. Desligamento controlado: OFFLINE com `reason: "SHUTDOWN"`.
 
-### 10.5 NVS e aplicação de configuração
+### 10.5 Configuração em memória e restauração
 
-Persistência com `Preferences` em dois slots:
+O ESP não persiste a configuração: ela vive em RAM, e o app (no futuro, o servidor) é a fonte da verdade (ADR-5).
 
-1. gravar o snapshot no slot inativo;
-2. reler e validar tamanho, schema e CRC32;
-3. atualizar o seletor do slot ativo por último;
-4. manter o slot anterior válido até o commit.
+Boot e restauração:
+
+1. tudo apagado e tabela validada (10.3); configuração vazia, `config_revision = 0`, estado `RESTORE_PENDING`;
+2. ao conectar: publica `status` e `config/restore` (6.11) e repete o pedido a cada 10 s, dobrando até 60 s;
+3. em `RESTORE_PENDING`, responde ao discovery com o `status`, mas não responde a `config/get` nem publica `config/state` (um estado vazio sobrescreveria no app a configuração que ele vai restaurar);
+4. o primeiro `config/set` válido (inclusive com `mappings: []`) encerra o `RESTORE_PENDING` e segue o processamento normal.
 
 Processamento de `config/set`:
 
 1. verificar o tamanho antes do parse;
 2. validar schema, `esp_id`, `expected_revision`, canais existentes, unicidade de `led_id` e de `channel_id`;
 3. checar o cache de `request_id` (últimos 8, em RAM): se repetido, republicar o mesmo resultado e parar;
-4. persistir (seção acima) → trocar a configuração ativa → incrementar a revisão;
+4. trocar a configuração ativa e incrementar a revisão;
 5. publicar `config/result OK` e depois `config/state` retained.
 
-Regras de falha:
+Regras:
 
-- Falha de NVS: `STORAGE_FAILURE`; mantém a configuração anterior ativa e não mexe nos LEDs.
-- Nenhum slot válido no boot: `CONFIG_INVALID` com `STORAGE_FAILURE`, todos os LEDs apagados, sem crash.
 - LEDs mapeados a canais que deixaram de ter mapping são apagados ao trocar a configuração.
-- O cache de deduplicação não é persistido: reaplicar um snapshot igual após reboot falha por `REVISION_MISMATCH` ou é idempotente.
-- Ao reiniciar, a NVS é a fonte da configuração; o retained do broker é apenas cache.
+- Ao reiniciar, a configuração é perdida e volta pela restauração; o retained do broker é apenas cache.
+- Sem o app, o ESP fica sem configuração (e sem comandos, que também vêm do app).
 
 ### 10.6 Comandos legados
 
@@ -916,7 +922,7 @@ pattern read  wms/pickbylight/v1/esp/%u/config/set
 ### ADR-5 — Persistência no app
 
 - **Contexto:** `RoomWmsRepositoryImpl` e `WmsDatabase` existem em androidMain, mas o Room nunca foi ativado (sem KSP/room-compiler, banco nunca instanciado); o app usa `InMemoryWmsRepository` também no Android. `BrokerUrlDataStore` guarda URL, protocolo e Client ID.
-- **Decisão:** inventário de ESPs e último snapshot em DataStore, serializados como JSON versionado, no mesmo arquivo de preferências. Wasm sem persistência da feature.
+- **Decisão:** inventário de ESPs e último snapshot em DataStore, serializados como JSON versionado, no mesmo arquivo de preferências. Wasm sem persistência da feature. A configuração de cada ESP também fica no app e é devolvida ao ESP no boot pela restauração (6.11); o ESP não persiste configuração. No futuro, um servidor com banco e API assume esse papel.
 - **Alternativa:** ativar o Room só para ESPs (rejeitada: exige toolchain nova, KSP compatível com Kotlin 2.4.20, para poucos ESPs × 14 mappings).
 - **Consequência:** sem entidade, DAO ou migration; os dados de ESP ficam fora do repositório operacional, então o reset de demo não os apaga. Mudança de formato exige incrementar a versão do JSON; versão desconhecida ou JSON corrompido são ignorados com log.
 
@@ -991,7 +997,7 @@ Executar em MQTT 5 (`-V mqttv5`) e em MQTT 3.1.1 (`-V mqttv311`) com `mosquitto_
 2. **Corte de energia:** LWT OFFLINE após detecção pelo keep-alive (~1,5 × 15 s), em v5 e em 3.1.1 (Will Delay sem efeito, ver 16, item 16). Medir queda curta e longa e registrar se há OFFLINE seguido de ONLINE ("pisca").
 3. **Discovery:** status republicado, sem `request_id`.
 4. **`config/get`:** `config/state` no tópico fixo com `last_request_id`.
-5. **`config/set` válido:** OK, revisão +1, novo state retained; persiste após reboot.
+5. **`config/set` válido:** OK, revisão +1, novo state retained; após reboot, a configuração volta pela restauração do app (6.11).
 6. **Revisão errada:** `REVISION_MISMATCH`; nada muda.
 7. **Duplicata:** mesmo resultado, uma única aplicação.
 8. **Inválidos:** JSON malformado, `esp_id` divergente, canal inexistente, canal duplicado, `led_id` duplicado, payload acima do limite → erro enumerado, sem reboot.
@@ -1006,6 +1012,7 @@ Executar em MQTT 5 (`-V mqttv5`) e em MQTT 3.1.1 (`-V mqttv311`) com `mosquitto_
 17. **Boot seguro:** todos os LEDs apagados antes de Wi-Fi/MQTT.
 18. **Sem piscar:** observar os canais padrão desde o reset.
 19. **Tabela inválida:** build de teste com GPIO proibido/duplicado → `CONFIG_INVALID` (`INVALID_CHANNEL_TABLE`), tudo apagado.
+20. **Restauração:** religar o ESP com o app conectado → mesma configuração em poucos segundos; com o app desligado, o ESP repete o pedido até o app voltar; ESP esquecido no app → volta sem mappings.
 20. **Offline 65 s:** LED aceso, broker desligado por mais de 65 s → apaga; ao reconectar, continua apagado.
 21. **Cor ignorada:** `cor` desconhecida em `ACENDER`/`TESTE_LED` → executa normalmente, ACK OK.
 22. **IDs em 2 ESPs:** estante no ESP A e posição no ESP B → os dois LEDs acendem, um único ACK (do ESP B).
@@ -1064,6 +1071,7 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 15. **Autenticação adiada:** o broker do protótipo roda sem usuário, senha ou ACL. A seção 12 fica como configuração-alvo para uma fase posterior. O app e o firmware devem funcionar com credenciais **vazias** (conexão anônima). As credenciais são opcionais em toda a implementação, e nenhum fluxo pode exigi-las.
 16. **Will Delay com Session Expiry 0 (decisão A):** pela norma MQTT 5, o Will é publicado quando o Will Delay vence ou quando a sessão termina, o que vier primeiro. Com Session Expiry 0 (ADR-4), a sessão termina na queda e o OFFLINE sai sem atraso: o Will Delay de 5 s continua configurado, mas não tem efeito. O OFFLINE aparece após a detecção pelo keep-alive (~1,5 × 15 s ≈ 22 s), dentro da tolerância de ~30 s da UI. Instabilidade curta de Wi-Fi pode gerar OFFLINE seguido de ONLINE. Usar Session Expiry maior que 0 exigiria Clean Start `false` na reconexão, em conflito com o ADR-4; a opção só será reavaliada se a bancada mostrar "pisca" relevante.
 17. **Esquecer ESP:** o app passa a escrever (payload vazio, retain) em `.../status` e `.../config/state` de um ESP só para apagar retidos. Quando a ACL da seção 12 for ativada, o usuário do app precisa de escrita nesses dois tópicos de cada ESP.
+18. **Restauração pelo app:** o ESP não persiste configuração (sai a NVS de 2 slots da versão anterior desta spec); a configuração vem do app a cada boot via `config/restore` (6.11). `STORAGE_FAILURE` deixa de ser emitido pelo firmware (o código continua aceito pelo app). Esquecer um ESP faz o próximo boot dele voltar sem mappings.
 
 
 ## 17. Pendências `[PREENCHER]`
