@@ -75,6 +75,8 @@ class DomainLedIds(
 object EspContract {
     const val SCHEMA_VERSION = 1
     const val MAX_CONFIG_BYTES = 2048
+    // status ONLINE/CONFIG_INVALID carrega até 14 canais (~940 B); precisa do mesmo teto de config/state (seção 6).
+    const val MAX_STATUS_BYTES = 2048
     const val MAX_OTHER_BYTES = 512
     const val MAX_MAPPINGS = 14
     const val MAX_CHANNELS = 14
@@ -162,7 +164,7 @@ object EspContract {
 
     fun parseStatusOnline(payload: String, topicEspId: String): ContractResult<EspStatusOnline> =
         decode<EspStatusOnline>(
-            payload, MAX_OTHER_BYTES, tolerant = true, forbiddenKeys = setOf("request_id")
+            payload, MAX_STATUS_BYTES, tolerant = true, forbiddenKeys = setOf("request_id")
         ) { s -> statusOnlineError(s, topicEspId) }
 
     fun parseConfigState(payload: String, topicEspId: String): ContractResult<ConfigState> =

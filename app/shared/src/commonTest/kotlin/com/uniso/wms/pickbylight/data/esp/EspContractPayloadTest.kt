@@ -89,4 +89,27 @@ class EspContractPayloadTest {
     fun statusEspIdDifferentFromTopicIsMismatch() {
         EspContract.parseStatusOnline(statusJson(), "esp-ffffff").assertInvalid(EspErrorCode.ESP_ID_MISMATCH)
     }
+
+    @Test
+    fun statusOnlineWith14ChannelsAndMetricsIsValidWithin2048Bytes() {
+        val gpios = listOf(4, 13, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33)
+        val channels14 = gpios.mapIndexed { idx, gpio ->
+            val ch = "CH${(idx + 1).toString().padStart(2, '0')}"
+            """{"channel_id":"$ch","gpio":$gpio,"active_high":true}"""
+        }.joinToString(prefix = "[", postfix = "]")
+        val payload = statusJson(
+            channels = channels14,
+            extra = ""","uptime_ms":120000,"rssi":-61,"free_heap":182000"""
+        )
+        kotlin.test.assertTrue(EspContract.utf8Size(payload) in 513..EspContract.MAX_STATUS_BYTES)
+        val parsed = EspContract.parseStatusOnline(payload, esp).valid()
+        assertEquals(14, parsed.capabilities.channels.size)
+    }
+
+    @Test
+    fun statusOnlineOver2048BytesIsTooLarge() {
+        val payload = statusJson(extra = ""","x":"${"a".repeat(2050)}"""")
+        kotlin.test.assertTrue(EspContract.utf8Size(payload) > EspContract.MAX_STATUS_BYTES)
+        EspContract.parseStatusOnline(payload, esp).assertInvalid(EspErrorCode.PAYLOAD_TOO_LARGE)
+    }
 }

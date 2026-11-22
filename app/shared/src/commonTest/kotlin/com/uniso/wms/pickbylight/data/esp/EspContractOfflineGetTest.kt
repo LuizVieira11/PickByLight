@@ -76,4 +76,10 @@ class EspContractOfflineGetTest {
         val big = """{"schema_version":1,"esp_id":"$esp","request_id":"$rid","x":"${"a".repeat(600)}"}"""
         EspContract.parseConfigGet(big, esp).assertInvalid(EspErrorCode.PAYLOAD_TOO_LARGE)
     }
+
+    @Test
+    fun statusOfflineOver512BytesRemainsTooLarge() {
+        val bigOffline = """{"schema_version":1,"esp_id":"$esp","boot_id":"ab12cd34","status":"OFFLINE","reason":"LWT","x":"${"a".repeat(520)}"}"""
+        EspContract.parseStatusOffline(bigOffline, esp).assertInvalid(EspErrorCode.PAYLOAD_TOO_LARGE)
+    }
 }
