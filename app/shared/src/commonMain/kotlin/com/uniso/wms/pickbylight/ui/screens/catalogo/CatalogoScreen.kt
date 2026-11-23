@@ -1,13 +1,16 @@
 package com.uniso.wms.pickbylight.ui.screens.catalogo
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +23,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +38,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -50,9 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.uniso.wms.pickbylight.domain.model.Estante
@@ -68,12 +72,13 @@ import com.uniso.wms.pickbylight.ui.components.EmptyState
 import com.uniso.wms.pickbylight.ui.components.ErrorState
 import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
-import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
-import com.uniso.wms.pickbylight.ui.theme.WarnAmber
-import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
+import com.uniso.wms.pickbylight.ui.theme.OnStrong
+import com.uniso.wms.pickbylight.ui.theme.SurfaceMuted
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
@@ -83,15 +88,17 @@ import org.jetbrains.compose.resources.painterResource
 import pickbylight.app.shared.generated.resources.Res
 import pickbylight.app.shared.generated.resources.ic_add
 import pickbylight.app.shared.generated.resources.ic_edit
+import pickbylight.app.shared.generated.resources.ic_error
 import pickbylight.app.shared.generated.resources.ic_expand_less
 import pickbylight.app.shared.generated.resources.ic_expand_more
 import pickbylight.app.shared.generated.resources.ic_inventory_2
 import pickbylight.app.shared.generated.resources.ic_location_on
 import pickbylight.app.shared.generated.resources.ic_lock
+import pickbylight.app.shared.generated.resources.ic_nfc
 import pickbylight.app.shared.generated.resources.ic_search
 import pickbylight.app.shared.generated.resources.ic_settings
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CatalogoScreen(
     repository: WmsRepository,
@@ -121,13 +128,13 @@ fun CatalogoScreen(
     var unmappedTagErrorUid by remember { mutableStateOf<String?>(null) }
 
     fun formatEndereco(posId: String?): String {
-        if (posId == null) return "Sem Endereço"
+        if (posId == null) return "Sem endereço"
         val pos = posicoes.find { it.id == posId } ?: return "Posição desconhecida"
         val prat = prateleiras.find { it.id == pos.prateleiraId }
         val est = estantes.find { it.id == prat?.estanteId }
-        val estanteStr = est?.nome?.takeIf { it.isNotBlank() } ?: est?.codigo ?: "Est"
+        val estanteStr = est?.codigo?.takeIf { it.isNotBlank() } ?: est?.nome ?: "Est"
         val pratStr = prat?.codigo?.takeIf { it.isNotBlank() } ?: "Prat"
-        return "$estanteStr > $pratStr > ${pos.codigo}"
+        return "$estanteStr · $pratStr · ${pos.codigo}"
     }
 
     PlatformBackHandler {
@@ -142,8 +149,9 @@ fun CatalogoScreen(
                     itemEmEdicao = null
                     showModalNovoItem = true
                 },
-                containerColor = MaterialTheme.colorScheme.onSurface,
-                contentColor = Color.White
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = OnStrong,
+                shape = RoundedCornerShape(dimensions.buttonCornerRadius)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -152,11 +160,11 @@ fun CatalogoScreen(
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_add),
-                        contentDescription = null, // Decorativo: o texto "Novo Item" ao lado descreve a ação
-                        tint = Color.White,
+                        contentDescription = null, // Decorativo: o texto "Novo item" ao lado descreve a ação
+                        tint = OnStrong,
                         modifier = Modifier.size(24.dp)
                     )
-                    Text("Novo Item", fontWeight = FontWeight.Bold)
+                    Text("Novo item", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
@@ -189,11 +197,11 @@ fun CatalogoScreen(
                         EmptyState(
                             title = "Nenhum item cadastrado",
                             message = "O catálogo está vazio. Cadastre o primeiro item para gerenciar seu estoque.",
-                            actionLabel = "Cadastrar Item",
+                            actionLabel = "Cadastrar item",
                             actionLeadingIcon = {
                                 Icon(
                                     painter = painterResource(Res.drawable.ic_add),
-                                    contentDescription = null, // Decorativo: o rótulo "Cadastrar Item" descreve a ação
+                                    contentDescription = null, // Decorativo: o rótulo "Cadastrar item" descreve a ação
                                     tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -247,18 +255,21 @@ fun CatalogoScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Chips de Filtro
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                        // Chips de Filtro sem cortar categorias (FlowRow)
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             FilterChip(
                                 selected = state.categoriaSelecionada == null,
                                 onClick = { viewModel.setCategoria(null) },
-                                label = { Text("Todas (${state.totalItensCount})") }
+                                label = {
+                                    Text(
+                                        text = "Todas (${state.totalItensCount})",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                                    )
+                                }
                             )
 
                             state.categoriasDisponiveis.forEach { cat ->
@@ -280,8 +291,9 @@ fun CatalogoScreen(
                                 onClick = { viewModel.toggleApenasAbaixoMinimo() },
                                 label = {
                                     Text(
-                                        text = "Abaixo do Mínimo (${state.itensAbaixoMinimoCount})",
-                                        color = if (state.apenasAbaixoMinimo) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                                        text = "Abaixo do mínimo (${state.itensAbaixoMinimoCount})",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             )
@@ -305,6 +317,7 @@ fun CatalogoScreen(
                                     ItemCardComponent(
                                         itemCard = itemCard,
                                         debugMode = state.modoDebugNfc,
+                                        formatPosicaoEndereco = { posId -> formatEndereco(posId) },
                                         onEdit = { itemEmEdicao = itemCard.item },
                                         onMove = { itemParaMover = itemCard },
                                         onToggleLock = {
@@ -329,48 +342,52 @@ fun CatalogoScreen(
                 }
             }
 
-            // Overlay Vermelho + Modal de Tag NFC Não Cadastrada
+            // Modal de Tag NFC não cadastrada
             if (unmappedTagErrorUid != null) {
                 val uid = unmappedTagErrorUid ?: ""
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.22f))
-                )
 
                 AlertDialog(
                     onDismissRequest = { unmappedTagErrorUid = null },
                     title = {
-                        Text(
-                            text = "Tag NFC não cadastrada no sistema!",
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_error),
+                                contentDescription = null, // Decorativo: o título ao lado informa o erro
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Tag NFC não cadastrada",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     },
                     text = {
                         Column {
                             Text(
                                 text = "A tag aproximada possui o UID:",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyLarge
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = uid,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Esta tag ainda não foi vinculada a nenhuma prateleira ou posição do armazém.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Esta tag ainda não foi vinculada a nenhuma posição do armazém.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = InkMuted
                             )
                         }
                     },
                     confirmButton = {
-                        PrimaryButton(
-                            text = "Cadastrar Agora",
+                        Button(
                             onClick = {
                                 val currentUid = unmappedTagErrorUid
                                 unmappedTagErrorUid = null
@@ -378,15 +395,24 @@ fun CatalogoScreen(
                                     onNavigateEnderecosComUid(currentUid)
                                 }
                             },
-                            containerColor = MaterialTheme.colorScheme.onSurface
-                        )
+                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                            shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Text("Cadastrar agora")
+                        }
                     },
                     dismissButton = {
-                        TextButton(
+                        OutlinedButton(
                             onClick = { unmappedTagErrorUid = null },
-                            modifier = Modifier.height(48.dp)
+                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                            shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
-                            Text("Fechar")
+                            Text("Fechar", color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 )
@@ -430,8 +456,8 @@ fun CatalogoScreen(
             },
             title = {
                 Text(
-                    text = if (isEditing) "Editar Item: ${itemSendoEditado?.sku}" else "Cadastrar Novo Item",
-                    fontWeight = FontWeight.Bold
+                    text = if (isEditing) "Editar item: ${itemSendoEditado?.sku}" else "Cadastrar novo item",
+                    style = MaterialTheme.typography.titleLarge
                 )
             },
             text = {
@@ -496,7 +522,7 @@ fun CatalogoScreen(
                                             tint = MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(24.dp)
                                         )
-                                        Text("Adicionar Nova Categoria...", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                                        Text("Adicionar nova categoria...", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                                     }
                                 },
                                 onClick = {
@@ -528,17 +554,12 @@ fun CatalogoScreen(
                     }
 
                     if (erroModalItem != null) {
-                        Text(
-                            text = erroModalItem ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        CatalogoErrorRow(erroModalItem ?: "")
                     }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         val minEstoque = estoqueMinimoInput.toIntOrNull() ?: 5
 
@@ -573,20 +594,27 @@ fun CatalogoScreen(
                             }
                         }
                     },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Salvar Item", fontWeight = FontWeight.Bold)
+                    Text("Salvar item")
                 }
             },
             dismissButton = {
-                TextButton(
+                OutlinedButton(
                     onClick = {
                         itemEmEdicao = null
                         showModalNovoItem = false
                     },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -595,31 +623,43 @@ fun CatalogoScreen(
             var novaCatNome by remember { mutableStateOf("") }
             AlertDialog(
                 onDismissRequest = { showNovaCategoriaDialog = false },
-                title = { Text("Nova Categoria", fontWeight = FontWeight.Bold) },
+                title = { Text("Nova categoria", style = MaterialTheme.typography.titleLarge) },
                 text = {
                     OutlinedTextField(
                         value = novaCatNome,
                         onValueChange = { novaCatNome = it },
-                        label = { Text("Nome da Categoria") },
+                        label = { Text("Nome da categoria") },
                         modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(dimensions.buttonCornerRadius),
                         singleLine = true
                     )
                 },
                 confirmButton = {
-                    TextButton(
+                    Button(
                         onClick = {
                             if (novaCatNome.isNotBlank()) {
                                 categoriaInput = novaCatNome.trim()
                                 showNovaCategoriaDialog = false
                             }
-                        }
+                        },
+                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                        shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     ) {
-                        Text("Adicionar", fontWeight = FontWeight.Bold)
+                        Text("Adicionar")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showNovaCategoriaDialog = false }) {
-                        Text("Cancelar")
+                    OutlinedButton(
+                        onClick = { showNovaCategoriaDialog = false },
+                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                        shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             )
@@ -664,18 +704,18 @@ fun CatalogoScreen(
             },
             title = {
                 Column {
-                    Text("Mover Item (Transferência Interna)", fontWeight = FontWeight.Bold)
+                    Text("Mover item", style = MaterialTheme.typography.titleLarge)
                     Text(
                         "${itemTransferindo.item.sku} — ${itemTransferindo.item.nome}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                        color = InkMuted
                     )
                 }
             },
             text = {
                 if (estoquesDisponiveis.isEmpty()) {
                     Text(
-                        "Este item não possui saldo alocado em nenhuma posição física para realizar movimentação.",
+                        "Este item não possui saldo alocado em nenhuma posição física.",
                         color = WarnAmber
                     )
                 } else {
@@ -683,20 +723,26 @@ fun CatalogoScreen(
                         modifier = Modifier.verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Seleção da Posição de Origem
-                        Text("Posição de Origem:", fontWeight = FontWeight.SemiBold)
+                        Text("Posição de origem", style = MaterialTheme.typography.labelLarge)
 
                         if (estoquesDisponiveis.size == 1) {
                             val unicaOrigem = estoquesDisponiveis.first()
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                                    .padding(10.dp)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                shape = RoundedCornerShape(dimensions.buttonCornerRadius)
                             ) {
-                                Column {
-                                    Text(unicaOrigem.enderecoFormatado, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                    Text("Saldo Disponível: ${unicaOrigem.quantidade} ${itemTransferindo.item.unidade}", style = MaterialTheme.typography.bodySmall)
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text(
+                                        text = formatEndereco(unicaOrigem.posicaoId),
+                                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
+                                    )
+                                    Text(
+                                        text = "Saldo disponível: ${unicaOrigem.quantidade} ${itemTransferindo.item.unidade}",
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                        color = InkMuted
+                                    )
                                 }
                             }
                         } else {
@@ -770,17 +816,29 @@ fun CatalogoScreen(
                             }
                         }
 
-                        PrimaryButton(
-                            text = "Ou Bipar Tag NFC do Destino",
+                        OutlinedButton(
                             onClick = { showNfcSimulatorForTransfer = true },
-                            containerColor = MaterialTheme.colorScheme.onSurface
-                        )
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = dimensions.minTouchTarget),
+                            shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_nfc),
+                                contentDescription = null, // Decorativo: o texto ao lado descreve a ação
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Bipar tag NFC do destino", color = MaterialTheme.colorScheme.onSurface)
+                        }
 
                         Spacer(modifier = Modifier.height(6.dp))
 
                         // Quantidade a Mover
                         val saldoOrigem = posOrigemSelecionada?.quantidade ?: 1
-                        Text("Quantidade a Mover:", fontWeight = FontWeight.SemiBold)
+                        Text("Quantidade a mover", style = MaterialTheme.typography.labelLarge)
 
                         QuantityStepper(
                             value = quantidadeTransferir,
@@ -792,36 +850,31 @@ fun CatalogoScreen(
                         val saldoRestanteOrigem = (saldoOrigem - quantidadeTransferir).coerceAtLeast(0)
                         Text(
                             text = if (quantidadeTransferir == saldoOrigem)
-                                "Transferência total desta posição (o saldo nesta posição será zerado)."
+                                "Transferência total desta posição (saldo zerado)."
                             else
-                                "Saldo que permanecerá na origem: $saldoRestanteOrigem ${itemTransferindo.item.unidade}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                "Saldo restante na origem: $saldoRestanteOrigem ${itemTransferindo.item.unidade}",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                            color = InkMuted
                         )
 
                         if (erroTransferencia != null) {
-                            Text(
-                                text = erroTransferencia ?: "",
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            CatalogoErrorRow(erroTransferencia ?: "")
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         val origem = posOrigemSelecionada
                         val destino = posDestinoSelecionada
                         if (origem == null) {
                             erroTransferencia = "Selecione a posição de origem."
-                            return@TextButton
+                            return@Button
                         }
                         if (destino == null) {
                             erroTransferencia = "Selecione a posição de destino."
-                            return@TextButton
+                            return@Button
                         }
 
                         coroutineScope.launch {
@@ -844,17 +897,24 @@ fun CatalogoScreen(
                         }
                     },
                     enabled = posOrigemSelecionada != null && posDestinoSelecionada != null && !isMoving,
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Confirmar Transferência", fontWeight = FontWeight.Bold, color = OkTeal)
+                    Text("Confirmar transferência")
                 }
             },
             dismissButton = {
-                TextButton(
+                OutlinedButton(
                     onClick = { itemParaMover = null },
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -889,292 +949,259 @@ fun CatalogoScreen(
 private fun ItemCardComponent(
     itemCard: ItemCardUi,
     debugMode: Boolean,
+    formatPosicaoEndereco: (String) -> String,
     onEdit: () -> Unit,
     onMove: () -> Unit,
     onToggleLock: () -> Unit
 ) {
+    val dimensions = LocalWmsDimensions.current
     val item = itemCard.item
     var accordionExpanded by remember { mutableStateOf(itemCard.estoques.size <= 2) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (item.emSeparacao) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(10.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(dimensions.cardCornerRadius)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            // Linha 1: Nome do produto e SKU
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = item.nome,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = item.sku,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Linha 2: Etiquetas (Categoria, SKU e Badge "Em Separação")
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = item.categoria,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                if (item.emSeparacao) {
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_lock),
-                                contentDescription = null, // Decorativo: o texto "Em Separação" indica o bloqueio
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = "Em Separação",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Linha 3: Saldo Total em Destaque (Posicionado abaixo das etiquetas conforme solicitação)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(dimensions.paddingMedium)) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Saldo Total: ",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = item.nome,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = SurfaceMuted
+                    ) {
+                        Text(
+                            text = item.sku,
+                            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = SurfaceMuted
+                    ) {
+                        Text(
+                            text = item.categoria,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = InkMuted,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    if (item.emSeparacao) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = SurfaceMuted
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_lock),
+                                    contentDescription = null, // Decorativo: o texto "Em separação" indica o bloqueio
+                                    tint = InkMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Em separação",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = InkMuted
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Saldo total:",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = InkMuted
                     )
                     Text(
                         text = "${itemCard.saldoTotal} ${item.unidade}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (itemCard.isAbaixoMinimo) MaterialTheme.colorScheme.error else OkTeal,
-                        maxLines = 1
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        color = if (itemCard.isAbaixoMinimo) WarnAmber else MaterialTheme.colorScheme.onSurface
                     )
                     if (itemCard.isAbaixoMinimo) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "(Abaixo do mín: ${item.estoqueMinimo})",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
+                            text = "(mín. ${item.estoqueMinimo})",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                            color = WarnAmber
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-            // Linha 3: Accordion / Detalhamento de Estoque por Posição
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+            // Seção Localizações dentro do mesmo card (sem card dentro de card)
+            val posCount = itemCard.estoques.size
+            val posLabel = if (posCount == 1) "1 posição" else "$posCount posições"
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = dimensions.minTouchTarget)
+                        .clickable { accordionExpanded = !accordionExpanded }
+                        .padding(horizontal = dimensions.paddingMedium, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { accordionExpanded = !accordionExpanded },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_location_on),
-                                contentDescription = null, // Decorativo: o texto "Localizações" descreve a seção
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = "Localizações (${itemCard.estoques.size} posições)",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(if (accordionExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
-                                contentDescription = null, // Decorativo: o texto "Ocultar"/"Detalhar" ao lado descreve o estado
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = if (accordionExpanded) "Ocultar" else "Detalhar",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_location_on),
+                            contentDescription = null, // Decorativo: o texto "Localizações" descreve a seção
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Localizações ($posLabel)",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (accordionExpanded) "Ocultar" else "Detalhar",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = InkMuted
+                        )
+                        Icon(
+                            painter = painterResource(if (accordionExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
+                            contentDescription = null, // Decorativo: o texto "Ocultar"/"Detalhar" ao lado descreve o estado
+                            tint = InkMuted,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
 
-                    if (accordionExpanded) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (itemCard.estoques.isEmpty()) {
-                            Text(
-                                text = "Nenhum estoque físico alocado para este item.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = WarnAmber
+                if (accordionExpanded) {
+                    if (itemCard.estoques.isEmpty()) {
+                        Text(
+                            text = "Nenhum estoque físico alocado.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = WarnAmber,
+                            modifier = Modifier.padding(
+                                start = dimensions.paddingMedium,
+                                end = dimensions.paddingMedium,
+                                bottom = 12.dp
                             )
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                itemCard.estoques.forEach { estoque ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(
-                                                MaterialTheme.colorScheme.surface,
-                                                RoundedCornerShape(6.dp)
-                                            )
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "• ${estoque.enderecoFormatado}:",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Medium,
-                                            modifier = Modifier.weight(1f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = "${estoque.quantidade} ${item.unidade}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = OkTeal
-                                        )
-                                    }
-                                }
+                        )
+                    } else {
+                        itemCard.estoques.forEach { estoque ->
+                            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = dimensions.paddingMedium, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = formatPosicaoEndereco(estoque.posicaoId),
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${estoque.quantidade} ${item.unidade}",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-            // Linha 4: Ações Rápidas no Card
+            // Ações do item em Ink (>= 48 dp)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(
                         onClick = onEdit,
-                        modifier = Modifier.height(48.dp)
+                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_edit),
-                                contentDescription = null, // Decorativo: o texto "Editar" descreve a ação
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text("Editar", style = MaterialTheme.typography.labelMedium)
-                        }
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_edit),
+                            contentDescription = null, // Decorativo: o texto "Editar" descreve a ação
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Editar", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     TextButton(
                         onClick = onMove,
-                        modifier = Modifier.height(48.dp)
+                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_inventory_2),
-                                contentDescription = null, // Decorativo: o texto "Mover" descreve a ação
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = "Mover",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_inventory_2),
+                            contentDescription = null, // Decorativo: o texto "Mover" descreve a ação
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Mover", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
 
                 if (debugMode) {
                     IconButton(
                         onClick = onToggleLock,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(dimensions.minTouchTarget)
                     ) {
                         Icon(
                             painter = painterResource(Res.drawable.ic_settings),
@@ -1186,5 +1213,25 @@ private fun ItemCardComponent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CatalogoErrorRow(message: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_error),
+            contentDescription = null, // Decorativo: o texto ao lado informa o erro
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }

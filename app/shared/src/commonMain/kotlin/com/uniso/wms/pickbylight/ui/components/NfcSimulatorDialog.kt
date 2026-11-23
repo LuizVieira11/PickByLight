@@ -1,26 +1,28 @@
 package com.uniso.wms.pickbylight.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,12 +30,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.uniso.wms.pickbylight.domain.model.Posicao
 import com.uniso.wms.pickbylight.domain.model.TagNFC
 import com.uniso.wms.pickbylight.nfc.NfcManager
+import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 
@@ -51,27 +52,26 @@ fun NfcSimulatorDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Simulador de Leitura NFC",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                text = "Simulador de leitura NFC",
+                style = MaterialTheme.typography.titleLarge
             )
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 4.dp)
             ) {
                 Text(
                     text = "Selecione uma tag cadastrada ou simule uma tag desconhecida:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = InkMuted
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Opção especial: Tag Não Cadastrada (Cenário 2 da Especificação)
-                Card(
+                // Opção especial: Tag não cadastrada (Cenário de erro 5.4)
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
@@ -80,33 +80,41 @@ fun NfcSimulatorDialog(
                             onTagSelected?.invoke(uid)
                             onDismiss()
                         },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
-                    shape = RoundedCornerShape(8.dp)
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(dimensions.cardCornerRadius)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .defaultMinSize(minHeight = dimensions.minTouchTarget)
                             .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .width(6.dp)
-                                .height(32.dp)
-                                .background(MaterialTheme.colorScheme.error, RoundedCornerShape(3.dp))
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Tag Desconhecida / Não Cadastrada",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
+                                text = "Tag desconhecida",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
-                                text = "UID: 04:FF:EE:DD:CC:BB:AA (Testar Cenário 5.4)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "UID 04:FF:EE:DD:CC:BB:AA",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                color = InkMuted
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                        ) {
+                            Text(
+                                text = "Erro",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -115,64 +123,70 @@ fun NfcSimulatorDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Tags Cadastradas no Armazém:",
+                    text = "Tags cadastradas no armazém",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    shape = RoundedCornerShape(dimensions.cardCornerRadius)
                 ) {
-                    items(tagsDisponiveis) { tag ->
-                        val posicao = posicoes.find { it.id == tag.posicaoId }
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    NfcManager.onTagScanned(tag.uid)
-                                    onTagSelected?.invoke(tag.uid)
-                                    onDismiss()
-                                },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    ) {
+                        itemsIndexed(tagsDisponiveis) { idx, tag ->
+                            val posicao = posicoes.find { it.id == tag.posicaoId }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(10.dp),
+                                    .defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                    .clickable {
+                                        NfcManager.onTagScanned(tag.uid)
+                                        onTagSelected?.invoke(tag.uid)
+                                        onDismiss()
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = if (posicao != null) "${tag.posicaoId} (${posicao.codigo})" else tag.posicaoId,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        text = if (posicao != null) "${posicao.codigo} (${tag.posicaoId})" else tag.posicaoId,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = tag.uid,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                        color = InkMuted
                                     )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .background(OkTeal.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(1.dp, OkTeal)
                                 ) {
                                     Text(
                                         text = "Válida",
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = OkTeal,
-                                        fontWeight = FontWeight.Bold
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
+                            }
+                            if (idx < tagsDisponiveis.lastIndex) {
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
                             }
                         }
                     }
@@ -180,34 +194,45 @@ fun NfcSimulatorDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Entrada manual de UID
                 OutlinedTextField(
                     value = customUid,
                     onValueChange = { customUid = it },
                     label = { Text("Ou digite um UID customizado") },
                     placeholder = { Text("04:A1:2B:3C:4D:5E:99") },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
                     singleLine = true
                 )
             }
         },
         confirmButton = {
             if (customUid.isNotBlank()) {
-                TextButton(
+                Button(
                     onClick = {
                         val uid = customUid.trim().uppercase()
                         NfcManager.onTagScanned(uid)
                         onTagSelected?.invoke(uid)
                         onDismiss()
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Emitir UID Digitado")
+                    Text("Emitir UID")
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fechar")
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Text("Fechar", color = MaterialTheme.colorScheme.onSurface)
             }
         }
     )
