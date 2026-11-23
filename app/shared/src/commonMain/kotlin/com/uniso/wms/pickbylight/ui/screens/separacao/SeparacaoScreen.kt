@@ -1,11 +1,5 @@
 package com.uniso.wms.pickbylight.ui.screens.separacao
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,17 +19,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -50,9 +49,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,24 +67,26 @@ import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
+import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LedAmber
-import com.uniso.wms.pickbylight.ui.theme.WarnAmber
-import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import com.uniso.wms.pickbylight.ui.theme.OnStrong
+import com.uniso.wms.pickbylight.ui.theme.SurfaceMuted
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.resources.painterResource
 import pickbylight.app.shared.generated.resources.Res
-import pickbylight.app.shared.generated.resources.ic_cancel
 import pickbylight.app.shared.generated.resources.ic_check_circle
+import pickbylight.app.shared.generated.resources.ic_dangerous
+import pickbylight.app.shared.generated.resources.ic_error
 import pickbylight.app.shared.generated.resources.ic_inventory_2
 import pickbylight.app.shared.generated.resources.ic_list_alt
-import pickbylight.app.shared.generated.resources.ic_location_on
 import pickbylight.app.shared.generated.resources.ic_lock
-import pickbylight.app.shared.generated.resources.ic_my_location
 import pickbylight.app.shared.generated.resources.ic_nfc
-import pickbylight.app.shared.generated.resources.ic_route
 import pickbylight.app.shared.generated.resources.ic_timer
 import pickbylight.app.shared.generated.resources.ic_warning
 
@@ -155,94 +159,79 @@ fun SeparacaoScreen(
         }
     }
 
-    // Cor dinâmica de feedback de validação visual
-    val cardBorderColor by animateColorAsState(
-        targetValue = when {
-            uiState.isVisualFlashingGreen -> OkTeal
-            uiState.isVisualFlashingRed -> MaterialTheme.colorScheme.error
-            else -> Color.Transparent
-        }
-    )
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            bottomBar = {
+                if (uiState.etapa == EtapaSeparacao.SELECAO_E_RESUMO) {
+                    val totalUnidades = selectedQuantities.values.sum()
+                    val totalItens = selectedQuantities.count { it.value > 0 }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        bottomBar = {
-            if (uiState.etapa == EtapaSeparacao.SELECAO_E_RESUMO) {
-                val totalUnidades = selectedQuantities.values.sum()
-                val totalItens = selectedQuantities.count { it.value > 0 }
-
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding(),
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp,
-                    shadowElevation = 12.dp,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = 12.dp)
+                            .navigationBarsPadding()
+                            .imePadding(),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = dimensions.screenHorizontalPadding, vertical = 12.dp)
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    painter = painterResource(Res.drawable.ic_list_alt),
-                                    contentDescription = null, // Decorativo: o texto "Resumo do Pedido" descreve a seção
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(Res.drawable.ic_list_alt),
+                                        contentDescription = null, // Decorativo: o texto "Resumo do pedido" descreve a seção
+                                        tint = InkMuted,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = "Resumo do pedido:",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = InkMuted
+                                    )
+                                }
                                 Text(
-                                    text = "Resumo do Pedido:",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "$totalItens ${if (totalItens == 1) "item" else "itens"} • $totalUnidades un",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                                    color = if (totalUnidades > 0) MaterialTheme.colorScheme.onSurface else InkMuted
                                 )
                             }
-                            Text(
-                                text = "$totalItens ${if (totalItens == 1) "item" else "itens"} • $totalUnidades ${if (totalUnidades == 1) "unidade" else "unidades"}",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = if (totalUnidades > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+
+                            PrimaryButton(
+                                text = if (totalUnidades > 0) "Iniciar coleta" else "Selecione ao menos 1 item",
+                                onClick = {
+                                    viewModel.iniciarColeta(
+                                        itensDisponiveis = itens,
+                                        posicoes = posicoes,
+                                        prateleiras = prateleiras,
+                                        estantes = estantes,
+                                        tagsNfc = tagsNFC,
+                                        quantidadesSelecionadas = selectedQuantities
+                                    )
+                                },
+                                enabled = totalUnidades > 0
                             )
                         }
-
-                        PrimaryButton(
-                            text = if (totalUnidades > 0) {
-                                "Iniciar Coleta"
-                            } else {
-                                "Selecione ao menos 1 item"
-                            },
-                            onClick = {
-                                viewModel.iniciarColeta(
-                                    itensDisponiveis = itens,
-                                    posicoes = posicoes,
-                                    prateleiras = prateleiras,
-                                    estantes = estantes,
-                                    tagsNfc = tagsNFC,
-                                    quantidadesSelecionadas = selectedQuantities
-                                )
-                            },
-                            enabled = totalUnidades > 0,
-                            containerColor = OkTeal
-                        )
                     }
                 }
             }
-        }
-    ) { innerPadding ->
+        ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -250,41 +239,56 @@ fun SeparacaoScreen(
                 .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Banner de Modo Manual (quando ESP32 não responde)
+            ScreenHeader(
+                title = "Separação",
+                actionLabel = "Sair",
+                onAction = {
+                    if (uiState.etapa == EtapaSeparacao.VALIDACAO_NFC || uiState.etapa == EtapaSeparacao.CONFIRMAR_QUANTIDADE) {
+                        showCancelPickingConfirmDialog = true
+                    } else {
+                        onNavigateBack()
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Banner de Modo Manual (aviso sem cor de erro)
             if (uiState.isModoManual) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.error, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
+                Surface(
+                    shape = RoundedCornerShape(dimensions.cardCornerRadius),
+                    color = SurfaceMuted,
+                    border = BorderStroke(1.dp, WarnAmber),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
                             painter = painterResource(Res.drawable.ic_warning),
-                            contentDescription = null, // Decorativo: o texto ao lado informa o Modo Manual
-                            tint = Color.White,
+                            contentDescription = null, // Decorativo: o texto ao lado informa o modo manual
+                            tint = WarnAmber,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = "MODO MANUAL — LED indisponível. Validação por endereço textual.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            text = "Modo manual: confirme pela leitura NFC.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = WarnAmber
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Alerta de Timeout de 60s Expirado (Seção 5.3)
+            // Alerta de Timeout de 60s Expirado (erro que cancelou a operação)
             if (uiState.timeoutCancelMessage != null) {
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(dimensions.cardCornerRadius),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -300,58 +304,28 @@ fun SeparacaoScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                painter = painterResource(Res.drawable.ic_timer),
+                                painter = painterResource(Res.drawable.ic_error),
                                 contentDescription = null, // Decorativo: o texto ao lado informa o tempo esgotado
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
                                 text = uiState.timeoutCancelMessage ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
-                        TextButton(onClick = { viewModel.dismissTimeoutCancelMessage() }) {
-                            Text("OK", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        TextButton(
+                            onClick = { viewModel.dismissTimeoutCancelMessage() },
+                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                        ) {
+                            Text("OK", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-
-            // Barra Superior da Tela
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Separação Pick-by-Light",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                TextButton(
-                    onClick = {
-                        if (uiState.etapa == EtapaSeparacao.VALIDACAO_NFC || uiState.etapa == EtapaSeparacao.CONFIRMAR_QUANTIDADE) {
-                            showCancelPickingConfirmDialog = true
-                        } else {
-                            onNavigateBack()
-                        }
-                    }
-                ) {
-                    Text("Sair", style = MaterialTheme.typography.labelLarge)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             when (uiState.etapa) {
                 // =========================================================================
@@ -372,39 +346,23 @@ fun SeparacaoScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                shape = RoundedCornerShape(dimensions.cardCornerRadius)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(dimensions.paddingMedium)
-                                ) {
-                                    Text(
-                                        text = "Seleção de Itens (Pré-Coleta)",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Selecione os itens e quantidades. O LED acende ao iniciar a coleta.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = InkMuted
+                                )
 
-                                    Text(
-                                        text = "Selecione os itens e as quantidades desejadas. O hardware será acionado apenas ao iniciar a coleta.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                Spacer(modifier = Modifier.height(10.dp))
 
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    OutlinedTextField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        placeholder = { Text("Buscar item por nome ou SKU...") },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                }
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text("Buscar por nome ou SKU...") },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(dimensions.buttonCornerRadius)
+                                )
                             }
                         }
 
@@ -418,140 +376,139 @@ fun SeparacaoScreen(
                                 ) {
                                     Text(
                                         text = if (searchQuery.isNotBlank()) {
-                                            "Nenhum produto com saldo encontrado para \"$searchQuery\"."
+                                            "Nenhum produto com saldo para \"$searchQuery\"."
                                         } else {
-                                            "Nenhum produto possui estoque alocado nas posições."
+                                            "Nenhum produto possui estoque alocado."
                                         },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = InkMuted
                                     )
                                 }
                             }
                         } else {
-                            items(itensFiltrados, key = { it.item.id }) { itemComEstoque ->
-                                val item = itemComEstoque.item
-                                val selectedQty = selectedQuantities[item.id] ?: 0
-
+                            item {
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (selectedQty > 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
-                                    ),
-                                    shape = RoundedCornerShape(10.dp)
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                    shape = RoundedCornerShape(dimensions.cardCornerRadius)
                                 ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(14.dp)
-                                    ) {
-                                        // Linha 1: Nome do produto e Badge de Bloqueio Otimista
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = item.nome,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.weight(1f),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            if (item.emSeparacao) {
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
-                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        itensFiltrados.forEachIndexed { idx, itemComEstoque ->
+                                            val item = itemComEstoque.item
+                                            val selectedQty = selectedQuantities[item.id] ?: 0
+
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(
+                                                        if (selectedQty > 0) SurfaceMuted.copy(alpha = 0.45f)
+                                                        else MaterialTheme.colorScheme.surface
+                                                    )
+                                                    .padding(dimensions.paddingMedium)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    Text(
+                                                        text = item.nome,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    if (item.emSeparacao) {
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Surface(
+                                                            shape = RoundedCornerShape(4.dp),
+                                                            color = SurfaceMuted
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    painter = painterResource(Res.drawable.ic_lock),
+                                                                    contentDescription = null, // Decorativo: o texto "Em separação" indica o bloqueio
+                                                                    tint = InkMuted,
+                                                                    modifier = Modifier.size(20.dp)
+                                                                )
+                                                                Text(
+                                                                    text = "Em separação",
+                                                                    style = MaterialTheme.typography.labelMedium,
+                                                                    color = InkMuted
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.height(4.dp))
+
+                                                Text(
+                                                    text = "SKU: ${item.sku} • Saldo: ${itemComEstoque.saldoTotal} ${item.unidade}",
+                                                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                    color = if (itemComEstoque.isAbaixoMinimo) WarnAmber else InkMuted
+                                                )
+
+                                                if (selectedQty > 0) {
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = SurfaceMuted
                                                     ) {
-                                                        Icon(
-                                                            painter = painterResource(Res.drawable.ic_lock),
-                                                            contentDescription = null, // Decorativo: o texto "Em Separação" indica o bloqueio
-                                                            tint = Color.White,
-                                                            modifier = Modifier.size(24.dp)
-                                                        )
                                                         Text(
-                                                            text = "Em Separação",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = Color.White,
-                                                            fontWeight = FontWeight.Bold,
-                                                            maxLines = 1
+                                                            text = "No pedido: $selectedQty ${item.unidade}",
+                                                            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.height(10.dp))
+
+                                                if (item.emSeparacao) {
+                                                    Text(
+                                                        text = "Item em separação por outro operador",
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        color = InkMuted
+                                                    )
+                                                } else {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = "Qtd.",
+                                                            style = MaterialTheme.typography.labelLarge,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+
+                                                        QuantityStepper(
+                                                            value = selectedQty,
+                                                            onValueChange = { newQty ->
+                                                                if (newQty <= 0) {
+                                                                    selectedQuantities.remove(item.id)
+                                                                } else {
+                                                                    selectedQuantities[item.id] = newQty.coerceAtMost(itemComEstoque.saldoTotal)
+                                                                }
+                                                            },
+                                                            min = 0,
+                                                            max = itemComEstoque.saldoTotal
                                                         )
                                                     }
                                                 }
                                             }
-                                        }
 
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        // Linha 2: SKU: [X] • Saldo Total: [Y] UN
-                                        Text(
-                                            text = "SKU: ${item.sku} • Saldo Total: ${itemComEstoque.saldoTotal} ${item.unidade}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (itemComEstoque.isAbaixoMinimo) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        // Linha 3: Badge "No Pedido: X UN" alinhada à esquerda e colorida de azul
-                                        if (selectedQty > 0) {
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
-                                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)),
-                                                modifier = Modifier.align(Alignment.Start)
-                                            ) {
-                                                Text(
-                                                    text = "No Pedido: $selectedQty ${item.unidade}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                    maxLines = 1
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Parte inferior do card: Stepper (- [ 0 ] +) com espaçamento adequado
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 2.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = if (item.emSeparacao) "Item bloqueado para separação" else "Quantidade para separação:",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = if (item.emSeparacao) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.weight(1f),
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-
-                                            Spacer(modifier = Modifier.width(12.dp))
-
-                                            if (!item.emSeparacao) {
-                                                QuantityStepper(
-                                                    value = selectedQty,
-                                                    onValueChange = { newQty ->
-                                                        if (newQty <= 0) {
-                                                            selectedQuantities.remove(item.id)
-                                                        } else {
-                                                            selectedQuantities[item.id] = newQty.coerceAtMost(itemComEstoque.saldoTotal)
-                                                        }
-                                                    },
-                                                    min = 0,
-                                                    max = itemComEstoque.saldoTotal
+                                            if (idx < itensFiltrados.lastIndex) {
+                                                HorizontalDivider(
+                                                    thickness = 1.dp,
+                                                    color = MaterialTheme.colorScheme.outlineVariant
                                                 )
                                             }
                                         }
@@ -574,350 +531,264 @@ fun SeparacaoScreen(
                     ) {
                         val passo = uiState.passoAtual
                         if (passo != null) {
-                            // Barra de Progresso "Item X de N"
-                            Card(
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                shape = RoundedCornerShape(12.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Item ${uiState.passoAtualIndex + 1} de ${uiState.totalPassos}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        val timerColor = if (uiState.timeoutOperadorSegundos < 15) MaterialTheme.colorScheme.error else WarnAmber
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(Res.drawable.ic_timer),
-                                                contentDescription = null, // Decorativo: o texto ao lado informa o tempo restante
-                                                tint = timerColor,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                            Text(
-                                                text = "${uiState.timeoutOperadorSegundos}s para bipar",
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = timerColor
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Text(
-                                        text = "Parada ${uiState.passoAtualIndex + 1} de ${uiState.totalPassos} • ${passo.itens.size} ${if (passo.itens.size > 1) "produtos agrupados" else "produto"} nesta posição",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Text(
+                                    text = "Parada ${uiState.passoAtualIndex + 1} de ${uiState.totalPassos}",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(Res.drawable.ic_timer),
+                                        contentDescription = null, // Decorativo: o texto ao lado informa o tempo restante
+                                        tint = WarnAmber,
+                                        modifier = Modifier.size(24.dp)
                                     )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    LinearProgressIndicator(
-                                        progress = { uiState.progressoFracao },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                    Text(
+                                        text = "${uiState.timeoutOperadorSegundos}s",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                                        color = WarnAmber
                                     )
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            LinearProgressIndicator(
+                                progress = { uiState.progressoFracao },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.secondary,
+                                trackColor = SurfaceMuted
+                            )
+
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Card de Orientação com Endereço e Status do LED
+                            // Card único de orientação (1 nível de card, sem sombra)
                             Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(3.dp, cardBorderColor, RoundedCornerShape(dimensions.cardCornerRadius)),
+                                modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                                 shape = RoundedCornerShape(dimensions.cardCornerRadius)
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(dimensions.paddingMedium),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    // Badge de Status do LED
-                                    Box(
-                                        modifier = Modifier
-                                            .background(
-                                                if (uiState.isModoManual) MaterialTheme.colorScheme.error else OkTeal,
-                                                RoundedCornerShape(8.dp)
-                                            )
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                            .fillMaxWidth(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                    if (uiState.isModoManual) {
+                                        Surface(
+                                            shape = RoundedCornerShape(dimensions.cardCornerRadius),
+                                            color = SurfaceMuted,
+                                            border = BorderStroke(1.dp, WarnAmber),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_warning),
+                                                    contentDescription = null, // Decorativo: o texto ao lado informa o modo manual
+                                                    tint = WarnAmber,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Modo manual: confirme pela leitura NFC.",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = WarnAmber
+                                                )
+                                            }
+                                        }
+                                    } else {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            if (uiState.isModoManual) {
-                                                Icon(
-                                                    painter = painterResource(Res.drawable.ic_warning),
-                                                    contentDescription = null, // Decorativo: o texto "MODO MANUAL" descreve o estado
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                            } else {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(24.dp)
-                                                        .background(LedAmber, CircleShape)
-                                                        .border(2.dp, Color.White, CircleShape)
-                                                )
-                                            }
-                                            Text(
-                                                text = if (uiState.isModoManual) "MODO MANUAL (LED Indisponível)" else "LED VERDE ACESO (${passo.posicao.ledId})",
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .background(LedAmber, CircleShape)
+                                                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                                             )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Alerta textual em destaque quando em Modo Manual (Seção 5.2)
-                                    if (uiState.isModoManual) {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Column(
-                                                modifier = Modifier.padding(12.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(Res.drawable.ic_route),
-                                                        contentDescription = null, // Decorativo: o título ao lado identifica o guia textual
-                                                        tint = MaterialTheme.colorScheme.error,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                    Text(
-                                                        text = "GUIA VISUAL POR ENDEREÇO TEXTUAL",
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        fontWeight = FontWeight.ExtraBold,
-                                                        color = MaterialTheme.colorScheme.error
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = "O LED físico está indisponível. Dirija-se visualmente até ${formatEndereco(passo.estante, passo.prateleira, passo.posicao)} e bipe a etiqueta NFC para validar a posição (Poka-Yoke ativo).",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                    }
-
-                                    // Endereço Esperado em Grande Destaque (Estante > Prat > Pos)
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .border(1.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(14.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
                                             Text(
-                                                text = "DESTINO DE COLETA (ESTANTE & POSIÇÃO)",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.ExtraBold,
+                                                text = "LED aceso em ${passo.posicao.ledId}",
+                                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Text(
-                                                text = "Estante: ${passo.estante.nome}",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(Res.drawable.ic_location_on),
-                                                    contentDescription = null, // Decorativo: o texto ao lado informa o endereço de coleta
-                                                    tint = MaterialTheme.colorScheme.onSurface,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                                Text(
-                                                    text = formatEndereco(passo.estante, passo.prateleira, passo.posicao),
-                                                    style = MaterialTheme.typography.titleLarge,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = "Posição: ${passo.posicao.codigo}  •  Prateleira: ${passo.prateleira.codigo}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
                                         }
                                     }
 
                                     Spacer(modifier = Modifier.height(16.dp))
 
-                                    // Lista de Itens a Retirar Nesta Posição (Agrupados)
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(Res.drawable.ic_inventory_2),
-                                                    contentDescription = null, // Decorativo: o título ao lado identifica os itens a retirar
-                                                    tint = MaterialTheme.colorScheme.onSurface,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                                Text(
-                                                    text = if (passo.itens.size > 1) "ITENS AGRUPADOS NESTA POSIÇÃO (${passo.itens.size}):" else "ITEM A RETIRAR:",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            passo.itens.forEach { itemColeta ->
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 4.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(
-                                                            text = itemColeta.item.nome,
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                        Text(
-                                                            text = "SKU: ${itemColeta.item.sku}",
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                    Text(
-                                                        text = "Pegue ${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade} na ${passo.posicao.codigo}",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.ExtraBold,
-                                                        color = OkTeal
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Animação Pulsante NFC
-                                    val infiniteTransition = rememberInfiniteTransition()
-                                    val pulseScale by infiniteTransition.animateFloat(
-                                        initialValue = 0.94f,
-                                        targetValue = 1.06f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(900),
-                                            repeatMode = RepeatMode.Reverse
-                                        )
-                                    )
-
-                                    Box(
-                                        modifier = Modifier
-                                            .size(110.dp)
-                                            .scale(pulseScale)
-                                            .background(OkTeal.copy(alpha = 0.15f), CircleShape)
-                                            .border(2.dp, OkTeal, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(Res.drawable.ic_nfc),
-                                            contentDescription = "Aproxime a etiqueta NFC",
-                                            tint = OkTeal,
-                                            modifier = Modifier.size(48.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(14.dp))
+                                    // Modo manual já indicado acima; guia textual fica no endereço-herói abaixo
 
                                     Text(
-                                        text = "Aproxime o celular da etiqueta NFC na posição iluminada",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
+                                        text = "${passo.estante.codigo} · ${passo.estante.nome}",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                        color = InkMuted,
+                                        textAlign = TextAlign.Center
                                     )
 
-                                    Spacer(modifier = Modifier.height(20.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
 
-                                    // Botão Simular Leitura NFC (para testes no emulador / web)
-                                    PrimaryButton(
-                                        text = "Simular Leitura NFC",
-                                        onClick = { showNfcSimulator = true },
-                                        containerColor = MaterialTheme.colorScheme.onSurface
+                                    Text(
+                                        text = "${passo.prateleira.codigo} · ${passo.posicao.codigo}",
+                                        style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center
                                     )
 
-                                    // Botão de reconexão de LED quando em Modo Manual (Seção 5.2)
-                                    if (uiState.isModoManual) {
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        PrimaryButton(
-                                            text = "Tentar Acender LED Novamente",
-                                            onClick = { viewModel.acionarHardwarePassoAtual(forceRetry = true) },
-                                            containerColor = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
 
-                                    // Botão de contingência apenas se a posição não possuir Tag física vinculada
-                                    if (passo.tagNfc == null) {
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        PrimaryButton(
-                                            text = "Validar Posição Sem Tag NFC",
-                                            onClick = { viewModel.validarManualmenteSemNfc() },
-                                            containerColor = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
 
                                     Spacer(modifier = Modifier.height(12.dp))
 
-                                    // Botão Cancelar Coleta (Seção 3.5.3)
-                                    PrimaryButton(
-                                        text = "Cancelar Coleta",
-                                        onClick = { showCancelPickingConfirmDialog = true },
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        contentColor = MaterialTheme.colorScheme.error
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(Res.drawable.ic_inventory_2),
+                                                contentDescription = null, // Decorativo: o título ao lado identifica os itens a retirar
+                                                tint = InkMuted,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Text(
+                                                text = "Itens a retirar (${passo.itens.size})",
+                                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        passo.itens.forEachIndexed { idx, itemColeta ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 6.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = itemColeta.item.nome,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = "SKU: ${itemColeta.item.sku}",
+                                                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                        color = InkMuted
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                                    color = OkTeal
+                                                )
+                                            }
+                                            if (idx < passo.itens.lastIndex) {
+                                                HorizontalDivider(
+                                                    thickness = 1.dp,
+                                                    color = MaterialTheme.colorScheme.outlineVariant
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
                                     )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Icon(
+                                        painter = painterResource(Res.drawable.ic_nfc),
+                                        contentDescription = "Aproxime a etiqueta NFC",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = "Aproxime o celular da etiqueta NFC",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    if (passo.tagNfc == null) {
+                                        PrimaryButton(
+                                            text = "Validar sem NFC",
+                                            onClick = { viewModel.validarManualmenteSemNfc() }
+                                        )
+                                        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
+                                        OutlinedButton(
+                                            onClick = { showNfcSimulator = true },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .defaultMinSize(minHeight = dimensions.minTouchTarget),
+                                            shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                        ) {
+                                            Text("Simular NFC", color = MaterialTheme.colorScheme.onSurface)
+                                        }
+                                    } else {
+                                        PrimaryButton(
+                                            text = "Simular NFC",
+                                            onClick = { showNfcSimulator = true }
+                                        )
+                                    }
+
+                                    if (uiState.isModoManual) {
+                                        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
+                                        OutlinedButton(
+                                            onClick = { viewModel.acionarHardwarePassoAtual(forceRetry = true) },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .defaultMinSize(minHeight = dimensions.minTouchTarget),
+                                            shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                        ) {
+                                            Text("Tentar LED novamente", color = MaterialTheme.colorScheme.onSurface)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(dimensions.paddingSmall))
+
+                                    TextButton(
+                                        onClick = { showCancelPickingConfirmDialog = true },
+                                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                    ) {
+                                        Text(
+                                            text = "Cancelar coleta",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -945,12 +816,14 @@ fun SeparacaoScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                                 shape = RoundedCornerShape(dimensions.cardCornerRadius)
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(dimensions.paddingMedium),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Icon(
@@ -960,115 +833,92 @@ fun SeparacaoScreen(
                                         modifier = Modifier.size(48.dp)
                                     )
 
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
 
                                     Text(
-                                        text = "Local correto! Confirme as quantidades retiradas.",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = OkTeal
+                                        text = "Local correto. Confirme as quantidades.",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = OkTeal,
+                                        textAlign = TextAlign.Center
                                     )
 
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                    ) {
+                                    Text(
+                                        text = "${passo.prateleira.codigo} · ${passo.posicao.codigo}",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${passo.estante.codigo} · ${passo.estante.nome}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = InkMuted
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
+
+                                    // Ajuste de quantidade de cada item agrupado (sem card dentro de card)
+                                    passo.itens.forEachIndexed { idx, itemColeta ->
+                                        val confirmedQty = quantidadesConfirmadas[itemColeta.item.id] ?: itemColeta.quantidadeDesejada
+
                                         Column(
-                                            modifier = Modifier.padding(10.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 12.dp)
                                         ) {
+                                            Text(
+                                                text = itemColeta.item.nome,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "SKU: ${itemColeta.item.sku} • Pedido: ${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade}",
+                                                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                color = InkMuted
+                                            )
+
+                                            Spacer(modifier = Modifier.height(10.dp))
+
                                             Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(
-                                                    painter = painterResource(Res.drawable.ic_location_on),
-                                                    contentDescription = null, // Decorativo: o texto ao lado informa o endereço confirmado
-                                                    tint = MaterialTheme.colorScheme.onSurface,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
                                                 Text(
-                                                    text = formatEndereco(passo.estante, passo.prateleira, passo.posicao),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
+                                                    text = "Qtd.",
+                                                    style = MaterialTheme.typography.labelLarge,
                                                     color = MaterialTheme.colorScheme.onSurface
                                                 )
+
+                                                QuantityStepper(
+                                                    value = confirmedQty,
+                                                    onValueChange = { quantidadesConfirmadas[itemColeta.item.id] = it },
+                                                    min = 1,
+                                                    max = itemColeta.quantidadeDesejada
+                                                )
                                             }
-                                            Text(
-                                                text = "Estante: ${passo.estante.nome}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+
+                                        if (idx < passo.itens.lastIndex) {
+                                            HorizontalDivider(
+                                                thickness = 1.dp,
+                                                color = MaterialTheme.colorScheme.outlineVariant
                                             )
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Exibição e ajuste de quantidade de cada item agrupado
-                                    passo.itens.forEach { itemColeta ->
-                                        val confirmedQty = quantidadesConfirmadas[itemColeta.item.id] ?: itemColeta.quantidadeDesejada
-
-                                        Card(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 6.dp),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(12.dp)
-                                            ) {
-                                                Text(
-                                                    text = itemColeta.item.nome,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Text(
-                                                    text = "SKU: ${itemColeta.item.sku} • Qtd a Retirar: ${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-
-                                                Spacer(modifier = Modifier.height(10.dp))
-
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        text = "Confirmar: $confirmedQty ${itemColeta.item.unidade}",
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onSurface
-                                                    )
-
-                                                    QuantityStepper(
-                                                        value = confirmedQty,
-                                                        onValueChange = { quantidadesConfirmadas[itemColeta.item.id] = it },
-                                                        min = 1,
-                                                        max = itemColeta.quantidadeDesejada
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Spacer(modifier = Modifier.height(dimensions.paddingLarge))
 
                                     PrimaryButton(
-                                        text = "Confirmar Retirada da Posição (${passo.itens.size} ${if (passo.itens.size > 1) "itens" else "item"})",
+                                        text = "Confirmar retirada (${passo.itens.size})",
                                         onClick = {
                                             viewModel.finalizarRetiradaPassoAtual(quantidadesConfirmadas)
-                                        },
-                                        containerColor = OkTeal
+                                        }
                                     )
                                 }
                             }
@@ -1089,12 +939,14 @@ fun SeparacaoScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                             shape = RoundedCornerShape(dimensions.cardCornerRadius)
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(24.dp),
+                                    .padding(dimensions.paddingLarge),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
@@ -1104,264 +956,234 @@ fun SeparacaoScreen(
                                     modifier = Modifier.size(48.dp)
                                 )
 
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                    text = "Coleta finalizada",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = OkTeal,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "${uiState.resumoFinal.size} itens em ${uiState.totalPassos} paradas.",
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                    color = InkMuted,
+                                    textAlign = TextAlign.Center
+                                )
+
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                Text(
-                                    text = "Coleta finalizada!",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = OkTeal
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
                                 )
 
-                                Text(
-                                    text = "${uiState.resumoFinal.size} itens separados com sucesso em ${uiState.totalPassos} paradas físicas.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                Spacer(modifier = Modifier.height(20.dp))
-
-                                // Resumo dos itens separados
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                                        .padding(12.dp)
-                                ) {
-                                    uiState.resumoFinal.forEach { itemColeta ->
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    uiState.resumoFinal.forEachIndexed { idx, itemColeta ->
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 4.dp),
+                                                .padding(vertical = 10.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
                                                 text = "${itemColeta.quantidadeConfirmada}x ${itemColeta.item.nome}",
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                                 fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = "SKU: ${itemColeta.item.sku}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = FontWeight.Bold
+                                                text = itemColeta.item.sku,
+                                                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                color = InkMuted
+                                            )
+                                        }
+                                        if (idx < uiState.resumoFinal.lastIndex) {
+                                            HorizontalDivider(
+                                                thickness = 1.dp,
+                                                color = MaterialTheme.colorScheme.outlineVariant
                                             )
                                         }
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(dimensions.paddingLarge))
 
                                 PrimaryButton(
-                                    text = "Nova Separação",
-                                    onClick = { viewModel.resetarParaSelecao() },
-                                    containerColor = OkTeal
+                                    text = "Nova separação",
+                                    onClick = { viewModel.resetarParaSelecao() }
                                 )
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
 
-                                PrimaryButton(
-                                    text = "Voltar ao Dashboard",
+                                OutlinedButton(
                                     onClick = onNavigateBack,
-                                    containerColor = MaterialTheme.colorScheme.onSurface
-                                )
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(dimensions.primaryButtonHeight),
+                                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                ) {
+                                    Text(
+                                        text = "Voltar ao início",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        }
+
+        // Overlay Poka-Yoke em tela cheia: Tag errada / não cadastrada (DESIGN.md seção 4)
+        if (uiState.isVisualFlashingRed || uiState.showWrongTagModal != null) {
+            val (lida, esperada) = uiState.showWrongTagModal ?: ("" to "")
+            val unmappedUid = uiState.unmappedTagUid
+            val passo = uiState.passoAtual
+            val enderecoEsperado = when {
+                esperada.isNotBlank() -> esperada
+                passo != null -> "${passo.prateleira.codigo} · ${passo.posicao.codigo}"
+                else -> "esperado"
+            }
+
+            PokaYokeErrorOverlay(
+                lida = lida,
+                enderecoEsperado = enderecoEsperado,
+                unmappedUid = unmappedUid,
+                onDismiss = { viewModel.dismissWrongTagModal() },
+                onCadastrarAgora = if (unmappedUid != null && onNavigateEnderecosComUid != null) {
+                    {
+                        viewModel.dismissWrongTagModal()
+                        viewModel.cancelarColetaEVoltar {
+                            onNavigateEnderecosComUid(unmappedUid)
+                        }
+                    }
+                } else null
+            )
+        }
     }
 
-    // Modal de Concorrência: Item em Separação por Outro Operador (Seção 5.5)
+    // Modal de Concorrência: Item em Separação por Outro Operador (erro bloqueante)
     if (uiState.showConcurrencyLockError != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissConcurrencyLockError() },
             title = {
-                Text(
-                    text = "Item em Separação por Outro Operador",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_error),
+                        contentDescription = null, // Decorativo: o título ao lado descreve o erro de concorrência
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "Item em separação por outro operador",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             },
             text = {
                 Text(uiState.showConcurrencyLockError ?: "")
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.dismissConcurrencyLockError() }) {
-                    Text("Entendido", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = { viewModel.dismissConcurrencyLockError() },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                ) {
+                    Text("Entendido", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 }
             }
         )
     }
 
-    // Modal de Timeout ESP32 (Seção 5.2)
+    // Modal de Timeout ESP32 (aviso com ação de recuperação em WarnAmber)
     if (uiState.showHardwareTimeoutModal) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissHardwareTimeoutModal() },
             title = {
-                Text("Hardware não respondeu", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_warning),
+                        contentDescription = null, // Decorativo: o título ao lado descreve o aviso
+                        tint = WarnAmber,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "Hardware não respondeu",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = WarnAmber
+                    )
+                }
             },
             text = {
-                Text("O ESP32 não enviou confirmação (ACK) em 5 segundos. Verifique a conexão Wi-Fi e a alimentação dos LEDs.")
+                Text("O ESP32 não confirmou em 5 segundos. Verifique Wi-Fi e alimentação dos LEDs.")
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         viewModel.dismissHardwareTimeoutModal()
                         viewModel.acionarHardwarePassoAtual(forceRetry = true)
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                 ) {
-                    Text("Tentar Novamente", fontWeight = FontWeight.Bold)
+                    Text("Tentar novamente", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(
-                    onClick = {
-                        viewModel.continuarEmModoManual()
-                    }
+                    onClick = { viewModel.continuarEmModoManual() },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                 ) {
-                    Text("Continuar em Modo Manual", color = MaterialTheme.colorScheme.onSurface)
+                    Text("Modo manual", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
     }
 
-    // Modal de Confirmação: Cancelar Coleta (Seção 3.7)
+    // Modal de Confirmação: Cancelar Coleta (ação destrutiva neutra, sem vermelho)
     if (showCancelPickingConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showCancelPickingConfirmDialog = false },
             title = {
-                Text("Cancelar coleta?", fontWeight = FontWeight.Bold)
+                Text("Cancelar coleta?", style = MaterialTheme.typography.titleLarge)
             },
             text = {
-                Text("O LED será apagado e os itens serão liberados do lock. Deseja realmente retornar ao Dashboard?")
+                Text("O LED será apagado e os itens serão liberados. Deseja retornar ao início?")
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showCancelPickingConfirmDialog = false
                         viewModel.cancelarColetaEVoltar(onComplete = onNavigateBack)
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                 ) {
-                    Text("Cancelar Coleta", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text("Cancelar coleta", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelPickingConfirmDialog = false }) {
-                    Text("Continuar Coleta")
+                TextButton(
+                    onClick = { showCancelPickingConfirmDialog = false },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                ) {
+                    Text("Continuar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
-        )
-    }
-
-    // Modal Local Incorreto / Tag Não Cadastrada (Seções 3.5.4, 5.4 & Cenário 4)
-    if (uiState.showWrongTagModal != null) {
-        val (lida, esperada) = uiState.showWrongTagModal ?: ("" to "")
-        val unmappedUid = uiState.unmappedTagUid
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissWrongTagModal() },
-            title = {
-                Text(
-                    text = if (unmappedUid != null) "Tag NFC não cadastrada no sistema!" else "Local incorreto!",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        if (unmappedUid != null) {
-                            "A etiqueta lida não está vinculada a nenhuma posição no armazém:"
-                        } else {
-                            "A etiqueta bipada não possui saldo suficiente do item solicitado:"
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_cancel),
-                                contentDescription = null, // Decorativo: o texto ao lado informa o local bipado incorreto
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = "Bipado: $lida",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = OkTeal.copy(alpha = 0.12f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_my_location),
-                                contentDescription = null, // Decorativo: o texto ao lado informa o local sugerido
-                                tint = OkTeal,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = "Sugerido: $esperada",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = OkTeal
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Verifique a luz verde na estante ou bipe uma posição que possua saldo suficiente do item.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
-            confirmButton = {
-                if (unmappedUid != null && onNavigateEnderecosComUid != null) {
-                    TextButton(
-                        onClick = {
-                            viewModel.dismissWrongTagModal()
-                            viewModel.cancelarColetaEVoltar {
-                                onNavigateEnderecosComUid(unmappedUid)
-                            }
-                        }
-                    ) {
-                        Text("Cadastrar Agora", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                    }
-                } else {
-                    TextButton(onClick = { viewModel.dismissWrongTagModal() }) {
-                        Text("Verificar Novamente", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                    }
-                }
-            },
-            dismissButton = if (unmappedUid != null && onNavigateEnderecosComUid != null) {
-                {
-                    TextButton(onClick = { viewModel.dismissWrongTagModal() }) {
-                        Text("Verificar Novamente", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            } else null
         )
     }
 
@@ -1375,5 +1197,125 @@ fun SeparacaoScreen(
                 NfcManager.onTagScanned(uid)
             }
         )
+    }
+}
+
+@Composable
+private fun PokaYokeErrorOverlay(
+    lida: String,
+    enderecoEsperado: String,
+    unmappedUid: String?,
+    onDismiss: () -> Unit,
+    onCadastrarAgora: (() -> Unit)?
+) {
+    val dimensions = LocalWmsDimensions.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.error)
+            .drawBehind {
+                val bandHeight = 16.dp.toPx()
+                val stripeWidth = 14.dp.toPx()
+                val step = stripeWidth * 2f
+                val stripeColor = OnStrong.copy(alpha = 0.35f)
+                clipRect(0f, 0f, size.width, bandHeight) {
+                    var x = -bandHeight
+                    while (x < size.width + bandHeight) {
+                        drawLine(
+                            color = stripeColor,
+                            start = Offset(x, bandHeight),
+                            end = Offset(x + bandHeight, 0f),
+                            strokeWidth = stripeWidth
+                        )
+                        x += step
+                    }
+                }
+                val bottomTop = size.height - bandHeight
+                clipRect(0f, bottomTop, size.width, size.height) {
+                    var x = -bandHeight
+                    while (x < size.width + bandHeight) {
+                        drawLine(
+                            color = stripeColor,
+                            start = Offset(x, size.height),
+                            end = Offset(x + bandHeight, bottomTop),
+                            strokeWidth = stripeWidth
+                        )
+                        x += step
+                    }
+                }
+            }
+            .navigationBarsPadding()
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_dangerous),
+                contentDescription = "Tag NFC incorreta",
+                tint = OnStrong,
+                modifier = Modifier.size(96.dp)
+            )
+
+            Text(
+                text = if (unmappedUid != null) {
+                    "Tag errada. Etiqueta não cadastrada. Devolva ao endereço $enderecoEsperado."
+                } else {
+                    "Tag errada. Devolva ao endereço $enderecoEsperado."
+                },
+                style = MaterialTheme.typography.headlineLarge.copy(fontFeatureSettings = "tnum"),
+                color = OnStrong,
+                textAlign = TextAlign.Center
+            )
+
+            if (lida.isNotBlank()) {
+                Text(
+                    text = "Bipado: $lida",
+                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    color = OnStrong,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(dimensions.primaryButtonHeight),
+                shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                Text(
+                    text = "Verificar novamente",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            if (onCadastrarAgora != null) {
+                OutlinedButton(
+                    onClick = onCadastrarAgora,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(dimensions.primaryButtonHeight),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.5.dp, OnStrong)
+                ) {
+                    Text(
+                        text = "Cadastrar agora",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = OnStrong
+                    )
+                }
+            }
+        }
     }
 }

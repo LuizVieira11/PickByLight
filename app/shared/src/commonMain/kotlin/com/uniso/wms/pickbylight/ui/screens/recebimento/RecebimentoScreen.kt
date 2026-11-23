@@ -64,6 +64,7 @@ import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import org.jetbrains.compose.resources.painterResource
 import pickbylight.app.shared.generated.resources.Res
 import pickbylight.app.shared.generated.resources.ic_check_circle
@@ -194,27 +195,11 @@ fun RecebimentoScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Cabeçalho da Tela
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Recebimento de Itens",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                TextButton(onClick = handleBackNavigation) {
-                    Text("Voltar", style = MaterialTheme.typography.labelLarge)
-                }
-            }
+            ScreenHeader(
+                title = "Recebimento",
+                actionLabel = "Voltar",
+                onAction = handleBackNavigation
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 

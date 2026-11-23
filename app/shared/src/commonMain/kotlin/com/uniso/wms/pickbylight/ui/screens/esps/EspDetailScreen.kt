@@ -49,6 +49,7 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MappingKind
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.EmptyState
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -83,24 +84,11 @@ fun EspDetailScreen(
             .verticalScroll(scrollState)
             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "ESP: $espId",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            TextButton(onClick = onNavigateBack, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
-                Text("Voltar", fontSize = 16.sp)
-            }
-        }
+        ScreenHeader(
+            title = "ESP $espId",
+            actionLabel = "Voltar",
+            onAction = onNavigateBack
+        )
 
         if (!uiState.isSupported) {
             Spacer(modifier = Modifier.height(16.dp))

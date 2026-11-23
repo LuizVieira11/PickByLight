@@ -43,6 +43,7 @@ import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -82,25 +83,11 @@ fun AjustesScreen(
             .verticalScroll(scrollState)
             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Ajustes e Conectividade",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            TextButton(onClick = onNavigateBack) {
-                Text("Voltar", style = MaterialTheme.typography.labelLarge)
-            }
-        }
+        ScreenHeader(
+            title = "Ajustes",
+            actionLabel = "Voltar",
+            onAction = onNavigateBack
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 

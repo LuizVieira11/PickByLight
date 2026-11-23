@@ -70,6 +70,7 @@ import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -179,26 +180,11 @@ fun CatalogoScreen(
                             .fillMaxSize()
                             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Catálogo de Itens",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            TextButton(
-                                onClick = onNavigateBack,
-                                modifier = Modifier.height(48.dp)
-                            ) {
-                                Text("Voltar", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
+                        ScreenHeader(
+                            title = "Catálogo",
+                            actionLabel = "Voltar",
+                            onAction = onNavigateBack
+                        )
 
                         EmptyState(
                             title = "Nenhum item cadastrado",
@@ -233,28 +219,11 @@ fun CatalogoScreen(
                             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
                     ) {
                         // Cabeçalho da Tela
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Catálogo de Itens",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            TextButton(
-                                onClick = onNavigateBack,
-                                modifier = Modifier.height(48.dp)
-                            ) {
-                                Text("Voltar", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
+                        ScreenHeader(
+                            title = "Catálogo",
+                            actionLabel = "Voltar",
+                            onAction = onNavigateBack
+                        )
 
                         Spacer(modifier = Modifier.height(8.dp))
 

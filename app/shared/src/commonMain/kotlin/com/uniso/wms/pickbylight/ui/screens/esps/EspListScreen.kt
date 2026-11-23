@@ -46,6 +46,7 @@ import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.EmptyState
 import com.uniso.wms.pickbylight.ui.components.ErrorState
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.responsive.LocalWindowSizeClass
 import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -85,28 +86,11 @@ fun EspListScreen(
             .fillMaxSize()
             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Gerenciamento de ESPs",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            TextButton(
-                onClick = onNavigateBack,
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-            ) {
-                Text("Voltar", fontSize = 16.sp)
-            }
-        }
+        ScreenHeader(
+            title = "Controladores ESP",
+            actionLabel = "Voltar",
+            onAction = onNavigateBack
+        )
 
         if (uiState.isColetaActive) {
             Spacer(modifier = Modifier.height(8.dp))

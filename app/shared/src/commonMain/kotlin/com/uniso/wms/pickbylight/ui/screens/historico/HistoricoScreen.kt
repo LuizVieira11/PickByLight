@@ -51,6 +51,7 @@ import com.uniso.wms.pickbylight.domain.model.Prateleira
 import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.EmptyState
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -206,44 +207,32 @@ fun HistoricoScreen(
             .fillMaxSize()
             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Histórico de Movimentações",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            TextButton(
-                onClick = {
-                    csvCopiedFeedback = false
-                    csvExportContent = gerarCsvMovimentacoes(listaFiltrada, itens, ::formatEndereco)
-                }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ScreenHeader(
+            title = "Histórico",
+            actionLabel = "Voltar",
+            onAction = onNavigateBack,
+            trailingContent = {
+                TextButton(
+                    onClick = {
+                        csvCopiedFeedback = false
+                        csvExportContent = gerarCsvMovimentacoes(listaFiltrada, itens, ::formatEndereco)
+                    }
                 ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_file_export),
-                        contentDescription = null, // Decorativo: o texto "Exportar CSV" descreve a ação
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text("Exportar CSV", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_file_export),
+                            contentDescription = null, // Decorativo: o texto "Exportar CSV" descreve a ação
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text("Exportar CSV", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-            TextButton(onClick = onNavigateBack) {
-                Text("Voltar", style = MaterialTheme.typography.labelLarge)
-            }
-        }
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 

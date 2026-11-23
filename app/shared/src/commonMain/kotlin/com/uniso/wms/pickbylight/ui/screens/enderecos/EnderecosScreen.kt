@@ -58,6 +58,7 @@ import com.uniso.wms.pickbylight.ui.components.ErrorState
 import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import org.jetbrains.compose.resources.painterResource
@@ -129,25 +130,11 @@ fun EnderecosScreen(
                 .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
         ) {
             // Cabeçalho da Tela
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Gestão de Endereços",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                TextButton(onClick = onNavigateBack) {
-                    Text("Voltar", style = MaterialTheme.typography.labelLarge)
-                }
-            }
+            ScreenHeader(
+                title = "Endereços",
+                actionLabel = "Voltar",
+                onAction = onNavigateBack
+            )
 
             // Notificação de UID pendente recebido de outro fluxo (ex: Recebimento com tag não cadastrada)
             if (!initialTagUid.isNullOrBlank()) {

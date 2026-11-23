@@ -43,6 +43,7 @@ import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.responsive.WindowSizeClass
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
@@ -142,25 +143,9 @@ fun DashboardScreen(
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 // Linha 1: Título do App isolado com destaque + Ações (Histórico e Ajustes)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "WMS Pick-by-Light",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                ScreenHeader(
+                    title = "WMS Pick-by-Light",
+                    trailingContent = {
                         // Botão Histórico (Seção 3.1 & 3.8)
                         IconButton(onClick = onNavigateHistorico) {
                             Icon(
@@ -181,7 +166,7 @@ fun DashboardScreen(
                             )
                         }
                     }
-                }
+                )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
