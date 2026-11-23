@@ -1012,10 +1012,10 @@ Executar em MQTT 5 (`-V mqttv5`) e em MQTT 3.1.1 (`-V mqttv311`) com `mosquitto_
 17. **Boot seguro:** todos os LEDs apagados antes de Wi-Fi/MQTT.
 18. **Sem piscar:** observar os canais padrão desde o reset.
 19. **Tabela inválida:** build de teste com GPIO proibido/duplicado → `CONFIG_INVALID` (`INVALID_CHANNEL_TABLE`), tudo apagado.
-20. **Restauração:** religar o ESP com o app conectado → mesma configuração em poucos segundos; com o app desligado, o ESP repete o pedido até o app voltar; ESP esquecido no app → volta sem mappings.
 20. **Offline 65 s:** LED aceso, broker desligado por mais de 65 s → apaga; ao reconectar, continua apagado.
 21. **Cor ignorada:** `cor` desconhecida em `ACENDER`/`TESTE_LED` → executa normalmente, ACK OK.
 22. **IDs em 2 ESPs:** estante no ESP A e posição no ESP B → os dois LEDs acendem, um único ACK (do ESP B).
+23. **Restauração:** religar o ESP com o app conectado → mesma configuração em poucos segundos; com o app desligado, o ESP repete o pedido até o app voltar; ESP esquecido no app → volta sem mappings.
 
 ### 14.4 Ponta a ponta
 
@@ -1076,12 +1076,12 @@ Com app e ESP reais, repetir os cenários homologados 3, 4, 5, 6 e 8 e confirmar
 
 ## 17. Pendências `[PREENCHER]`
 
-- [ ] DevKit 30 ou 38 pinos / modelo exato.
-- [ ] Número de estantes, prateleiras e posições da maquete.
-- [ ] `total_canais` e `esps_mínimos`.
+- [ ] DevKit 30 ou 38 pinos / modelo exato *(módulo confirmado: ESP-WROOM-32 sem PSRAM com USB-UART CH340; falta modelo/pinagem da DevKit)*.
+- [x] Número de estantes, prateleiras e posições da maquete: **1 estante, 3 prateleiras e 9 posições** (seed do app); bancada atual com 3 LEDs de teste (`CH02`/`CH11`/`CH12`).
+- [x] `total_canais` e `esps_mínimos`: **13 canais, 1 ESP** (14 canais disponíveis, `CH14` de folga).
 - [ ] Cor e `Vf` dos LEDs.
-- [ ] Corrente de projeto por canal e quantidade máxima de LEDs acesos simultaneamente.
-- [ ] Versão do core Arduino-ESP32 e valor comprovado de `CONFIG_MQTT_PROTOCOL_5`.
-- [ ] Versão exata do ArduinoJson 7.x.
-- [ ] Limite de mappings confirmado por RAM/flash (padrão: 14).
-- [ ] Uso de GPIO2 como `STATUS_LED_GPIO` (padrão: não usar).
+- [ ] Corrente de projeto por canal e quantidade máxima de LEDs acesos simultaneamente *(bancada validou 3 LEDs `active_high` em GPIO13/26/27 = `CH02`/`CH11`/`CH12`; falta resistor/corrente final e simultaneidade da maquete)*.
+- [x] Versão do core Arduino-ESP32 e valor comprovado de `CONFIG_MQTT_PROTOCOL_5`: **core `esp32:esp32 3.3.0`** (ESP-IDF `idf-release_v5.5-b66b5448-v1`), `sdkconfig:2325` = `# CONFIG_MQTT_PROTOCOL_5 is not set` → firmware em **MQTT 3.1.1**.
+- [x] Versão exata do ArduinoJson 7.x: **`ArduinoJson 7.4.2`**.
+- [x] Limite de mappings confirmado por RAM/flash (padrão: 14): **14 canais/mappings** (Flash `1019559 B / 77%`, RAM global `53236 B / 16%`).
+- [x] Uso de GPIO2 como `STATUS_LED_GPIO` (padrão: não usar): **não usar** (fora da tabela de canais no firmware v1).

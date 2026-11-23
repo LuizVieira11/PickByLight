@@ -16,12 +16,15 @@ PickByLight/
 │   │       ├── commonMain/     # Domínio, Repositórios, ViewModels UDF, Telas Compose M3 e Tema Industrial
 │   │       ├── androidMain/    # Implementações nativas Android (Paho MQTT QoS 1, DataStore, NFC ReaderMode, Vibração/Bipes)
 │   │       ├── wasmJsMain/     # Implementações Web/Wasm
-│   │       └── commonTest/     # Suíte completa de testes unitários e cenários de homologação (90 testes)
+│   │       └── commonTest/     # Suíte completa de testes unitários e cenários de homologação
 │   ├── androidApp/             # Entry-point do aplicativo Android (MainActivity, AndroidManifest, BuildConfig)
 │   └── webApp/                 # Entry-point da aplicação Web (Kotlin/Wasm)
 ├── core/                       # Utilitários multiplataforma compartilhados
+├── esp32/                      # Firmware ESP32 v1, secrets.example.h e roteiro de bancada
+├── tools/                      # Simuladores auxiliares (ex.: esp_sim.py)
 └── especificacao/
-    └── ESPECIFICACAO.md        # Especificação Técnica Vinculante (Fonte da Verdade)
+    ├── ESPECIFICACAO.md        # Especificação Técnica Vinculante (Contratos Legados e Fluxos)
+    └── MQTT5_E_ESP32.md        # Especificação do Gerenciamento de ESPs, MQTT 5/3.1.1 e Firmware
 ```
 
 ---
@@ -73,23 +76,27 @@ PickByLight/
 
 ---
 
-## 🚀 Como Compilar, Executar e Testar
+## 🚀 Como Compilar, Executar e Testar (Windows)
 
 ### 1. Executar os Testes Unitários e de Homologação (Android Host)
-```bash
-./gradlew :app:shared:testAndroidHostTest --rerun-tasks
+```bat
+gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks --console=plain
 ```
-*(No Windows PowerShell/CMD: `gradlew.bat :app:shared:testAndroidHostTest --rerun-tasks`)*
 
-### 2. Gerar o APK de Debug para Android
-```bash
-./gradlew :app:androidApp:assembleDebug
+### 2. Compilar o módulo Web/Wasm
+```bat
+gradlew.bat :app:shared:compileKotlinWasmJs --console=plain
+```
+
+### 3. Gerar o APK de Debug para Android
+```bat
+gradlew.bat :app:androidApp:assembleDebug --console=plain
 ```
 O APK será gerado em `app/androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
 
-### 3. Executar a Versão Web (Kotlin/Wasm)
-```bash
-./gradlew :app:webApp:wasmJsBrowserDevelopmentRun
+### 4. Executar a Versão Web (Kotlin/Wasm)
+```bat
+gradlew.bat :app:webApp:wasmJsBrowserDevelopmentRun
 ```
 
 ---
@@ -108,3 +115,51 @@ Todos os 10 cenários da Seção 6.1 possuem cobertura automatizada em [`Homolog
 - [x] **Cenário 8 (Modo Manual):** Timeout de ACK de 5s permite ativar `[Continuar em Modo Manual]` com banner vermelho fixo, Poka-Yoke NFC ativo e gravação de `modoManual = true`.
 - [x] **Cenário 9 (Back em fluxo crítico):** Interceptação do botão Voltar durante coleta ativa com opções `[Continuar Coleta]` (preserva estado) e `[Cancelar Coleta]` (apaga LED e libera lock).
 - [x] **Cenário 10 (Histórico e Exportação CSV):** Registro cronológico reverso de entradas, saídas e transferências com timestamps formatados (`dd/MM/yyyy HH:mm:ss`), filtros e exportação CSV.
+
+---
+
+## 🔌 Hardware ESP32, Broker MQTT e Simulador
+
+Para detalhes completos do protocolo de gerenciamento v1 (`wms/pickbylight/v1/...`), consulte [`especificacao/MQTT5_E_ESP32.md`](./especificacao/MQTT5_E_ESP32.md).
+
+### 1. Broker MQTT e Autenticação (ACL)
+- O protótipo opera com **Mosquitto 2.1.2** (ex.: container Docker na rede local, porta `1883`) em modo **anônimo** (autenticação e ACL adiadas conforme Seção 16, item 15 da especificação).
+- A configuração-alvo com `allow_anonymous false`, usuários por dispositivo (`wms_app` e `esp-xxxxxx`) e regras `acl_file` está documentada na Seção 12 de [`especificacao/MQTT5_E_ESP32.md`](./especificacao/MQTT5_E_ESP32.md).
+- Em **Ajustes**, o app Android permite selecionar o protocolo MQTT (`Automático | 5.0 | 3.1.1`, padrão `Automático` com fallback para `3.1.1`). O firmware `esp32/esp32.ino` usa **MQTT 3.1.1** via ESP-MQTT (o core `esp32:esp32 3.3.0` pré-compilado traz `# CONFIG_MQTT_PROTOCOL_5 is not set` no `sdkconfig`).
+
+### 2. Credenciais Locais do Firmware
+Copie o template [`esp32/secrets.example.h`](./esp32/secrets.example.h) para `esp32/secrets.h` (já listado em `.gitignore`) e preencha `WIFI_SSID`, `WIFI_PASSWORD` e `MQTT_HOST`:
+- Para broker anônimo, mantenha `MQTT_USER` e `MQTT_PASSWORD` como `""`.
+- Se o firmware for compilado com os placeholders `<WIFI_SSID>` ou `<MQTT_HOST>`, ele registra erro no monitor serial e não tenta conectar.
+
+### 3. Toolchain ESP32 e Gravação (`arduino-cli`)
+Ambiente validado: módulo **ESP-WROOM-32** (4 MB flash, sem PSRAM), core **`esp32:esp32 3.3.0`** e biblioteca **`ArduinoJson 7.4.2`**.
+
+```bat
+"C:\Program Files\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 esp32 --warnings all
+"C:\Program Files\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" upload -p COM5 --fqbn esp32:esp32:esp32 esp32
+```
+
+### 4. Ligação dos LEDs e Mapa de GPIOs (3,3 V)
+Ligação padrão (`active_high = true`):
+
+```text
+GPIO ──► Resistor em série ──► LED (+) ──► LED (-) ──► GND
+```
+
+- **14 GPIOs recomendados (canais `CH01`–`CH14`):** `4, 13, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33`.
+- **Cautela (fora da tabela padrão):** `2, 5, 14, 15` (`GPIO2` é reservado e não é usado como canal).
+- **Proibidos:** `0, 12` (strapping críticos), `1, 3` (UART0), `6–11` (flash SPI interna) e `34, 35, 36, 39` (somente entrada).
+
+### 5. Simulador de ESP32 sem Hardware (`tools/esp_sim.py`)
+Para testar o app Android sem placa física conectada (requer `pip install --user paho-mqtt`):
+
+```bat
+python tools\esp_sim.py --host localhost --channels 14
+python tools\esp_sim.py --host 192.168.1.6 --esp esp-a1b2c3 --protocol 3 --ack-all
+```
+
+Após iniciar, digite `h` + Enter para ver os comandos interativos (modo silencioso, `REVISION_MISMATCH`, perda de `config/result`, `LWT`, reboot/restore e desligamento `SHUTDOWN`).
+
+### 6. Roteiro de Testes em Bancada
+Os casos de bancada (incluindo os resultados já validados com ESP real e os pendentes) estão documentados em [`esp32/TESTES_BANCADA.md`](./esp32/TESTES_BANCADA.md).
