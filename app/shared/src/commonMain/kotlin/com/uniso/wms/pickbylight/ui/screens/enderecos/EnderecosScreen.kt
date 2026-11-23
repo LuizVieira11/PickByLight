@@ -199,7 +199,7 @@ fun EnderecosScreen(
                     EmptyState(
                         title = "Nenhum endereço cadastrado",
                         message = "Cadastre a primeira estante física para iniciar o mapeamento do armazém.",
-                        actionLabel = "Cadastrar Nova Estante",
+                        actionLabel = "Cadastrar nova estante",
                         actionLeadingIcon = {
                             Icon(
                                 painter = painterResource(Res.drawable.ic_add),
@@ -674,7 +674,7 @@ fun EnderecosScreen(
 
         AlertDialog(
             onDismissRequest = { showModalNovaEstante = false },
-            title = { Text("Cadastrar Nova Estante", fontWeight = FontWeight.Bold) },
+            title = { Text("Cadastrar nova estante", style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -689,13 +689,13 @@ fun EnderecosScreen(
                     OutlinedTextField(
                         value = nomeEstante,
                         onValueChange = { nomeEstante = it },
-                        label = { Text("Nome da Estante") },
+                        label = { Text("Nome da estante") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = setorEstante,
                         onValueChange = { setorEstante = it },
-                        label = { Text("Setor / Descrição") },
+                        label = { Text("Setor / descrição") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -765,7 +765,7 @@ fun EnderecosScreen(
             onDismissRequest = { selectedEstanteForPrateleira = null },
             title = {
                 Column {
-                    Text("Nova Prateleira", fontWeight = FontWeight.Bold)
+                    Text("Nova prateleira", style = MaterialTheme.typography.titleLarge)
                     Text("Estante: ${estanteSelecionada.codigo} — ${estanteSelecionada.nome}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
@@ -777,13 +777,13 @@ fun EnderecosScreen(
                     OutlinedTextField(
                         value = codPrat,
                         onValueChange = { codPrat = it.uppercase() },
-                        label = { Text("Código da Prateleira (ex: PRAT-A3)") },
+                        label = { Text("Código da prateleira (ex: PRAT-A3)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = ledIdPonta,
                         onValueChange = { ledIdPonta = it.uppercase() },
-                        label = { Text("ID do LED de Ponta (ex: PRAT_A3_LED1)") },
+                        label = { Text("ID do LED de ponta (ex: PRAT_A3_LED1)") },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -871,7 +871,7 @@ fun EnderecosScreen(
             onDismissRequest = { selectedPrateleiraForPosicao = null },
             title = {
                 Column {
-                    Text("Nova Posição de Armazenagem", fontWeight = FontWeight.Bold)
+                    Text("Nova posição de armazenagem", style = MaterialTheme.typography.titleLarge)
                     Text("Prateleira: ${prateleiraSelecionada.codigo}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
@@ -883,7 +883,7 @@ fun EnderecosScreen(
                     OutlinedTextField(
                         value = codPosicao,
                         onValueChange = { codPosicao = it.uppercase() },
-                        label = { Text("Código da Posição (ex: POS_A3_01)") },
+                        label = { Text("Código da posição (ex: POS_A3_01)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -989,14 +989,14 @@ fun EnderecosScreen(
         AlertDialog(
             onDismissRequest = { posicaoParaVincularNfc = null },
             title = {
-                Text("Vincular Etiqueta NFC", fontWeight = FontWeight.Bold)
+                Text("Vincular etiqueta NFC", style = MaterialTheme.typography.titleLarge)
             },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Posição: ${posVinculando.codigo}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Posição: ${posVinculando.codigo}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text("Aproxime a traseira do celular da etiqueta física (NTAG213) ou utilize o simulador abaixo.", style = MaterialTheme.typography.bodySmall)
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1007,7 +1007,7 @@ fun EnderecosScreen(
                             bindingTagUidInput = it.uppercase()
                             bindingErrorMessage = null
                         },
-                        label = { Text("UID da Tag NFC (7 bytes hex)") },
+                        label = { Text("UID da tag NFC (7 bytes hex)") },
                         placeholder = { Text("04:A1:2B:3C:4D:5E:01") },
                         modifier = Modifier.fillMaxWidth()
                     )

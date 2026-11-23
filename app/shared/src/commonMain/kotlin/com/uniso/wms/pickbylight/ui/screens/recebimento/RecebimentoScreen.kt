@@ -422,13 +422,13 @@ fun RecebimentoScreen(
                                         viewModel.setItemSearchQuery(it)
                                         itemDropdownExpanded = true
                                     },
-                                    label = { Text("Selecione o Item (SKU ou Nome)") },
+                                    label = { Text("Selecione o item (SKU ou nome)") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = itemDropdownExpanded) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = RoundedCornerShape(dimensions.buttonCornerRadius)
                                 )
 
                                 val itensFiltrados = itens.filter {
@@ -623,13 +623,13 @@ fun RecebimentoScreen(
                                         viewModel.setItemSearchQuery(it)
                                         itemDropdownExpanded = true
                                     },
-                                    label = { Text("Selecione o Item (SKU ou Nome)") },
+                                    label = { Text("Selecione o item (SKU ou nome)") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = itemDropdownExpanded) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = RoundedCornerShape(dimensions.buttonCornerRadius)
                                 )
 
                                 val itensFiltrados = itens.filter {

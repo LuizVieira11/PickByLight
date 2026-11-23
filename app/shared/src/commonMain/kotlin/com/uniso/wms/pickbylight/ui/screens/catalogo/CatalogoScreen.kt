@@ -326,7 +326,7 @@ fun CatalogoScreen(
                                                 if (res.isSuccess) {
                                                     val isLocked = res.getOrNull() == true
                                                     val msg = if (isLocked) {
-                                                        "Item [${itemCard.item.sku}] marcado como 'Em Separação'."
+                                                        "Item [${itemCard.item.sku}] marcado como 'Em separação'."
                                                     } else {
                                                         "Item [${itemCard.item.sku}] liberado da separação."
                                                     }
@@ -475,7 +475,7 @@ fun CatalogoScreen(
                     OutlinedTextField(
                         value = nomeInput,
                         onValueChange = { nomeInput = it },
-                        label = { Text("Nome do Produto*") },
+                        label = { Text("Nome do produto*") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -547,7 +547,7 @@ fun CatalogoScreen(
                         OutlinedTextField(
                             value = estoqueMinimoInput,
                             onValueChange = { estoqueMinimoInput = it.filter { c -> c.isDigit() } },
-                            label = { Text("Estoque Mínimo*") },
+                            label = { Text("Estoque mínimo*") },
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
@@ -782,7 +782,7 @@ fun CatalogoScreen(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         // Seleção da Posição de Destino
-                        Text("Posição de Destino:", fontWeight = FontWeight.SemiBold)
+                        Text("Posição de destino", style = MaterialTheme.typography.labelLarge)
 
                         ExposedDropdownMenuBox(
                             expanded = dropdownDestinoExpanded,

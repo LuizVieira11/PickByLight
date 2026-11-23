@@ -206,7 +206,7 @@ data class EspManagementUiState(
                 val estCodigo = estMap[prat.estanteId]?.codigo ?: "Estante"
                 LedIdOption(
                     ledId = prat.ledIdPonta,
-                    label = "${prat.ledIdPonta} ($estCodigo > ${prat.codigo})",
+                    label = "${prat.ledIdPonta} ($estCodigo · ${prat.codigo})",
                     kind = kind,
                     ownerOtherEspId = otherEspOwners[prat.ledIdPonta],
                     alreadyInDraft = prat.ledIdPonta in usedInDraft
@@ -218,7 +218,7 @@ data class EspManagementUiState(
                 val pratCodigo = prat?.codigo ?: "Prat"
                 LedIdOption(
                     ledId = pos.ledId,
-                    label = "${pos.ledId} ($estCodigo > $pratCodigo > ${pos.codigo})",
+                    label = "${pos.ledId} ($estCodigo · $pratCodigo · ${pos.codigo})",
                     kind = kind,
                     ownerOtherEspId = otherEspOwners[pos.ledId],
                     alreadyInDraft = pos.ledId in usedInDraft

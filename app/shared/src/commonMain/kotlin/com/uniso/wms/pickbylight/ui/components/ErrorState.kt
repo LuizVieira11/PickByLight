@@ -21,7 +21,7 @@ fun ErrorState(
     message: String,
     modifier: Modifier = Modifier,
     title: String = "Ocorreu um erro",
-    retryLabel: String = "Tentar Novamente",
+    retryLabel: String = "Tentar novamente",
     onRetry: (() -> Unit)? = null,
     icon: (@Composable () -> Unit)? = null
 ) {
@@ -42,7 +42,6 @@ fun ErrorState(
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center
         )
@@ -61,7 +60,7 @@ fun ErrorState(
             PrimaryButton(
                 text = retryLabel,
                 onClick = onRetry,
-                containerColor = MaterialTheme.colorScheme.error,
+                containerColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth(0.8f)
             )
         }

@@ -104,7 +104,7 @@ fun formatarDetalheEstoque(
     val pratCod = prat?.codigo ?: "?"
     val estCod = est?.codigo ?: "?"
     val estNome = est?.nome ?: ""
-    val enderecoFormatado = "$estCod > $pratCod > $posCod"
+    val enderecoFormatado = "$estCod · $pratCod · $posCod"
     return EstoquePosicaoDetalhe(
         id = estoque.id,
         itemId = estoque.itemId,

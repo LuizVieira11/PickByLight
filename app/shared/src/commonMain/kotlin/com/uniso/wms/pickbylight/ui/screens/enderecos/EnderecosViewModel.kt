@@ -262,7 +262,7 @@ class EnderecosViewModel(
             val pratExistente = posExistente?.let { repository.getPrateleiraById(it.prateleiraId) }
             val estExistente = pratExistente?.let { repository.getEstanteById(it.estanteId) }
 
-            val enderecoExistente = "${estExistente?.nome ?: estExistente?.codigo ?: "Estante"} > ${pratExistente?.codigo ?: "Prateleira"} > ${posExistente?.codigo ?: tagExistente.posicaoId}"
+            val enderecoExistente = "${estExistente?.nome ?: estExistente?.codigo ?: "Estante"} · ${pratExistente?.codigo ?: "Prateleira"} · ${posExistente?.codigo ?: tagExistente.posicaoId}"
             feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
             return Result.failure(IllegalStateException("Tag já cadastrada em $enderecoExistente"))
         }

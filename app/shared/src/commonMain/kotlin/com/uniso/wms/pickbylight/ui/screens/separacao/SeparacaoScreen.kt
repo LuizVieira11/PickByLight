@@ -128,7 +128,7 @@ fun SeparacaoScreen(
         val estanteStr = est?.nome?.takeIf { it.isNotBlank() } ?: est?.codigo ?: "Estante"
         val pratStr = prat?.codigo?.takeIf { it.isNotBlank() } ?: "Prat"
         val posStr = pos?.codigo?.takeIf { it.isNotBlank() } ?: "Pos"
-        return "$estanteStr > $pratStr > $posStr"
+        return "$estanteStr · $pratStr · $posStr"
     }
 
     // Interceptação do botão Voltar (Seção 3.7 da Especificação)

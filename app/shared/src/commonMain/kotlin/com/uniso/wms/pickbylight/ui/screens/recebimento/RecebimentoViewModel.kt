@@ -116,7 +116,7 @@ class RecebimentoViewModel(
         if (pos == null) return "Endereço não identificado"
         val estanteStr = est?.nome?.takeIf { it.isNotBlank() } ?: est?.codigo ?: "Estante"
         val pratStr = prat?.codigo?.takeIf { it.isNotBlank() } ?: "Prat"
-        return "$estanteStr > $pratStr > ${pos.codigo}"
+        return "$estanteStr · $pratStr · ${pos.codigo}"
     }
 
     /**
