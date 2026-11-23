@@ -172,9 +172,13 @@ private fun EspMetadataAndChannelsSection(
                 Text(
                     text = "Metadados e canais GPIO",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
-                if (device != null) EspStatusBadge(device)
+                if (device != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    EspStatusBadge(device)
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
