@@ -17,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.uniso.wms.pickbylight.data.mqtt.MqttConnectionState
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -40,8 +39,8 @@ fun MqttDisconnectedBanner(
     if (connectionState != MqttConnectionState.CONNECTED) {
         val dimensions = LocalWmsDimensions.current
         val bannerText = when (connectionState) {
-            MqttConnectionState.ERROR -> "Broker MQTT desconectado. Acesse os Ajustes para tentar novamente."
-            MqttConnectionState.CONNECTING, MqttConnectionState.DISCONNECTED -> "Broker MQTT desconectado. Tentando reconectar..."
+            MqttConnectionState.ERROR -> "Sem conexão com o broker. Abra Ajustes para reconectar."
+            MqttConnectionState.CONNECTING, MqttConnectionState.DISCONNECTED -> "Sem conexão com o broker. Reconectando…"
             MqttConnectionState.CONNECTED -> ""
         }
 
@@ -66,11 +65,9 @@ fun MqttDisconnectedBanner(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = bannerText,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = WarnAmber,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    color = WarnAmber
                 )
             }
             HorizontalDivider(thickness = 1.dp, color = WarnAmber)

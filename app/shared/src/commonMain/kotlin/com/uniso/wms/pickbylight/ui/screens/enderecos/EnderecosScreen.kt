@@ -1,14 +1,16 @@
 package com.uniso.wms.pickbylight.ui.screens.enderecos
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,18 +23,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,7 +49,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -59,21 +64,27 @@ import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
-import com.uniso.wms.pickbylight.ui.theme.WarnAmber
-import com.uniso.wms.pickbylight.ui.theme.OkTeal
-import org.jetbrains.compose.resources.painterResource
-import pickbylight.app.shared.generated.resources.Res
-import pickbylight.app.shared.generated.resources.ic_add
-import pickbylight.app.shared.generated.resources.ic_expand_less
-import pickbylight.app.shared.generated.resources.ic_expand_more
-import pickbylight.app.shared.generated.resources.ic_lightbulb
-import pickbylight.app.shared.generated.resources.ic_nfc
+import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_add
+import pickbylight.app.shared.generated.resources.ic_error
+import pickbylight.app.shared.generated.resources.ic_expand_less
+import pickbylight.app.shared.generated.resources.ic_expand_more
+import pickbylight.app.shared.generated.resources.ic_inventory_2
+import pickbylight.app.shared.generated.resources.ic_lightbulb
+import pickbylight.app.shared.generated.resources.ic_nfc
+import pickbylight.app.shared.generated.resources.ic_shelves
+import pickbylight.app.shared.generated.resources.ic_table_rows
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EnderecosScreen(
     repository: WmsRepository,
@@ -136,16 +147,16 @@ fun EnderecosScreen(
                 onAction = onNavigateBack
             )
 
-            // Notificação de UID pendente recebido de outro fluxo (ex: Recebimento com tag não cadastrada)
             if (!initialTagUid.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = WarnAmber.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(dimensions.cardCornerRadius),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, WarnAmber),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(10.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -156,9 +167,9 @@ fun EnderecosScreen(
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = "UID lido pronto para vincular: $initialTagUid. Selecione uma posição abaixo para associar.",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
+                            text = "UID lido pronto para vincular: $initialTagUid. Selecione uma posição abaixo.",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                            fontWeight = FontWeight.SemiBold,
                             color = WarnAmber
                         )
                     }
@@ -173,7 +184,7 @@ fun EnderecosScreen(
                 onValueChange = { viewModel.setSearchQuery(it) },
                 label = { Text("Buscar por código, estante, posição ou UID...") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(dimensions.buttonCornerRadius),
                 singleLine = true
             )
 
@@ -210,450 +221,424 @@ fun EnderecosScreen(
                 }
 
                 is EnderecosUiState.Success -> {
-                    // Filtros rápidos por Chips (Seção 3.2)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         FilterChip(
                             selected = state.filtroNfc == FiltroNfc.TODOS,
                             onClick = { viewModel.setFiltroNfc(FiltroNfc.TODOS) },
-                            label = { Text("Todos (${state.totalPosicoes})") }
+                            label = {
+                                Text(
+                                    text = "Todos (${state.totalPosicoes})",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                                )
+                            }
                         )
                         FilterChip(
                             selected = state.filtroNfc == FiltroNfc.VINCULADO,
                             onClick = { viewModel.setFiltroNfc(FiltroNfc.VINCULADO) },
-                            label = { Text("NFC Vinculado (${state.posicoesVinculadasCount})") }
+                            label = {
+                                Text(
+                                    text = "Vinculado (${state.posicoesVinculadasCount})",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                                )
+                            }
                         )
                         FilterChip(
                             selected = state.filtroNfc == FiltroNfc.PENDENTE,
                             onClick = { viewModel.setFiltroNfc(FiltroNfc.PENDENTE) },
-                            label = { Text("NFC Pendente (${state.posicoesPendentesCount})") }
-                        )
-                        TextButton(
-                            onClick = { showModalNovaEstante = true }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(Res.drawable.ic_add),
-                                    contentDescription = null, // Decorativo: o texto "Nova Estante" descreve a ação
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(24.dp)
+                            label = {
+                                Text(
+                                    text = "Pendente (${state.posicoesPendentesCount})",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
                                 )
-                                Text("Nova Estante", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                             }
-                        }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Árvore Expansível em 3 Níveis (Seção 3.2)
+                    PrimaryButton(
+                        text = "Nova estante",
+                        onClick = { showModalNovaEstante = true },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_add),
+                                contentDescription = null, // Decorativo: o rótulo "Nova estante" descreve a ação
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Árvore Expansível em 3 Níveis (DESIGN.md seção 6: ícone, recuo e rótulo; 1 card por estante)
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(state.estantes) { estanteItem ->
+                        items(state.estantes, key = { it.estante.id }) { estanteItem ->
                             val estante = estanteItem.estante
 
-                            // NÍVEL 1 (Azul): Estante
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                shape = RoundedCornerShape(12.dp)
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                shape = RoundedCornerShape(dimensions.cardCornerRadius)
                             ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    // Linha superior: Título e Expansão
-                                    Row(
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    // NÍVEL 1: Estante (recuo 0 dp)
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { viewModel.toggleEstanteExpanded(estante.id) },
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(horizontal = dimensions.paddingMedium, vertical = 12.dp)
                                     ) {
                                         Row(
-                                            modifier = Modifier.weight(1f),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                                .clickable { viewModel.toggleEstanteExpanded(estante.id) },
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(6.dp)
-                                                    .height(36.dp)
-                                                    .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp))
+                                            Icon(
+                                                painter = painterResource(Res.drawable.ic_shelves),
+                                                contentDescription = null, // Decorativo: o texto "Estante ..." identifica o nível
+                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(24.dp)
                                             )
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    text = "${estante.codigo} — ${estante.nome}",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    text = "Estante ${estante.codigo} — ${estante.nome}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
                                                 Text(
-                                                    text = "LED: ${estante.ledId} • Setor: ${estante.setor}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    text = "LED ${estante.ledId} · ${estante.setor}",
+                                                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                    color = InkMuted
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { viewModel.toggleEstanteExpanded(estante.id) },
+                                                modifier = Modifier.size(dimensions.minTouchTarget)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(if (estanteItem.isExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
+                                                    contentDescription = if (estanteItem.isExpanded) "Ocultar estante" else "Expandir estante",
+                                                    tint = InkMuted,
+                                                    modifier = Modifier.size(24.dp)
                                                 )
                                             }
                                         }
 
-                                        Icon(
-                                            painter = painterResource(if (estanteItem.isExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
-                                            contentDescription = if (estanteItem.isExpanded) "Ocultar estante" else "Expandir estante",
-                                            tint = MaterialTheme.colorScheme.outline,
-                                            modifier = Modifier.padding(start = 8.dp).size(24.dp)
-                                        )
-                                    }
-
-                                    // Linha de ações da Estante
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 6.dp),
-                                        horizontalArrangement = Arrangement.End,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        TextButton(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    val res = viewModel.testarLed(estante.ledId, null, null)
-                                                    if (res.isSuccess) {
-                                                        snackbarHostState.showSnackbar("TESTE_LED enviado para estante ${estante.codigo}")
-                                                    }
-                                                }
-                                            }
+                                        FlowRow(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            TextButton(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        val res = viewModel.testarLed(estante.ledId, null, null)
+                                                        if (res.isSuccess) {
+                                                            snackbarHostState.showSnackbar("TESTE_LED enviado para estante ${estante.codigo}")
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                                             ) {
                                                 Icon(
                                                     painter = painterResource(Res.drawable.ic_lightbulb),
                                                     contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(24.dp)
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(20.dp)
                                                 )
-                                                Text("Testar LED", style = MaterialTheme.typography.labelSmall)
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Testar LED", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                                             }
-                                        }
 
-                                        Spacer(modifier = Modifier.width(6.dp))
-
-                                        TextButton(
-                                            onClick = { selectedEstanteForPrateleira = estante }
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            TextButton(
+                                                onClick = { selectedEstanteForPrateleira = estante },
+                                                modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                                             ) {
                                                 Icon(
                                                     painter = painterResource(Res.drawable.ic_add),
                                                     contentDescription = null, // Decorativo: o texto "Prateleira" descreve a ação
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(24.dp)
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(20.dp)
                                                 )
-                                                Text("Prateleira", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Prateleira", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                                             }
                                         }
                                     }
 
-                                    // NÍVEL 2: Prateleiras da Estante (Laranja)
+                                    // NÍVEL 2: Prateleiras dentro do mesmo card (recuo 16 dp)
                                     AnimatedVisibility(visible = estanteItem.isExpanded) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(start = 12.dp, top = 8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
+                                        Column(modifier = Modifier.fillMaxWidth()) {
                                             if (estanteItem.prateleiras.isEmpty()) {
+                                                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                                                 Text(
-                                                    text = "Nenhuma prateleira encontrada para este filtro.",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.outline,
-                                                    modifier = Modifier.padding(vertical = 4.dp)
+                                                    text = "Nenhuma prateleira para este filtro.",
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    color = InkMuted,
+                                                    modifier = Modifier.padding(
+                                                        start = dimensions.paddingMedium + 16.dp,
+                                                        end = dimensions.paddingMedium,
+                                                        top = 12.dp,
+                                                        bottom = 12.dp
+                                                    )
                                                 )
                                             }
 
                                             estanteItem.prateleiras.forEach { pratItem ->
                                                 val prateleira = pratItem.prateleira
 
-                                                Card(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    colors = CardDefaults.cardColors(
-                                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                                    ),
-                                                    shape = RoundedCornerShape(10.dp)
-                                                ) {
-                                                    Column(modifier = Modifier.padding(10.dp)) {
-                                                        // Linha superior: Código da Prateleira e Chevron
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .clickable { viewModel.togglePrateleiraExpanded(prateleira.id) },
-                                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Row(
-                                                                modifier = Modifier.weight(1f),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .width(5.dp)
-                                                                        .height(28.dp)
-                                                                        .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(2.dp))
-                                                                )
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Column(modifier = Modifier.weight(1f)) {
-                                                                    Text(
-                                                                        text = prateleira.codigo,
-                                                                        style = MaterialTheme.typography.titleSmall,
-                                                                        fontWeight = FontWeight.Bold,
-                                                                        color = MaterialTheme.colorScheme.onSurface,
-                                                                        maxLines = 1,
-                                                                        overflow = TextOverflow.Ellipsis
-                                                                    )
-                                                                    Text(
-                                                                        text = "LED Ponta: ${prateleira.ledIdPonta}",
-                                                                        style = MaterialTheme.typography.labelSmall,
-                                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                                        maxLines = 1,
-                                                                        overflow = TextOverflow.Ellipsis
-                                                                    )
-                                                                }
-                                                            }
+                                                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(
+                                                            start = dimensions.paddingMedium + 16.dp,
+                                                            end = dimensions.paddingMedium,
+                                                            top = 12.dp,
+                                                            bottom = 8.dp
+                                                        )
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                                            .clickable { viewModel.togglePrateleiraExpanded(prateleira.id) },
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(Res.drawable.ic_table_rows),
+                                                            contentDescription = null, // Decorativo: o texto "Prateleira ..." identifica o nível
+                                                            tint = MaterialTheme.colorScheme.onSurface,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(10.dp))
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = "Prateleira ${prateleira.codigo}",
+                                                                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                            Text(
+                                                                text = "LED ponta ${prateleira.ledIdPonta}",
+                                                                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                                color = InkMuted
+                                                            )
+                                                        }
+                                                        IconButton(
+                                                            onClick = { viewModel.togglePrateleiraExpanded(prateleira.id) },
+                                                            modifier = Modifier.size(dimensions.minTouchTarget)
+                                                        ) {
                                                             Icon(
                                                                 painter = painterResource(if (pratItem.isExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
                                                                 contentDescription = if (pratItem.isExpanded) "Ocultar prateleira" else "Expandir prateleira",
-                                                                tint = MaterialTheme.colorScheme.outline,
-                                                                modifier = Modifier.padding(start = 8.dp).size(24.dp)
+                                                                tint = InkMuted,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    FlowRow(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        TextButton(
+                                                            onClick = {
+                                                                coroutineScope.launch {
+                                                                    val res = viewModel.testarLed(estante.ledId, prateleira.ledIdPonta, null)
+                                                                    if (res.isSuccess) {
+                                                                        snackbarHostState.showSnackbar("TESTE_LED enviado para prateleira ${prateleira.codigo}")
+                                                                    }
+                                                                }
+                                                            },
+                                                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                                        ) {
+                                                            Icon(
+                                                                painter = painterResource(Res.drawable.ic_lightbulb),
+                                                                contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
+                                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text("Testar LED", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                                                        }
+
+                                                        TextButton(
+                                                            onClick = { selectedPrateleiraForPosicao = prateleira },
+                                                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                                        ) {
+                                                            Icon(
+                                                                painter = painterResource(Res.drawable.ic_add),
+                                                                contentDescription = null, // Decorativo: o texto "Posição" descreve a ação
+                                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text("Posição", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                                                        }
+                                                    }
+                                                }
+
+                                                // NÍVEL 3: Posições dentro do mesmo card (recuo 32 dp)
+                                                AnimatedVisibility(visible = pratItem.isExpanded) {
+                                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                                        if (pratItem.posicoes.isEmpty()) {
+                                                            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                                                            Text(
+                                                                text = "Nenhuma posição para o filtro.",
+                                                                style = MaterialTheme.typography.bodyLarge,
+                                                                color = InkMuted,
+                                                                modifier = Modifier.padding(
+                                                                    start = dimensions.paddingMedium + 32.dp,
+                                                                    end = dimensions.paddingMedium,
+                                                                    top = 10.dp,
+                                                                    bottom = 10.dp
+                                                                )
                                                             )
                                                         }
 
-                                                        // Linha de ações da Prateleira
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .padding(top = 4.dp),
-                                                            horizontalArrangement = Arrangement.End,
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            TextButton(
-                                                                onClick = {
-                                                                    coroutineScope.launch {
-                                                                        val res = viewModel.testarLed(estante.ledId, prateleira.ledIdPonta, null)
-                                                                        if (res.isSuccess) {
-                                                                            snackbarHostState.showSnackbar("TESTE_LED enviado para prateleira ${prateleira.codigo}")
-                                                                        }
-                                                                    }
-                                                                }
-                                                            ) {
-                                                                Row(
-                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                ) {
-                                                                    Icon(
-                                                                        painter = painterResource(Res.drawable.ic_lightbulb),
-                                                                        contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
-                                                                        tint = MaterialTheme.colorScheme.primary,
-                                                                        modifier = Modifier.size(24.dp)
-                                                                    )
-                                                                    Text("Testar LED", style = MaterialTheme.typography.labelSmall)
-                                                                }
-                                                            }
+                                                        pratItem.posicoes.forEach { posItem ->
+                                                            val posicao = posItem.posicao
+                                                            val tag = posItem.tagNfc
+                                                            val isVinculado = posItem.isVinculado
 
-                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-                                                            TextButton(
-                                                                onClick = { selectedPrateleiraForPosicao = prateleira }
-                                                            ) {
-                                                                Row(
-                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                ) {
-                                                                    Icon(
-                                                                        painter = painterResource(Res.drawable.ic_add),
-                                                                        contentDescription = null, // Decorativo: o texto "Posição" descreve a ação
-                                                                        tint = MaterialTheme.colorScheme.primary,
-                                                                        modifier = Modifier.size(24.dp)
-                                                                    )
-                                                                    Text("Posição", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // NÍVEL 3: Posições da Prateleira (Verde)
-                                                        AnimatedVisibility(visible = pratItem.isExpanded) {
                                                             Column(
                                                                 modifier = Modifier
                                                                     .fillMaxWidth()
-                                                                    .padding(start = 10.dp, top = 6.dp),
-                                                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                            ) {
-                                                                if (pratItem.posicoes.isEmpty()) {
-                                                                    Text(
-                                                                        text = "Nenhuma posição para o filtro selecionado.",
-                                                                        style = MaterialTheme.typography.labelSmall,
-                                                                        color = MaterialTheme.colorScheme.outline,
-                                                                        modifier = Modifier.padding(vertical = 4.dp)
+                                                                    .padding(
+                                                                        start = dimensions.paddingMedium + 32.dp,
+                                                                        end = dimensions.paddingMedium,
+                                                                        top = 12.dp,
+                                                                        bottom = 8.dp
                                                                     )
+                                                            ) {
+                                                                FlowRow(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                                    itemVerticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                        Icon(
+                                                                            painter = painterResource(Res.drawable.ic_inventory_2),
+                                                                            contentDescription = null, // Decorativo: o texto "Posição ..." identifica o nível
+                                                                            tint = MaterialTheme.colorScheme.onSurface,
+                                                                            modifier = Modifier.size(24.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(10.dp))
+                                                                        Text(
+                                                                            text = "Posição ${posicao.codigo}",
+                                                                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                                                            color = MaterialTheme.colorScheme.onSurface
+                                                                        )
+                                                                    }
+
+                                                                    val statusColor = if (isVinculado) OkTeal else WarnAmber
+                                                                    Surface(
+                                                                        shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                                                                        color = MaterialTheme.colorScheme.surface,
+                                                                        border = BorderStroke(1.dp, statusColor)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                                            verticalAlignment = Alignment.CenterVertically,
+                                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                                        ) {
+                                                                            Icon(
+                                                                                painter = painterResource(Res.drawable.ic_nfc),
+                                                                                contentDescription = null, // Decorativo: o rótulo ao lado informa o status NFC
+                                                                                tint = statusColor,
+                                                                                modifier = Modifier.size(18.dp)
+                                                                            )
+                                                                            Text(
+                                                                                text = if (isVinculado) "Vinculado" else "NFC pendente",
+                                                                                style = MaterialTheme.typography.labelMedium,
+                                                                                color = statusColor
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                            }
+
+                                                                Spacer(modifier = Modifier.height(6.dp))
+
+                                                                Column(modifier = Modifier.padding(start = 34.dp)) {
+                                                                    Text(
+                                                                        text = "LED ${posicao.ledId} · ${posicao.limitesLap}",
+                                                                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                                        color = InkMuted
+                                                                    )
+                                                                    if (isVinculado && tag != null) {
+                                                                        Text(
+                                                                            text = "UID ${tag.uid}",
+                                                                            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                                                                            color = InkMuted
+                                                                        )
+                                                                    }
                                                                 }
 
-                                                                pratItem.posicoes.forEach { posItem ->
-                                                                    val posicao = posItem.posicao
-                                                                    val tag = posItem.tagNfc
-                                                                    val isVinculado = posItem.isVinculado
-
-                                                                    Card(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                                                        shape = RoundedCornerShape(8.dp)
+                                                                FlowRow(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .padding(start = 26.dp),
+                                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                                ) {
+                                                                    TextButton(
+                                                                        onClick = {
+                                                                            coroutineScope.launch {
+                                                                                val res = viewModel.testarLed(estante.ledId, prateleira.ledIdPonta, posicao.ledId)
+                                                                                if (res.isSuccess) {
+                                                                                    snackbarHostState.showSnackbar("TESTE_LED enviado para posição ${posicao.codigo}")
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                                                                     ) {
-                                                                        Column(
-                                                                            modifier = Modifier
-                                                                                .fillMaxWidth()
-                                                                                .padding(8.dp)
-                                                                        ) {
-                                                                            // Linha superior: Código da Posição + Badge de Status NFC
-                                                                            Row(
-                                                                                modifier = Modifier.fillMaxWidth(),
-                                                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                                                verticalAlignment = Alignment.CenterVertically
-                                                                            ) {
-                                                                                Row(
-                                                                                    modifier = Modifier.weight(1f, fill = false),
-                                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                                ) {
-                                                                                    Box(
-                                                                                        modifier = Modifier
-                                                                                            .width(4.dp)
-                                                                                            .height(20.dp)
-                                                                                            .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(2.dp))
-                                                                                    )
-                                                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                                                    Text(
-                                                                                        text = posicao.codigo,
-                                                                                        style = MaterialTheme.typography.titleSmall,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        color = MaterialTheme.colorScheme.onSurface,
-                                                                                        maxLines = 1,
-                                                                                        overflow = TextOverflow.Ellipsis
-                                                                                    )
-                                                                                }
+                                                                        Icon(
+                                                                            painter = painterResource(Res.drawable.ic_lightbulb),
+                                                                            contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
+                                                                            tint = MaterialTheme.colorScheme.onSurface,
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text("Testar LED", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                                                                    }
 
-                                                                                // Badge de Status NFC (JOIN com TagNFC)
-                                                                                Box(
-                                                                                    modifier = Modifier
-                                                                                        .background(
-                                                                                            if (isVinculado) OkTeal.copy(alpha = 0.15f) else WarnAmber.copy(alpha = 0.15f),
-                                                                                            RoundedCornerShape(4.dp)
-                                                                                        )
-                                                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                                    ) {
-                                                                                        Text(
-                                                                                            text = if (isVinculado) "Vinculado" else "Pendente",
-                                                                                            style = MaterialTheme.typography.labelSmall,
-                                                                                            color = if (isVinculado) OkTeal else WarnAmber,
-                                                                                            fontWeight = FontWeight.Bold,
-                                                                                            maxLines = 1
-                                                                                        )
-                                                                                    }
-                                                                            }
-
-                                                                            Spacer(modifier = Modifier.height(4.dp))
-
-                                                                            // Informações da Posição
-                                                                            Column(modifier = Modifier.padding(start = 12.dp)) {
-                                                                                Text(
-                                                                                    text = "LED: ${posicao.ledId} • L×A×P: ${posicao.limitesLap}",
-                                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                                                    maxLines = 1,
-                                                                                    overflow = TextOverflow.Ellipsis
-                                                                                )
-                                                                                if (isVinculado && tag != null) {
-                                                                                    Row(
-                                                                                        verticalAlignment = Alignment.CenterVertically,
-                                                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                                    ) {
-                                                                                        Icon(
-                                                                                            painter = painterResource(Res.drawable.ic_nfc),
-                                                                                            contentDescription = null, // Decorativo: o texto "Tag NFC" descreve o UID ao lado
-                                                                                            tint = OkTeal,
-                                                                                            modifier = Modifier.size(24.dp)
-                                                                                        )
-                                                                                        Text(
-                                                                                            text = "Tag NFC: ${tag.uid}",
-                                                                                            style = MaterialTheme.typography.bodySmall,
-                                                                                            color = OkTeal,
-                                                                                            fontWeight = FontWeight.SemiBold,
-                                                                                            maxLines = 1,
-                                                                                            overflow = TextOverflow.Ellipsis
-                                                                                        )
-                                                                                    }
-                                                                                }
-                                                                            }
-
-                                                                            // Ações da Posição
-                                                                            Row(
-                                                                                modifier = Modifier
-                                                                                    .fillMaxWidth()
-                                                                                    .padding(top = 4.dp),
-                                                                                horizontalArrangement = Arrangement.End,
-                                                                                verticalAlignment = Alignment.CenterVertically
-                                                                            ) {
-                                                                                TextButton(
-                                                                                    onClick = {
-                                                                                        coroutineScope.launch {
-                                                                                            val res = viewModel.testarLed(estante.ledId, prateleira.ledIdPonta, posicao.ledId)
-                                                                                            if (res.isSuccess) {
-                                                                                                snackbarHostState.showSnackbar("TESTE_LED enviado para posição ${posicao.codigo}")
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                ) {
-                                                                                    Row(
-                                                                                        verticalAlignment = Alignment.CenterVertically,
-                                                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                                    ) {
-                                                                                        Icon(
-                                                                                            painter = painterResource(Res.drawable.ic_lightbulb),
-                                                                                            contentDescription = null, // Decorativo: o texto "Testar" descreve a ação
-                                                                                            tint = MaterialTheme.colorScheme.primary,
-                                                                                            modifier = Modifier.size(24.dp)
-                                                                                        )
-                                                                                        Text("Testar", style = MaterialTheme.typography.labelSmall)
-                                                                                    }
-                                                                                }
-
-                                                                                Spacer(modifier = Modifier.width(6.dp))
-
-                                                                                TextButton(
-                                                                                    onClick = {
-                                                                                        posicaoParaVincularNfc = posicao
-                                                                                        bindingTagUidInput = tag?.uid ?: initialTagUid ?: ""
-                                                                                        bindingErrorMessage = null
-                                                                                    }
-                                                                                ) {
-                                                                                    Text(
-                                                                                        text = if (isVinculado) "Alterar Tag" else "Vincular",
-                                                                                        style = MaterialTheme.typography.labelSmall,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        color = MaterialTheme.colorScheme.onSurface
-                                                                                    )
-                                                                                }
-                                                                            }
-                                                                        }
+                                                                    TextButton(
+                                                                        onClick = {
+                                                                            posicaoParaVincularNfc = posicao
+                                                                            bindingTagUidInput = tag?.uid ?: initialTagUid ?: ""
+                                                                            bindingErrorMessage = null
+                                                                        },
+                                                                        modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                                                                    ) {
+                                                                        Icon(
+                                                                            painter = painterResource(Res.drawable.ic_nfc),
+                                                                            contentDescription = null, // Decorativo: o texto ao lado descreve a ação
+                                                                            tint = MaterialTheme.colorScheme.onSurface,
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text(
+                                                                            text = if (isVinculado) "Alterar tag" else "Vincular tag",
+                                                                            style = MaterialTheme.typography.labelLarge,
+                                                                            color = MaterialTheme.colorScheme.onSurface
+                                                                        )
                                                                     }
                                                                 }
                                                             }
@@ -720,16 +705,16 @@ fun EnderecosScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (erroEstante != null) {
-                        Text(erroEstante ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        ModalValidationError(erroEstante ?: "")
                     }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         if (codEstante.isBlank() || nomeEstante.isBlank() || ledIdEstante.isBlank()) {
                             erroEstante = "Preencha todos os campos obrigatórios."
-                            return@TextButton
+                            return@Button
                         }
                         coroutineScope.launch {
                             val res = viewModel.inserirEstante(
@@ -745,14 +730,25 @@ fun EnderecosScreen(
                                 erroEstante = res.exceptionOrNull()?.message
                             }
                         }
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Salvar Estante", fontWeight = FontWeight.Bold)
+                    Text("Salvar estante")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showModalNovaEstante = false }) {
-                    Text("Cancelar")
+                OutlinedButton(
+                    onClick = { showModalNovaEstante = false },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -799,23 +795,31 @@ fun EnderecosScreen(
                                         viewModel.testarLed(estanteSelecionada.ledId, ledIdPonta, null)
                                     }
                                 }
-                            }
+                            },
+                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                         ) {
-                            Text("Testar LED", style = MaterialTheme.typography.labelSmall)
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_lightbulb),
+                                contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Testar LED", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
                     if (erroPrat != null) {
-                        Text(erroPrat ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        ModalValidationError(erroPrat ?: "")
                     }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         if (codPrat.isBlank() || ledIdPonta.isBlank()) {
                             erroPrat = "Preencha todos os campos obrigatórios."
-                            return@TextButton
+                            return@Button
                         }
                         coroutineScope.launch {
                             val res = viewModel.inserirPrateleira(
@@ -830,14 +834,25 @@ fun EnderecosScreen(
                                 erroPrat = res.exceptionOrNull()?.message
                             }
                         }
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Salvar Prateleira", fontWeight = FontWeight.Bold)
+                    Text("Salvar prateleira")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { selectedEstanteForPrateleira = null }) {
-                    Text("Cancelar")
+                OutlinedButton(
+                    onClick = { selectedEstanteForPrateleira = null },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -877,9 +892,9 @@ fun EnderecosScreen(
                         label = { Text("Limites L×A×P") },
                         supportingText = {
                             if (!isLapValido && limitesLap.isNotBlank()) {
-                                Text("Formato esperado: 30x20x40cm ou 150x80x200mm", color = MaterialTheme.colorScheme.error)
+                                ModalValidationError("Formato esperado: 30x20x40cm ou 150x80x200mm")
                             } else {
-                                Text("Ex: 30x20x40cm")
+                                Text("Ex: 30x20x40cm", color = InkMuted)
                             }
                         },
                         isError = !isLapValido && limitesLap.isNotBlank(),
@@ -888,7 +903,7 @@ fun EnderecosScreen(
                     OutlinedTextField(
                         value = ledIdPosicao,
                         onValueChange = { ledIdPosicao = it.uppercase() },
-                        label = { Text("ID do LED Posicional") },
+                        label = { Text("ID do LED posicional") },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -900,27 +915,35 @@ fun EnderecosScreen(
                                         viewModel.testarLed("EST_A", prateleiraSelecionada.ledIdPonta, ledIdPosicao)
                                     }
                                 }
-                            }
+                            },
+                            modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                         ) {
-                            Text("Testar LED", style = MaterialTheme.typography.labelSmall)
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_lightbulb),
+                                contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Testar LED", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
                     if (erroPosicao != null) {
-                        Text(erroPosicao ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        ModalValidationError(erroPosicao ?: "")
                     }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         if (codPosicao.isBlank() || ledIdPosicao.isBlank()) {
                             erroPosicao = "Preencha todos os campos obrigatórios."
-                            return@TextButton
+                            return@Button
                         }
                         if (!isLapValido) {
                             erroPosicao = "Formato esperado: 30x20x40cm ou 150x80x200mm"
-                            return@TextButton
+                            return@Button
                         }
                         coroutineScope.launch {
                             val res = viewModel.inserirPosicao(
@@ -936,14 +959,25 @@ fun EnderecosScreen(
                                 erroPosicao = res.exceptionOrNull()?.message
                             }
                         }
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Salvar Posição", fontWeight = FontWeight.Bold)
+                    Text("Salvar posição")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { selectedPrateleiraForPosicao = null }) {
-                    Text("Cancelar")
+                OutlinedButton(
+                    onClick = { selectedPrateleiraForPosicao = null },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -979,20 +1013,32 @@ fun EnderecosScreen(
                     )
 
                     if (bindingErrorMessage != null) {
-                        Text(bindingErrorMessage ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        ModalValidationError(bindingErrorMessage ?: "")
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    PrimaryButton(
-                        text = "Simulador de Leitura NFC",
+                    OutlinedButton(
                         onClick = { showNfcSimulatorForBinding = true },
-                        containerColor = MaterialTheme.colorScheme.onSurface
-                    )
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = dimensions.minTouchTarget),
+                        shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_nfc),
+                            contentDescription = null, // Decorativo: o texto ao lado descreve a ação
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simular NFC", color = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         if (bindingTagUidInput.isNotBlank()) {
                             coroutineScope.launch {
@@ -1008,14 +1054,25 @@ fun EnderecosScreen(
                             }
                         }
                     },
-                    enabled = bindingTagUidInput.isNotBlank()
+                    enabled = bindingTagUidInput.isNotBlank(),
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Concluir Cadastro", fontWeight = FontWeight.Bold, color = OkTeal)
+                    Text("Concluir cadastro")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { posicaoParaVincularNfc = null }) {
-                    Text("Cancelar")
+                OutlinedButton(
+                    onClick = { posicaoParaVincularNfc = null },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget),
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -1032,6 +1089,26 @@ fun EnderecosScreen(
                 bindingErrorMessage = null
                 NfcManager.onTagScanned(uid, force = true)
             }
+        )
+    }
+}
+
+@Composable
+private fun ModalValidationError(message: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_error),
+            contentDescription = null, // Decorativo: o texto ao lado descreve o erro de validação
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error
         )
     }
 }
