@@ -228,12 +228,30 @@ private fun EspMetadataAndChannelsSection(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text("Canais Anunciados (somente leitura):", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Canal", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("GPIO", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 uiState.selectedChannels.forEach { ch ->
-                    Text(
-                        text = "• ${ch.channelId} → GPIO ${ch.gpio} (${if (ch.activeHigh) "Active-High" else "Active-Low"})",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = ch.channelId,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "GPIO ${ch.gpio} (${if (ch.activeHigh) "Active-High" else "Active-Low"})",
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -352,7 +370,7 @@ private fun EspMappingsEditorSection(
     ) {
         Column(modifier = Modifier.padding(dimensions.paddingMedium)) {
             Text(
-                text = "Mapeamentos LED ↔ Canal GPIO (${uiState.draftMappings.size}/${uiState.selectedChannels.size})",
+                text = "Mapeamentos LED e canal (${uiState.draftMappings.size}/${uiState.selectedChannels.size})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -525,11 +543,21 @@ private fun MappingRowItem(
         shape = RoundedCornerShape(10.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "${mapping.channelId}${gpio?.let { " (GPIO $it)" } ?: ""} → [${mapping.kind.name}] ${mapping.ledId}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${mapping.channelId}${gpio?.let { " (GPIO $it)" } ?: ""}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "[${mapping.kind.name}] ${mapping.ledId}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             rowViolations.forEach { v ->
                 Text(
                     text = EspManagementViewModel.readableViolation(v),

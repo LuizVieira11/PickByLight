@@ -30,6 +30,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -77,6 +78,17 @@ import com.uniso.wms.pickbylight.util.FeedbackScenario
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_add
+import pickbylight.app.shared.generated.resources.ic_edit
+import pickbylight.app.shared.generated.resources.ic_expand_less
+import pickbylight.app.shared.generated.resources.ic_expand_more
+import pickbylight.app.shared.generated.resources.ic_inventory_2
+import pickbylight.app.shared.generated.resources.ic_location_on
+import pickbylight.app.shared.generated.resources.ic_lock
+import pickbylight.app.shared.generated.resources.ic_search
+import pickbylight.app.shared.generated.resources.ic_settings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,7 +149,12 @@ fun CatalogoScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("➕", fontWeight = FontWeight.Bold)
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_add),
+                        contentDescription = null, // Decorativo: o texto "Novo Item" ao lado descreve a ação
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Text("Novo Item", fontWeight = FontWeight.Bold)
                 }
             }
@@ -186,7 +203,15 @@ fun CatalogoScreen(
                         EmptyState(
                             title = "Nenhum item cadastrado",
                             message = "O catálogo está vazio. Cadastre o primeiro item para gerenciar seu estoque.",
-                            actionLabel = "➕ Cadastrar Item",
+                            actionLabel = "Cadastrar Item",
+                            actionLeadingIcon = {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_add),
+                                    contentDescription = null, // Decorativo: o rótulo "Cadastrar Item" descreve a ação
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
                             onActionClick = { showModalNovoItem = true },
                             modifier = Modifier.weight(1f)
                         )
@@ -241,7 +266,14 @@ fun CatalogoScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             singleLine = true,
-                            leadingIcon = { Text("🔍") }
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_search),
+                                    contentDescription = null, // Decorativo: o placeholder indica busca no catálogo
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -484,7 +516,20 @@ fun CatalogoScreen(
                             }
                             HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("➕ Adicionar Nova Categoria...", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(Res.drawable.ic_add),
+                                            contentDescription = null, // Decorativo: o texto ao lado descreve a ação
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Text("Adicionar Nova Categoria...", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                                    }
+                                },
                                 onClick = {
                                     dropdownCategoriaExpanded = false
                                     showNovaCategoriaDialog = true
@@ -949,13 +994,24 @@ private fun ItemCardComponent(
                             .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text(
-                            text = "🔒 Em Separação",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_lock),
+                                contentDescription = null, // Decorativo: o texto "Em Separação" indica o bloqueio
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Em Separação",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
@@ -1012,18 +1068,40 @@ private fun ItemCardComponent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "📍 Localizações (${itemCard.estoques.size} posições)",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (accordionExpanded) "▲ Ocultar" else "▼ Detalhar",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_location_on),
+                                contentDescription = null, // Decorativo: o texto "Localizações" descreve a seção
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Localizações (${itemCard.estoques.size} posições)",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(if (accordionExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
+                                contentDescription = null, // Decorativo: o texto "Ocultar"/"Detalhar" ao lado descreve o estado
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = if (accordionExpanded) "Ocultar" else "Detalhar",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
 
                     if (accordionExpanded) {
@@ -1084,30 +1162,57 @@ private fun ItemCardComponent(
                 ) {
                     TextButton(
                         onClick = onEdit,
-                        modifier = Modifier.height(44.dp)
+                        modifier = Modifier.height(48.dp)
                     ) {
-                        Text("✏️ Editar", style = MaterialTheme.typography.labelMedium)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_edit),
+                                contentDescription = null, // Decorativo: o texto "Editar" descreve a ação
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text("Editar", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
 
                     TextButton(
                         onClick = onMove,
-                        modifier = Modifier.height(44.dp)
+                        modifier = Modifier.height(48.dp)
                     ) {
-                        Text(
-                            text = "📦 Mover",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_inventory_2),
+                                contentDescription = null, // Decorativo: o texto "Mover" descreve a ação
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Mover",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
 
                 if (debugMode) {
                     IconButton(
                         onClick = onToggleLock,
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Text("⚙️", style = MaterialTheme.typography.titleMedium)
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_settings),
+                            contentDescription = "Simular item em separação",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }

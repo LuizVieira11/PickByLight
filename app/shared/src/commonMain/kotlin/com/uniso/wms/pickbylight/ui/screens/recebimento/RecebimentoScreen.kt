@@ -33,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -63,6 +64,15 @@ import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_check_circle
+import pickbylight.app.shared.generated.resources.ic_error
+import pickbylight.app.shared.generated.resources.ic_inventory_2
+import pickbylight.app.shared.generated.resources.ic_location_on
+import pickbylight.app.shared.generated.resources.ic_nfc
+import pickbylight.app.shared.generated.resources.ic_sensors
+import pickbylight.app.shared.generated.resources.ic_warning
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
@@ -304,9 +314,11 @@ fun RecebimentoScreen(
                                     .border(2.dp, circleColor, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = if (uiState.isErrorFlashingRed) "⚠️" else "📡",
-                                    style = MaterialTheme.typography.displayMedium
+                                Icon(
+                                    painter = painterResource(if (uiState.isErrorFlashingRed) Res.drawable.ic_error else Res.drawable.ic_sensors),
+                                    contentDescription = if (uiState.isErrorFlashingRed) "Erro na leitura NFC" else "Aguardando leitura NFC",
+                                    tint = circleColor,
+                                    modifier = Modifier.size(48.dp)
                                 )
                             }
 
@@ -521,13 +533,24 @@ fun RecebimentoScreen(
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(
-                                        text = "📦 Saldo atual em ${pos.codigo}: $saldoNaPosicao ${selected.unidade} • Após entrada: ${saldoNaPosicao + uiState.quantidade} ${selected.unidade} (Total geral: ${saldoTotal + uiState.quantidade} ${selected.unidade})",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(Res.drawable.ic_inventory_2),
+                                            contentDescription = null, // Decorativo: o texto ao lado informa o saldo da posição
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Text(
+                                            text = "Saldo atual em ${pos.codigo}: $saldoNaPosicao ${selected.unidade} • Após entrada: ${saldoNaPosicao + uiState.quantidade} ${selected.unidade} (Total geral: ${saldoTotal + uiState.quantidade} ${selected.unidade})",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             }
 
@@ -764,11 +787,22 @@ fun RecebimentoScreen(
                                 .fillMaxWidth()
                                 .padding(dimensions.paddingMedium)
                         ) {
-                            Text(
-                                text = "📦 Lista para Recebimento (${uiState.itensLote.size})",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_inventory_2),
+                                    contentDescription = null, // Decorativo: o título ao lado identifica a lista
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Lista para Recebimento (${uiState.itensLote.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
@@ -906,9 +940,11 @@ fun RecebimentoScreen(
                                         .border(2.dp, circleColor, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = if (uiState.isErrorFlashingRed) "⚠️" else "🏷️",
-                                        style = MaterialTheme.typography.displayMedium
+                                    Icon(
+                                        painter = painterResource(if (uiState.isErrorFlashingRed) Res.drawable.ic_error else Res.drawable.ic_nfc),
+                                        contentDescription = if (uiState.isErrorFlashingRed) "Erro na leitura NFC" else "Aproxime a etiqueta NFC",
+                                        tint = circleColor,
+                                        modifier = Modifier.size(48.dp)
                                     )
                                 }
 
@@ -966,9 +1002,11 @@ fun RecebimentoScreen(
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = "✅",
-                                style = MaterialTheme.typography.displayMedium
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_check_circle),
+                                contentDescription = "Recebimento confirmado",
+                                tint = OkTeal,
+                                modifier = Modifier.size(48.dp)
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -1023,12 +1061,23 @@ fun RecebimentoScreen(
                                                     color = OkTeal
                                                 )
                                             }
-                                            Text(
-                                                text = "📍 ${resumo.enderecoFormatado}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_location_on),
+                                                    contentDescription = null, // Decorativo: o texto ao lado informa o endereço
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = resumo.enderecoFormatado,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1174,11 +1223,22 @@ fun RecebimentoScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Text(
-                                    text = if (tagVinculada != null) "🏷️ Tag: ${tagVinculada.uid}" else "⚠️ Pendente NFC",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (tagVinculada != null) OkTeal else WarnAmber
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(if (tagVinculada != null) Res.drawable.ic_nfc else Res.drawable.ic_warning),
+                                        contentDescription = null, // Decorativo: o texto ao lado informa o status da tag NFC
+                                        tint = if (tagVinculada != null) OkTeal else WarnAmber,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = if (tagVinculada != null) "Tag: ${tagVinculada.uid}" else "Pendente NFC",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (tagVinculada != null) OkTeal else WarnAmber
+                                    )
+                                }
                             }
                         }
                     }

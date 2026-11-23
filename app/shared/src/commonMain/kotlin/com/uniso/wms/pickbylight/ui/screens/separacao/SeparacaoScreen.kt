@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -64,12 +65,26 @@ import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
+import com.uniso.wms.pickbylight.ui.theme.LedAmber
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_cancel
+import pickbylight.app.shared.generated.resources.ic_check_circle
+import pickbylight.app.shared.generated.resources.ic_inventory_2
+import pickbylight.app.shared.generated.resources.ic_list_alt
+import pickbylight.app.shared.generated.resources.ic_location_on
+import pickbylight.app.shared.generated.resources.ic_lock
+import pickbylight.app.shared.generated.resources.ic_my_location
+import pickbylight.app.shared.generated.resources.ic_nfc
+import pickbylight.app.shared.generated.resources.ic_route
+import pickbylight.app.shared.generated.resources.ic_timer
+import pickbylight.app.shared.generated.resources.ic_warning
 
 @Composable
 fun SeparacaoScreen(
@@ -179,12 +194,23 @@ fun SeparacaoScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "📋 Resumo do Pedido:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_list_alt),
+                                    contentDescription = null, // Decorativo: o texto "Resumo do Pedido" descreve a seção
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Resumo do Pedido:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             Text(
                                 text = "$totalItens ${if (totalItens == 1) "item" else "itens"} • $totalUnidades ${if (totalUnidades == 1) "unidade" else "unidades"}",
                                 style = MaterialTheme.typography.labelLarge,
@@ -232,12 +258,23 @@ fun SeparacaoScreen(
                         .background(MaterialTheme.colorScheme.error, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
-                    Text(
-                        text = "⚠️ MODO MANUAL — LED indisponível. Validação por endereço textual.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_warning),
+                            contentDescription = null, // Decorativo: o texto ao lado informa o Modo Manual
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "MODO MANUAL — LED indisponível. Validação por endereço textual.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -257,13 +294,24 @@ fun SeparacaoScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "⏱️ ${uiState.timeoutCancelMessage}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_timer),
+                                contentDescription = null, // Decorativo: o texto ao lado informa o tempo esgotado
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = uiState.timeoutCancelMessage ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                         TextButton(onClick = { viewModel.dismissTimeoutCancelMessage() }) {
                             Text("OK", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         }
@@ -417,13 +465,24 @@ fun SeparacaoScreen(
                                                         .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                                 ) {
-                                                    Text(
-                                                        text = "🔒 Em Separação",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = Color.White,
-                                                        fontWeight = FontWeight.Bold,
-                                                        maxLines = 1
-                                                    )
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(Res.drawable.ic_lock),
+                                                            contentDescription = null, // Decorativo: o texto "Em Separação" indica o bloqueio
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                        Text(
+                                                            text = "Em Separação",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = Color.White,
+                                                            fontWeight = FontWeight.Bold,
+                                                            maxLines = 1
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -533,12 +592,24 @@ fun SeparacaoScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        Text(
-                                            text = "⏱️ ${uiState.timeoutOperadorSegundos}s para bipar",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (uiState.timeoutOperadorSegundos < 15) MaterialTheme.colorScheme.error else WarnAmber
-                                        )
+                                        val timerColor = if (uiState.timeoutOperadorSegundos < 15) MaterialTheme.colorScheme.error else WarnAmber
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(Res.drawable.ic_timer),
+                                                contentDescription = null, // Decorativo: o texto ao lado informa o tempo restante
+                                                tint = timerColor,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Text(
+                                                text = "${uiState.timeoutOperadorSegundos}s para bipar",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = timerColor
+                                            )
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -586,12 +657,32 @@ fun SeparacaoScreen(
                                             .fillMaxWidth(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = if (uiState.isModoManual) "⚠️ MODO MANUAL (LED Indisponível)" else "🟢 LED VERDE ACESO (${passo.posicao.ledId})",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            if (uiState.isModoManual) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_warning),
+                                                    contentDescription = null, // Decorativo: o texto "MODO MANUAL" descreve o estado
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(24.dp)
+                                                        .background(LedAmber, CircleShape)
+                                                        .border(2.dp, Color.White, CircleShape)
+                                                )
+                                            }
+                                            Text(
+                                                text = if (uiState.isModoManual) "MODO MANUAL (LED Indisponível)" else "LED VERDE ACESO (${passo.posicao.ledId})",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.height(16.dp))
@@ -608,12 +699,23 @@ fun SeparacaoScreen(
                                                 modifier = Modifier.padding(12.dp),
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
-                                                Text(
-                                                    text = "🧭 GUIA VISUAL POR ENDEREÇO TEXTUAL",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = MaterialTheme.colorScheme.error
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(Res.drawable.ic_route),
+                                                        contentDescription = null, // Decorativo: o título ao lado identifica o guia textual
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                    Text(
+                                                        text = "GUIA VISUAL POR ENDEREÇO TEXTUAL",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
                                                     text = "O LED físico está indisponível. Dirija-se visualmente até ${formatEndereco(passo.estante, passo.prateleira, passo.posicao)} e bipe a etiqueta NFC para validar a posição (Poka-Yoke ativo).",
@@ -654,14 +756,25 @@ fun SeparacaoScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = "📍 ${formatEndereco(passo.estante, passo.prateleira, passo.posicao)}",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_location_on),
+                                                    contentDescription = null, // Decorativo: o texto ao lado informa o endereço de coleta
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = formatEndereco(passo.estante, passo.prateleira, passo.posicao),
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 text = "Posição: ${passo.posicao.codigo}  •  Prateleira: ${passo.prateleira.codigo}",
@@ -681,12 +794,23 @@ fun SeparacaoScreen(
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
                                         Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(
-                                                text = if (passo.itens.size > 1) "📦 ITENS AGRUPADOS NESTA POSIÇÃO (${passo.itens.size}):" else "📦 ITEM A RETIRAR:",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_inventory_2),
+                                                    contentDescription = null, // Decorativo: o título ao lado identifica os itens a retirar
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = if (passo.itens.size > 1) "ITENS AGRUPADOS NESTA POSIÇÃO (${passo.itens.size}):" else "ITEM A RETIRAR:",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
                                             Spacer(modifier = Modifier.height(6.dp))
                                             passo.itens.forEach { itemColeta ->
                                                 Row(
@@ -740,7 +864,12 @@ fun SeparacaoScreen(
                                             .border(2.dp, OkTeal, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text("🏷️", style = MaterialTheme.typography.headlineLarge)
+                                        Icon(
+                                            painter = painterResource(Res.drawable.ic_nfc),
+                                            contentDescription = "Aproxime a etiqueta NFC",
+                                            tint = OkTeal,
+                                            modifier = Modifier.size(48.dp)
+                                        )
                                     }
 
                                     Spacer(modifier = Modifier.height(14.dp))
@@ -824,7 +953,12 @@ fun SeparacaoScreen(
                                         .padding(16.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("✅", style = MaterialTheme.typography.displaySmall)
+                                    Icon(
+                                        painter = painterResource(Res.drawable.ic_check_circle),
+                                        contentDescription = "Passo confirmado",
+                                        tint = OkTeal,
+                                        modifier = Modifier.size(48.dp)
+                                    )
 
                                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -846,12 +980,23 @@ fun SeparacaoScreen(
                                             modifier = Modifier.padding(10.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
-                                            Text(
-                                                text = "📍 ${formatEndereco(passo.estante, passo.prateleira, passo.posicao)}",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_location_on),
+                                                    contentDescription = null, // Decorativo: o texto ao lado informa o endereço confirmado
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = formatEndereco(passo.estante, passo.prateleira, passo.posicao),
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
                                             Text(
                                                 text = "Estante: ${passo.estante.nome}",
                                                 style = MaterialTheme.typography.bodySmall,
@@ -952,7 +1097,12 @@ fun SeparacaoScreen(
                                     .padding(24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("🎉", style = MaterialTheme.typography.displayMedium)
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_check_circle),
+                                    contentDescription = "Separação concluída",
+                                    tint = OkTeal,
+                                    modifier = Modifier.size(48.dp)
+                                )
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -1136,13 +1286,24 @@ fun SeparacaoScreen(
                         color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "❌ Bipado: $lida",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(8.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_cancel),
+                                contentDescription = null, // Decorativo: o texto ao lado informa o local bipado incorreto
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Bipado: $lida",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Surface(
@@ -1150,13 +1311,24 @@ fun SeparacaoScreen(
                         color = OkTeal.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "🎯 Sugerido: $esperada",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = OkTeal,
-                            modifier = Modifier.padding(8.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_my_location),
+                                contentDescription = null, // Decorativo: o texto ao lado informa o local sugerido
+                                tint = OkTeal,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Sugerido: $esperada",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = OkTeal
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(

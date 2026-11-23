@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -54,6 +56,16 @@ import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import com.uniso.wms.pickbylight.util.currentTimeMillis
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_calendar_today
+import pickbylight.app.shared.generated.resources.ic_check_circle
+import pickbylight.app.shared.generated.resources.ic_file_export
+import pickbylight.app.shared.generated.resources.ic_location_on
+import pickbylight.app.shared.generated.resources.ic_person
+import pickbylight.app.shared.generated.resources.ic_schedule
+import pickbylight.app.shared.generated.resources.ic_swap_horiz
+import pickbylight.app.shared.generated.resources.ic_warning
 
 enum class FiltroHistorico {
     TODAS,
@@ -215,7 +227,18 @@ fun HistoricoScreen(
                     csvExportContent = gerarCsvMovimentacoes(listaFiltrada, itens, ::formatEndereco)
                 }
             ) {
-                Text("📤 Exportar CSV", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_file_export),
+                        contentDescription = null, // Decorativo: o texto "Exportar CSV" descreve a ação
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text("Exportar CSV", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                }
             }
             TextButton(onClick = onNavigateBack) {
                 Text("Voltar", style = MaterialTheme.typography.labelLarge)
@@ -266,7 +289,20 @@ fun HistoricoScreen(
             FilterChip(
                 selected = filtroSelecionado == FiltroHistorico.MODO_MANUAL,
                 onClick = { filtroSelecionado = FiltroHistorico.MODO_MANUAL },
-                label = { Text("⚠️ Modo Manual") }
+                label = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_warning),
+                            contentDescription = null, // Decorativo: o rótulo "Modo Manual" descreve o filtro
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text("Modo Manual")
+                    }
+                }
             )
         }
 
@@ -281,7 +317,20 @@ fun HistoricoScreen(
                 FilterChip(
                     selected = periodoSelecionado == periodo,
                     onClick = { periodoSelecionado = periodo },
-                    label = { Text("📅 ${periodo.label}") }
+                    label = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_calendar_today),
+                                contentDescription = null, // Decorativo: o rótulo ao lado descreve o período
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(periodo.label)
+                        }
+                    }
                 )
             }
         }
@@ -348,28 +397,60 @@ fun HistoricoScreen(
                                                 .background(WarnAmber, RoundedCornerShape(6.dp))
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
-                                            Text(
-                                                text = "⚠️ Modo Manual",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White,
-                                                maxLines = 1
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_warning),
+                                                    contentDescription = null, // Decorativo: o texto "Modo Manual" descreve o badge
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text(
+                                                    text = "Modo Manual",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    maxLines = 1
+                                                )
+                                            }
                                         }
                                     }
                                 }
 
-                                Text(
-                                    text = when (mov.tipo) {
-                                        TipoMovimentacao.ENTRADA -> "+${mov.quantidade}"
-                                        TipoMovimentacao.SAIDA -> "-${mov.quantidade}"
-                                        TipoMovimentacao.TRANSFERENCIA -> "⇄ ${mov.quantidade}"
-                                    },
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = badgeColor,
-                                    maxLines = 1
-                                )
+                                if (mov.tipo == TipoMovimentacao.TRANSFERENCIA) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(Res.drawable.ic_swap_horiz),
+                                            contentDescription = null, // Decorativo: o badge TRANSFERENCIA identifica a operação
+                                            tint = badgeColor,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Text(
+                                            text = "${mov.quantidade}",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = badgeColor,
+                                            maxLines = 1
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = when (mov.tipo) {
+                                            TipoMovimentacao.ENTRADA -> "+${mov.quantidade}"
+                                            TipoMovimentacao.SAIDA -> "-${mov.quantidade}"
+                                            TipoMovimentacao.TRANSFERENCIA -> "${mov.quantidade}"
+                                        },
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = badgeColor,
+                                        maxLines = 1
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -382,13 +463,24 @@ fun HistoricoScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Text(
-                                text = "📍 ${formatEndereco(mov.posicaoId)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_location_on),
+                                    contentDescription = null, // Decorativo: o texto ao lado informa o endereço
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = formatEndereco(mov.posicaoId),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
 
                             if (!mov.observacao.isNullOrBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -408,18 +500,40 @@ fun HistoricoScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "🕒 ${formatarTimestampMovimentacao(mov.timestamp)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = "👤 ${mov.usuario}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    maxLines = 1
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(Res.drawable.ic_schedule),
+                                        contentDescription = null, // Decorativo: o texto ao lado informa a data e hora
+                                        tint = MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = formatarTimestampMovimentacao(mov.timestamp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        maxLines = 1
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(Res.drawable.ic_person),
+                                        contentDescription = null, // Decorativo: o texto ao lado informa o operador
+                                        tint = MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = mov.usuario,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
@@ -446,11 +560,30 @@ fun HistoricoScreen(
                     Text("Endereço: ${formatEndereco(detalhe.posicaoId)}")
                     Text("Data/Hora: ${formatarTimestampMovimentacao(detalhe.timestamp)}")
                     Text("Operador: ${detalhe.usuario}")
-                    Text(
-                        text = "Modo Manual: ${if (detalhe.modoManual) "SIM (⚠️ LED indisponível)" else "NÃO (Pick-by-Light normal)"}",
-                        color = if (detalhe.modoManual) WarnAmber else OkTeal,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (detalhe.modoManual) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_warning),
+                                contentDescription = null, // Decorativo: o texto ao lado informa que o LED estava indisponível
+                                tint = WarnAmber,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Modo Manual: SIM (LED indisponível)",
+                                color = WarnAmber,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Modo Manual: NÃO (Pick-by-Light normal)",
+                            color = OkTeal,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     if (!detalhe.observacao.isNullOrBlank()) {
                         Text("Observação: ${detalhe.observacao}")
                     }
@@ -474,12 +607,32 @@ fun HistoricoScreen(
             },
             text = {
                 Column {
-                    Text(
-                        text = if (csvCopiedFeedback) "✅ CSV copiado para a área de transferência!" else "Conteúdo CSV gerado das movimentações filtradas:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (csvCopiedFeedback) OkTeal else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (csvCopiedFeedback) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_check_circle),
+                                contentDescription = null, // Decorativo: o texto ao lado confirma a cópia do CSV
+                                tint = OkTeal,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "CSV copiado para a área de transferência!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OkTeal,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Conteúdo CSV gerado das movimentações filtradas:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         shape = RoundedCornerShape(8.dp),

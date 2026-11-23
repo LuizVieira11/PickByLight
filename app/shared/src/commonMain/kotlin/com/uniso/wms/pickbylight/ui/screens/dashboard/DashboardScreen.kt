@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -52,6 +54,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_list_alt
+import pickbylight.app.shared.generated.resources.ic_settings
+import pickbylight.app.shared.generated.resources.ic_warning
 
 @Composable
 fun DashboardScreen(
@@ -156,12 +163,22 @@ fun DashboardScreen(
                     ) {
                         // Botão Histórico (Seção 3.1 & 3.8)
                         IconButton(onClick = onNavigateHistorico) {
-                            Text("📋", style = MaterialTheme.typography.titleMedium)
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_list_alt),
+                                contentDescription = "Histórico",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
 
-                        // Ícone de Ajustes ⚙️ (Seção 3.1 & 3.6)
+                        // Ícone de Ajustes (Seção 3.1 & 3.6)
                         IconButton(onClick = onNavigateAjustes) {
-                            Text("⚙️", style = MaterialTheme.typography.titleMedium)
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_settings),
+                                contentDescription = "Ajustes",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -223,14 +240,25 @@ fun DashboardScreen(
 
                 if (pendingCommands > 0) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "⚠️ Comandos pendentes na fila: $pendingCommands",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WarnAmber,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_warning),
+                            contentDescription = null, // Decorativo: o texto ao lado informa os comandos pendentes
+                            tint = WarnAmber,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Comandos pendentes na fila: $pendingCommands",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = WarnAmber,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

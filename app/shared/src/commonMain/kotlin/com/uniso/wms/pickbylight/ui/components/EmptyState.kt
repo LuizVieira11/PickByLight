@@ -23,6 +23,7 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
+    actionLeadingIcon: (@Composable () -> Unit)? = null,
     icon: (@Composable () -> Unit)? = null
 ) {
     val dimensions = LocalWmsDimensions.current
@@ -61,6 +62,7 @@ fun EmptyState(
             PrimaryButton(
                 text = actionLabel,
                 onClick = onActionClick,
+                leadingIcon = actionLeadingIcon,
                 modifier = Modifier.fillMaxWidth(0.8f)
             )
         }

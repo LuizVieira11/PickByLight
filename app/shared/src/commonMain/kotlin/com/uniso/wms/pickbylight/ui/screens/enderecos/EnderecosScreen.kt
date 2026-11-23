@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +24,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
@@ -58,6 +60,13 @@ import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import org.jetbrains.compose.resources.painterResource
+import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_add
+import pickbylight.app.shared.generated.resources.ic_expand_less
+import pickbylight.app.shared.generated.resources.ic_expand_more
+import pickbylight.app.shared.generated.resources.ic_lightbulb
+import pickbylight.app.shared.generated.resources.ic_nfc
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
@@ -148,13 +157,24 @@ fun EnderecosScreen(
                     color = WarnAmber.copy(alpha = 0.15f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "🏷️ UID lido pronto para vincular: $initialTagUid. Selecione uma posição abaixo para associar.",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = WarnAmber,
-                        modifier = Modifier.padding(10.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_nfc),
+                            contentDescription = null, // Decorativo: o texto ao lado informa o UID NFC lido
+                            tint = WarnAmber,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "UID lido pronto para vincular: $initialTagUid. Selecione uma posição abaixo para associar.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = WarnAmber
+                        )
+                    }
                 }
             }
 
@@ -181,7 +201,15 @@ fun EnderecosScreen(
                     EmptyState(
                         title = "Nenhum endereço cadastrado",
                         message = "Cadastre a primeira estante física para iniciar o mapeamento do armazém.",
-                        actionLabel = "➕ Cadastrar Nova Estante",
+                        actionLabel = "Cadastrar Nova Estante",
+                        actionLeadingIcon = {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_add),
+                                contentDescription = null, // Decorativo: o rótulo ao lado descreve a ação
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
                         onActionClick = { showModalNovaEstante = true }
                     )
                 }
@@ -221,7 +249,18 @@ fun EnderecosScreen(
                         TextButton(
                             onClick = { showModalNovaEstante = true }
                         ) {
-                            Text("➕ Nova Estante", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(Res.drawable.ic_add),
+                                    contentDescription = null, // Decorativo: o texto "Nova Estante" descreve a ação
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text("Nova Estante", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            }
                         }
                     }
 
@@ -280,11 +319,11 @@ fun EnderecosScreen(
                                             }
                                         }
 
-                                        Text(
-                                            text = if (estanteItem.isExpanded) "▲" else "▼",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.outline,
-                                            modifier = Modifier.padding(start = 8.dp)
+                                        Icon(
+                                            painter = painterResource(if (estanteItem.isExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
+                                            contentDescription = if (estanteItem.isExpanded) "Ocultar estante" else "Expandir estante",
+                                            tint = MaterialTheme.colorScheme.outline,
+                                            modifier = Modifier.padding(start = 8.dp).size(24.dp)
                                         )
                                     }
 
@@ -306,7 +345,18 @@ fun EnderecosScreen(
                                                 }
                                             }
                                         ) {
-                                            Text("💡 Testar LED", style = MaterialTheme.typography.labelSmall)
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_lightbulb),
+                                                    contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text("Testar LED", style = MaterialTheme.typography.labelSmall)
+                                            }
                                         }
 
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -314,7 +364,18 @@ fun EnderecosScreen(
                                         TextButton(
                                             onClick = { selectedEstanteForPrateleira = estante }
                                         ) {
-                                            Text("➕ Prateleira", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(Res.drawable.ic_add),
+                                                    contentDescription = null, // Decorativo: o texto "Prateleira" descreve a ação
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Text("Prateleira", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
 
@@ -384,11 +445,11 @@ fun EnderecosScreen(
                                                                 }
                                                             }
 
-                                                            Text(
-                                                                text = if (pratItem.isExpanded) "▲" else "▼",
-                                                                style = MaterialTheme.typography.titleSmall,
-                                                                color = MaterialTheme.colorScheme.outline,
-                                                                modifier = Modifier.padding(start = 8.dp)
+                                                            Icon(
+                                                                painter = painterResource(if (pratItem.isExpanded) Res.drawable.ic_expand_less else Res.drawable.ic_expand_more),
+                                                                contentDescription = if (pratItem.isExpanded) "Ocultar prateleira" else "Expandir prateleira",
+                                                                tint = MaterialTheme.colorScheme.outline,
+                                                                modifier = Modifier.padding(start = 8.dp).size(24.dp)
                                                             )
                                                         }
 
@@ -410,7 +471,18 @@ fun EnderecosScreen(
                                                                     }
                                                                 }
                                                             ) {
-                                                                Text("💡 Testar LED", style = MaterialTheme.typography.labelSmall)
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        painter = painterResource(Res.drawable.ic_lightbulb),
+                                                                        contentDescription = null, // Decorativo: o texto "Testar LED" descreve a ação
+                                                                        tint = MaterialTheme.colorScheme.primary,
+                                                                        modifier = Modifier.size(24.dp)
+                                                                    )
+                                                                    Text("Testar LED", style = MaterialTheme.typography.labelSmall)
+                                                                }
                                                             }
 
                                                             Spacer(modifier = Modifier.width(6.dp))
@@ -418,7 +490,18 @@ fun EnderecosScreen(
                                                             TextButton(
                                                                 onClick = { selectedPrateleiraForPosicao = prateleira }
                                                             ) {
-                                                                Text("➕ Posição", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        painter = painterResource(Res.drawable.ic_add),
+                                                                        contentDescription = null, // Decorativo: o texto "Posição" descreve a ação
+                                                                        tint = MaterialTheme.colorScheme.primary,
+                                                                        modifier = Modifier.size(24.dp)
+                                                                    )
+                                                                    Text("Posição", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                                                }
                                                             }
                                                         }
 
@@ -512,14 +595,25 @@ fun EnderecosScreen(
                                                                                     overflow = TextOverflow.Ellipsis
                                                                                 )
                                                                                 if (isVinculado && tag != null) {
-                                                                                    Text(
-                                                                                        text = "🏷️ Tag NFC: ${tag.uid}",
-                                                                                        style = MaterialTheme.typography.bodySmall,
-                                                                                        color = OkTeal,
-                                                                                        fontWeight = FontWeight.SemiBold,
-                                                                                        maxLines = 1,
-                                                                                        overflow = TextOverflow.Ellipsis
-                                                                                    )
+                                                                                    Row(
+                                                                                        verticalAlignment = Alignment.CenterVertically,
+                                                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                                    ) {
+                                                                                        Icon(
+                                                                                            painter = painterResource(Res.drawable.ic_nfc),
+                                                                                            contentDescription = null, // Decorativo: o texto "Tag NFC" descreve o UID ao lado
+                                                                                            tint = OkTeal,
+                                                                                            modifier = Modifier.size(24.dp)
+                                                                                        )
+                                                                                        Text(
+                                                                                            text = "Tag NFC: ${tag.uid}",
+                                                                                            style = MaterialTheme.typography.bodySmall,
+                                                                                            color = OkTeal,
+                                                                                            fontWeight = FontWeight.SemiBold,
+                                                                                            maxLines = 1,
+                                                                                            overflow = TextOverflow.Ellipsis
+                                                                                        )
+                                                                                    }
                                                                                 }
                                                                             }
 
@@ -541,7 +635,18 @@ fun EnderecosScreen(
                                                                                         }
                                                                                     }
                                                                                 ) {
-                                                                                    Text("💡 Testar", style = MaterialTheme.typography.labelSmall)
+                                                                                    Row(
+                                                                                        verticalAlignment = Alignment.CenterVertically,
+                                                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                                    ) {
+                                                                                        Icon(
+                                                                                            painter = painterResource(Res.drawable.ic_lightbulb),
+                                                                                            contentDescription = null, // Decorativo: o texto "Testar" descreve a ação
+                                                                                            tint = MaterialTheme.colorScheme.primary,
+                                                                                            modifier = Modifier.size(24.dp)
+                                                                                        )
+                                                                                        Text("Testar", style = MaterialTheme.typography.labelSmall)
+                                                                                    }
                                                                                 }
 
                                                                                 Spacer(modifier = Modifier.width(6.dp))
