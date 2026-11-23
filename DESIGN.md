@@ -109,7 +109,7 @@ no "depois" da D1 em chip selecionado e no botão "+" da Separação):
 | 📋 | `list_alt` | ⏱️ | `timer` | 🎯 | `my_location` |
 | 🧭 | `route` | 👤 | `person` | ❌ | `cancel` |
 | 📅 | `calendar_today` | ✏️ | `edit` | 📡 | `sensors` |
-| 📤 | `logout` | 🔍 | `search` | 🕒 | `schedule` |
+| 📤 | `file_export` | 🔍 | `search` | 🕒 | `schedule` |
 | ⇄ | `swap_horiz` | 🎉 | `check_circle` (sem celebração) | 🟢 | ponto `LedAmber` (seção 6) |
 | ▲ / ▼ (expandir/ocultar) | `expand_less` / `expand_more` | | | | |
 | → / ↔ (em `CH01 → GPIO 4`) | tabela de duas colunas, sem seta | | | | |
