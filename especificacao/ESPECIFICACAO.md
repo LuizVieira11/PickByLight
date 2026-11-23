@@ -189,10 +189,10 @@ Fluxo em cascata (*Estante -> Prateleira -> Posição*) para mapear o armazém f
 * **Tela de Listagem de Endereços:**
   * Barra de busca no topo (filtra por código de estante, prateleira, posição ou UID da tag).
   * Filtro rápido por chips: `[Todos]`, `[NFC Vinculado]`, `[NFC Pendente]`.
-  * Visão em árvore expansível (*Accordion*):
-    * **Nível 1 (Azul): Estante** — Exibe nome, código, ID do LED e botão `[+ Prateleira]`.
-    * **Nível 2 (Vermelho/Salmão): Prateleira** — Exibe código, ID do LED de ponta, botão `[Testar LED]` e botão `[+ Posição]`.
-    * **Nível 3 (Verde): Posição** — Exibe código, limites físicos, ID da Fita de LED, **Badge de status NFC (consulta via JOIN com `TagNFC`): `Vinculado: 04:A1...` em verde ou `Pendente NFC` em amarelo** e botão `[Testar LED]`.
+  * Visão em árvore expansível (*Accordion*). Os níveis se distinguem por **ícone, recuo e rótulo**, nunca por cor (ver `DESIGN.md`, seção 6):
+    * **Nível 1 — Estante** (ícone `shelves`, sem recuo) — Exibe nome, código, ID do LED e botão `[+ Prateleira]`.
+    * **Nível 2 — Prateleira** (ícone `table_rows`, um recuo) — Exibe código, ID do LED de ponta, botão `[Testar LED]` e botão `[+ Posição]`.
+    * **Nível 3 — Posição** (ícone `inventory_2`, dois recuos) — Exibe código, limites físicos, ID da Fita de LED, **Badge de status NFC (consulta via JOIN com `TagNFC`): `Vinculado: 04:A1...` em verde ou `Pendente NFC` em amarelo** e botão `[Testar LED]`.
 * **Fluxo de Cadastro em Cascata:**
   1. **Tela de Cadastro de Estante:** Campos: Nome/Código da Estante (obrigatório, único), Descrição/Setor, ID do LED da Estante (sinalizador superior). Botão `[Salvar Estante]`.
   2. **Tela de Cadastro de Prateleira:** Contexto da Estante selecionada. Campos: Código da Prateleira (obrigatório, único dentro da estante), ID do LED de Ponta (obrigatório, único). Botões: `[Testar LED]` (dispara MQTT rápido de teste `TESTE_LED` — ver Seção 4.3) e `[Salvar Prateleira]`.
