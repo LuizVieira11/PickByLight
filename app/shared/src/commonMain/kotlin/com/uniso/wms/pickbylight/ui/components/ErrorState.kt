@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.uniso.wms.pickbylight.ui.theme.CoralError
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 
 @Composable
@@ -31,7 +30,7 @@ fun ErrorState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(dimensions.paddingLarge),
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingLarge),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -44,7 +43,7 @@ fun ErrorState(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = CoralError,
+            color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center
         )
 
@@ -62,7 +61,7 @@ fun ErrorState(
             PrimaryButton(
                 text = retryLabel,
                 onClick = onRetry,
-                containerColor = CoralError,
+                containerColor = MaterialTheme.colorScheme.error,
                 modifier = Modifier.fillMaxWidth(0.8f)
             )
         }

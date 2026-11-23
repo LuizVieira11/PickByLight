@@ -56,13 +56,9 @@ import com.uniso.wms.pickbylight.ui.components.ErrorState
 import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfBinGreen
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
-import com.uniso.wms.pickbylight.ui.theme.ShelfRowOrange
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
@@ -121,7 +117,7 @@ fun EnderecosScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(dimensions.paddingMedium)
+                .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
         ) {
             // Cabeçalho da Tela
             Row(
@@ -149,14 +145,14 @@ fun EnderecosScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = AmberWarning.copy(alpha = 0.15f),
+                    color = WarnAmber.copy(alpha = 0.15f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "🏷️ UID lido pronto para vincular: $initialTagUid. Selecione uma posição abaixo para associar.",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = AmberWarning,
+                        color = WarnAmber,
                         modifier = Modifier.padding(10.dp)
                     )
                 }
@@ -225,7 +221,7 @@ fun EnderecosScreen(
                         TextButton(
                             onClick = { showModalNovaEstante = true }
                         ) {
-                            Text("➕ Nova Estante", fontWeight = FontWeight.Bold, color = ShelfRackBlue)
+                            Text("➕ Nova Estante", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
 
@@ -262,7 +258,7 @@ fun EnderecosScreen(
                                                 modifier = Modifier
                                                     .width(6.dp)
                                                     .height(36.dp)
-                                                    .background(ShelfRackBlue, RoundedCornerShape(3.dp))
+                                                    .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp))
                                             )
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column(modifier = Modifier.weight(1f)) {
@@ -270,7 +266,7 @@ fun EnderecosScreen(
                                                     text = "${estante.codigo} — ${estante.nome}",
                                                     style = MaterialTheme.typography.titleMedium,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = ShelfRackBlue,
+                                                    color = MaterialTheme.colorScheme.onSurface,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -366,7 +362,7 @@ fun EnderecosScreen(
                                                                     modifier = Modifier
                                                                         .width(5.dp)
                                                                         .height(28.dp)
-                                                                        .background(ShelfRowOrange, RoundedCornerShape(2.dp))
+                                                                        .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(2.dp))
                                                                 )
                                                                 Spacer(modifier = Modifier.width(8.dp))
                                                                 Column(modifier = Modifier.weight(1f)) {
@@ -374,7 +370,7 @@ fun EnderecosScreen(
                                                                         text = prateleira.codigo,
                                                                         style = MaterialTheme.typography.titleSmall,
                                                                         fontWeight = FontWeight.Bold,
-                                                                        color = ShelfRowOrange,
+                                                                        color = MaterialTheme.colorScheme.onSurface,
                                                                         maxLines = 1,
                                                                         overflow = TextOverflow.Ellipsis
                                                                     )
@@ -472,14 +468,14 @@ fun EnderecosScreen(
                                                                                         modifier = Modifier
                                                                                             .width(4.dp)
                                                                                             .height(20.dp)
-                                                                                            .background(ShelfBinGreen, RoundedCornerShape(2.dp))
+                                                                                            .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(2.dp))
                                                                                     )
                                                                                     Spacer(modifier = Modifier.width(8.dp))
                                                                                     Text(
                                                                                         text = posicao.codigo,
                                                                                         style = MaterialTheme.typography.titleSmall,
                                                                                         fontWeight = FontWeight.Bold,
-                                                                                        color = ShelfBinGreen,
+                                                                                        color = MaterialTheme.colorScheme.onSurface,
                                                                                         maxLines = 1,
                                                                                         overflow = TextOverflow.Ellipsis
                                                                                     )
@@ -489,7 +485,7 @@ fun EnderecosScreen(
                                                                                 Box(
                                                                                     modifier = Modifier
                                                                                         .background(
-                                                                                            if (isVinculado) EmeraldSuccess.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f),
+                                                                                            if (isVinculado) OkTeal.copy(alpha = 0.15f) else WarnAmber.copy(alpha = 0.15f),
                                                                                             RoundedCornerShape(4.dp)
                                                                                         )
                                                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -497,7 +493,7 @@ fun EnderecosScreen(
                                                                                         Text(
                                                                                             text = if (isVinculado) "Vinculado" else "Pendente",
                                                                                             style = MaterialTheme.typography.labelSmall,
-                                                                                            color = if (isVinculado) EmeraldSuccess else AmberWarning,
+                                                                                            color = if (isVinculado) OkTeal else WarnAmber,
                                                                                             fontWeight = FontWeight.Bold,
                                                                                             maxLines = 1
                                                                                         )
@@ -519,7 +515,7 @@ fun EnderecosScreen(
                                                                                     Text(
                                                                                         text = "🏷️ Tag NFC: ${tag.uid}",
                                                                                         style = MaterialTheme.typography.bodySmall,
-                                                                                        color = EmeraldSuccess,
+                                                                                        color = OkTeal,
                                                                                         fontWeight = FontWeight.SemiBold,
                                                                                         maxLines = 1,
                                                                                         overflow = TextOverflow.Ellipsis
@@ -561,7 +557,7 @@ fun EnderecosScreen(
                                                                                         text = if (isVinculado) "Alterar Tag" else "Vincular",
                                                                                         style = MaterialTheme.typography.labelSmall,
                                                                                         fontWeight = FontWeight.Bold,
-                                                                                        color = ShelfRackBlue
+                                                                                        color = MaterialTheme.colorScheme.onSurface
                                                                                     )
                                                                                 }
                                                                             }
@@ -632,7 +628,7 @@ fun EnderecosScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (erroEstante != null) {
-                        Text(erroEstante ?: "", color = CoralError, style = MaterialTheme.typography.bodySmall)
+                        Text(erroEstante ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -682,7 +678,7 @@ fun EnderecosScreen(
             title = {
                 Column {
                     Text("Nova Prateleira", fontWeight = FontWeight.Bold)
-                    Text("Estante: ${estanteSelecionada.codigo} — ${estanteSelecionada.nome}", style = MaterialTheme.typography.bodySmall, color = ShelfRackBlue)
+                    Text("Estante: ${estanteSelecionada.codigo} — ${estanteSelecionada.nome}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             text = {
@@ -718,7 +714,7 @@ fun EnderecosScreen(
                     }
 
                     if (erroPrat != null) {
-                        Text(erroPrat ?: "", color = CoralError, style = MaterialTheme.typography.bodySmall)
+                        Text(erroPrat ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -769,7 +765,7 @@ fun EnderecosScreen(
             title = {
                 Column {
                     Text("Nova Posição de Armazenagem", fontWeight = FontWeight.Bold)
-                    Text("Prateleira: ${prateleiraSelecionada.codigo}", style = MaterialTheme.typography.bodySmall, color = ShelfRowOrange)
+                    Text("Prateleira: ${prateleiraSelecionada.codigo}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             text = {
@@ -789,7 +785,7 @@ fun EnderecosScreen(
                         label = { Text("Limites L×A×P") },
                         supportingText = {
                             if (!isLapValido && limitesLap.isNotBlank()) {
-                                Text("Formato esperado: 30x20x40cm ou 150x80x200mm", color = CoralError)
+                                Text("Formato esperado: 30x20x40cm ou 150x80x200mm", color = MaterialTheme.colorScheme.error)
                             } else {
                                 Text("Ex: 30x20x40cm")
                             }
@@ -819,7 +815,7 @@ fun EnderecosScreen(
                     }
 
                     if (erroPosicao != null) {
-                        Text(erroPosicao ?: "", color = CoralError, style = MaterialTheme.typography.bodySmall)
+                        Text(erroPosicao ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -874,7 +870,7 @@ fun EnderecosScreen(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Posição: ${posVinculando.codigo}", fontWeight = FontWeight.SemiBold, color = ShelfRackBlue)
+                    Text("Posição: ${posVinculando.codigo}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                     Text("Aproxime a traseira do celular da etiqueta física (NTAG213) ou utilize o simulador abaixo.", style = MaterialTheme.typography.bodySmall)
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -891,7 +887,7 @@ fun EnderecosScreen(
                     )
 
                     if (bindingErrorMessage != null) {
-                        Text(bindingErrorMessage ?: "", color = CoralError, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text(bindingErrorMessage ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -899,7 +895,7 @@ fun EnderecosScreen(
                     PrimaryButton(
                         text = "Simulador de Leitura NFC",
                         onClick = { showNfcSimulatorForBinding = true },
-                        containerColor = ShelfRackBlue
+                        containerColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -922,7 +918,7 @@ fun EnderecosScreen(
                     },
                     enabled = bindingTagUidInput.isNotBlank()
                 ) {
-                    Text("Concluir Cadastro", fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                    Text("Concluir Cadastro", fontWeight = FontWeight.Bold, color = OkTeal)
                 }
             },
             dismissButton = {

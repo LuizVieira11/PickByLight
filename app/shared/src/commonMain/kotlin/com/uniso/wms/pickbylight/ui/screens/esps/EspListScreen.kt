@@ -47,11 +47,10 @@ import com.uniso.wms.pickbylight.ui.components.EmptyState
 import com.uniso.wms.pickbylight.ui.components.ErrorState
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.responsive.LocalWindowSizeClass
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 
@@ -84,7 +83,7 @@ fun EspListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(dimensions.paddingMedium)
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -137,7 +136,7 @@ private fun EspListContent(
         EspListPhase.Loading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = ShelfRackBlue)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Descobrindo controladores ESP32 (janela de 3 s)...",
@@ -169,13 +168,13 @@ private fun EspListContent(
                 text = if (uiState.isDiscovering) "Descobrindo ESPs..." else "Descobrir ESPs (Atualizar)",
                 onClick = { viewModel.descobrirEsps() },
                 isLoading = uiState.isDiscovering,
-                containerColor = ShelfRackBlue
+                containerColor = MaterialTheme.colorScheme.onSurface
             )
             if (uiState.listErrorMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = uiState.listErrorMessage,
-                    color = CoralError,
+                    color = MaterialTheme.colorScheme.error,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -228,7 +227,7 @@ internal fun ColetaActiveBanner() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AmberWarning, RoundedCornerShape(8.dp))
+            .background(WarnAmber, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Text(
@@ -244,13 +243,13 @@ internal fun ColetaActiveBanner() {
 internal fun EspStatusBadge(device: EspDevice) {
     val (bg, text) = when {
         device.reportedStatus == EspOnlineStatus.CONFIG_INVALID ->
-            CoralError to "CONFIG_INVALID (${device.errorCode?.name ?: "ERRO"})"
+            MaterialTheme.colorScheme.error to "CONFIG_INVALID (${device.errorCode?.name ?: "ERRO"})"
         device.presence == EspPresence.ONLINE ->
-            EmeraldSuccess to "ONLINE"
+            OkTeal to "ONLINE"
         device.presence == EspPresence.OFFLINE ->
-            CoralError to "OFFLINE"
+            InkMuted to "OFFLINE"
         else ->
-            AmberWarning to "STATE_STALE (Possivelmente antigo)"
+            WarnAmber to "STATE_STALE (Possivelmente antigo)"
     }
     Box(
         modifier = Modifier
@@ -312,7 +311,7 @@ private fun EspDeviceCard(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = EspManagementViewModel.readableErrorCode(device.errorCode),
-                    color = CoralError,
+                    color = MaterialTheme.colorScheme.error,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -324,7 +323,7 @@ private fun EspDeviceCard(
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 48.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ShelfRackBlue, contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = Color.White)
             ) {
                 Text("Configurar / Detalhes", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

@@ -43,11 +43,9 @@ import com.uniso.wms.pickbylight.data.mqtt.MqttService
 import com.uniso.wms.pickbylight.data.settings.AppSettings
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 
@@ -82,7 +80,7 @@ fun AjustesScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(dimensions.paddingMedium)
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -128,10 +126,10 @@ fun AjustesScreen(
                 ) {
                     Text("Status da Conexão:", style = MaterialTheme.typography.bodyMedium)
                     val (badgeBg, badgeText) = when (mqttState) {
-                        MqttConnectionState.CONNECTED -> EmeraldSuccess to "Conectado"
-                        MqttConnectionState.CONNECTING -> AmberWarning to "Reconectando..."
-                        MqttConnectionState.DISCONNECTED -> CoralError to "Offline"
-                        MqttConnectionState.ERROR -> CoralError to "Erro MQTT"
+                        MqttConnectionState.CONNECTED -> OkTeal to "Conectado"
+                        MqttConnectionState.CONNECTING -> WarnAmber to "Reconectando..."
+                        MqttConnectionState.DISCONNECTED -> MaterialTheme.colorScheme.error to "Offline"
+                        MqttConnectionState.ERROR -> MaterialTheme.colorScheme.error to "Erro MQTT"
                     }
                     Box(
                         modifier = Modifier
@@ -158,7 +156,7 @@ fun AjustesScreen(
                         text = protocolText,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        color = EmeraldSuccess
+                        color = OkTeal
                     )
                 }
 
@@ -206,7 +204,7 @@ fun AjustesScreen(
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selected) ShelfRackBlue else MaterialTheme.colorScheme.surfaceVariant,
+                                containerColor = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         ) {
@@ -227,7 +225,7 @@ fun AjustesScreen(
                     text = if (uiState.isTestingConnection) "Testando Conexão..." else "Testar Conexão (PING)",
                     onClick = { viewModel.testarConexaoPing() },
                     isLoading = uiState.isTestingConnection,
-                    containerColor = ShelfRackBlue
+                    containerColor = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (uiState.pingStatusText != null) {
@@ -236,7 +234,7 @@ fun AjustesScreen(
                         text = uiState.pingStatusText ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (uiState.pingStatusText?.startsWith("Conexão OK") == true) EmeraldSuccess else CoralError
+                        color = if (uiState.pingStatusText?.startsWith("Conexão OK") == true) OkTeal else MaterialTheme.colorScheme.error
                     )
                 }
 
@@ -254,7 +252,7 @@ fun AjustesScreen(
                     PrimaryButton(
                         text = "Gerenciar ESPs (Pick-by-Light)",
                         onClick = onNavigateEsps,
-                        containerColor = ShelfRackBlue
+                        containerColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -369,7 +367,7 @@ fun AjustesScreen(
                 PrimaryButton(
                     text = "Resetar Dados de Demonstração (Seed)",
                     onClick = { viewModel.resetarDadosDemo() },
-                    containerColor = AmberWarning,
+                    containerColor = WarnAmber,
                     contentColor = Color.White
                 )
 
@@ -379,7 +377,7 @@ fun AjustesScreen(
                         text = uiState.resetStatusText ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (uiState.resetStatusText?.startsWith("Dados resetados") == true) EmeraldSuccess else CoralError
+                        color = if (uiState.resetStatusText?.startsWith("Dados resetados") == true) OkTeal else MaterialTheme.colorScheme.error
                     )
                 }
             }

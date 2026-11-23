@@ -13,13 +13,13 @@ import androidx.compose.ui.unit.dp
 data class WmsDimensions(
     val minTouchTarget: Dp = 48.dp,
     val primaryButtonHeight: Dp = 56.dp,
-    val minButtonSpacing: Dp = 10.dp,
-    val paddingSmall: Dp = 6.dp,
-    val paddingMedium: Dp = 12.dp, // Reduzido de 16.dp para 12.dp para maximizar área útil horizontal
-    val paddingLarge: Dp = 18.dp, // Reduzido de 24.dp para 18.dp
-    val screenHorizontalPadding: Dp = 12.dp,
-    val cardCornerRadius: Dp = 12.dp,
-    val buttonCornerRadius: Dp = 10.dp
+    val minButtonSpacing: Dp = 12.dp,
+    val paddingSmall: Dp = 8.dp,
+    val paddingMedium: Dp = 16.dp,
+    val paddingLarge: Dp = 24.dp,
+    val screenHorizontalPadding: Dp = 16.dp,
+    val cardCornerRadius: Dp = 8.dp,
+    val buttonCornerRadius: Dp = 8.dp
 )
 
 val LocalWmsDimensions = staticCompositionLocalOf { WmsDimensions() }

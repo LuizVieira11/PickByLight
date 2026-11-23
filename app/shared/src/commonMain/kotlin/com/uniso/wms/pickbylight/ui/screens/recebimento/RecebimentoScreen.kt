@@ -64,11 +64,9 @@ import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
@@ -167,11 +165,11 @@ fun RecebimentoScreen(
 
     // Cor de destaque de erro (tela vermelha ao bipar tag desconhecida - Seção 5.4)
     val scanCardBorderColor by animateColorAsState(
-        targetValue = if (uiState.isErrorFlashingRed) CoralError else Color.Transparent
+        targetValue = if (uiState.isErrorFlashingRed) MaterialTheme.colorScheme.error else Color.Transparent
     )
     val scanCardBgColor by animateColorAsState(
         targetValue = if (uiState.isErrorFlashingRed) {
-            CoralError.copy(alpha = 0.12f)
+            MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surface
         }
@@ -182,7 +180,7 @@ fun RecebimentoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(dimensions.paddingMedium),
+                .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Cabeçalho da Tela
@@ -226,7 +224,7 @@ fun RecebimentoScreen(
                         val isUnico = uiState.modo == ModoRecebimento.UNICO
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (isUnico) ShelfRackBlue else Color.Transparent,
+                            color = if (isUnico) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { viewModel.selecionarModo(ModoRecebimento.UNICO) }
@@ -246,7 +244,7 @@ fun RecebimentoScreen(
                         val isMultiplo = uiState.modo == ModoRecebimento.MULTIPLO
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (isMultiplo) ShelfRackBlue else Color.Transparent,
+                            color = if (isMultiplo) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { viewModel.selecionarModo(ModoRecebimento.MULTIPLO) }
@@ -296,7 +294,7 @@ fun RecebimentoScreen(
                                 )
                             )
 
-                            val circleColor = if (uiState.isErrorFlashingRed) CoralError else ShelfRackBlue
+                            val circleColor = if (uiState.isErrorFlashingRed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
 
                             Box(
                                 modifier = Modifier
@@ -318,7 +316,7 @@ fun RecebimentoScreen(
                                 text = "Aproxime o celular da posição de destino na prateleira",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (uiState.isErrorFlashingRed) CoralError else MaterialTheme.colorScheme.onSurface
+                                color = if (uiState.isErrorFlashingRed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -343,7 +341,7 @@ fun RecebimentoScreen(
                             PrimaryButton(
                                 text = "Simular Leitura NFC",
                                 onClick = { showNfcSimulator = true },
-                                containerColor = ShelfRackBlue
+                                containerColor = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -357,7 +355,7 @@ fun RecebimentoScreen(
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = EmeraldSuccess.copy(alpha = 0.12f)),
+                        colors = CardDefaults.cardColors(containerColor = OkTeal.copy(alpha = 0.12f)),
                         shape = RoundedCornerShape(dimensions.cardCornerRadius)
                     ) {
                         Row(
@@ -369,7 +367,7 @@ fun RecebimentoScreen(
                             Box(
                                 modifier = Modifier
                                     .size(12.dp)
-                                    .background(EmeraldSuccess, CircleShape)
+                                    .background(OkTeal, CircleShape)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -391,7 +389,7 @@ fun RecebimentoScreen(
                                 Text(
                                     text = "Tag NFC: ${uiState.resolvedTagUid ?: "Seleção Manual"}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = EmeraldSuccess,
+                                    color = OkTeal,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -426,7 +424,7 @@ fun RecebimentoScreen(
                                 TextButton(onClick = { showNovoItemDialog = true }) {
                                     Text(
                                         text = "+ Novo Item",
-                                        color = ShelfRackBlue,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.labelLarge
                                     )
@@ -498,7 +496,7 @@ fun RecebimentoScreen(
                                         text = {
                                             Text(
                                                 text = "+ Novo Item (Criar no Catálogo)",
-                                                color = ShelfRackBlue,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         },
@@ -519,15 +517,15 @@ fun RecebimentoScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = ShelfRackBlue.copy(alpha = 0.10f),
-                                    border = BorderStroke(1.dp, ShelfRackBlue.copy(alpha = 0.30f)),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = "📦 Saldo atual em ${pos.codigo}: $saldoNaPosicao ${selected.unidade} • Após entrada: ${saldoNaPosicao + uiState.quantidade} ${selected.unidade} (Total geral: ${saldoTotal + uiState.quantidade} ${selected.unidade})",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = ShelfRackBlue,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
@@ -567,7 +565,7 @@ fun RecebimentoScreen(
                                 Text(
                                     text = uiState.formErrorMessage ?: "",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = CoralError,
+                                    color = MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -578,7 +576,7 @@ fun RecebimentoScreen(
                                 text = "Confirmar Entrada",
                                 onClick = { viewModel.confirmarEntrada() },
                                 enabled = uiState.isFormValid,
-                                containerColor = EmeraldSuccess
+                                containerColor = OkTeal
                             )
                         }
                     }
@@ -619,7 +617,7 @@ fun RecebimentoScreen(
                                 TextButton(onClick = { showNovoItemDialog = true }) {
                                     Text(
                                         text = "+ Novo Item",
-                                        color = ShelfRackBlue,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.labelLarge
                                     )
@@ -690,7 +688,7 @@ fun RecebimentoScreen(
                                         text = {
                                             Text(
                                                 text = "+ Novo Item (Criar no Catálogo)",
-                                                color = ShelfRackBlue,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         },
@@ -737,7 +735,7 @@ fun RecebimentoScreen(
                                 Text(
                                     text = uiState.formErrorMessage ?: "",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = CoralError,
+                                    color = MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -748,7 +746,7 @@ fun RecebimentoScreen(
                                 text = "Adicionar à Lista",
                                 onClick = { viewModel.adicionarItemAoLote() },
                                 enabled = uiState.canAddToList,
-                                containerColor = ShelfRackBlue
+                                containerColor = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -807,7 +805,7 @@ fun RecebimentoScreen(
                                                 Text(
                                                     text = "SKU: ${loteItem.item.sku} • Qtd: ${loteItem.quantidade} ${loteItem.item.unidade}",
                                                     style = MaterialTheme.typography.bodySmall,
-                                                    color = ShelfRackBlue,
+                                                    color = MaterialTheme.colorScheme.onSurface,
                                                     fontWeight = FontWeight.SemiBold
                                                 )
                                             }
@@ -815,7 +813,7 @@ fun RecebimentoScreen(
                                             TextButton(
                                                 onClick = { viewModel.removerItemDoLote(loteItem.id) }
                                             ) {
-                                                Text("Remover", color = CoralError, fontWeight = FontWeight.Bold)
+                                                Text("Remover", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -828,7 +826,7 @@ fun RecebimentoScreen(
                                 text = "Iniciar Recebimento Guiado",
                                 onClick = { viewModel.iniciarRecebimentoGuiado() },
                                 enabled = uiState.itensLote.isNotEmpty(),
-                                containerColor = EmeraldSuccess
+                                containerColor = OkTeal
                             )
                         }
                     }
@@ -851,7 +849,7 @@ fun RecebimentoScreen(
                                     text = "Passo ${uiState.passoGuiadoIndex + 1} de ${uiState.totalPassosGuiados}: ${itemAtual.item.nome} (${itemAtual.quantidade} ${itemAtual.item.unidade})",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = ShelfRackBlue
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
 
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -867,7 +865,7 @@ fun RecebimentoScreen(
                                 LinearProgressIndicator(
                                     progress = { uiState.progressoGuiadoFracao },
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = ShelfRackBlue
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -898,7 +896,7 @@ fun RecebimentoScreen(
                                     )
                                 )
 
-                                val circleColor = if (uiState.isErrorFlashingRed) CoralError else EmeraldSuccess
+                                val circleColor = if (uiState.isErrorFlashingRed) MaterialTheme.colorScheme.error else OkTeal
 
                                 Box(
                                     modifier = Modifier
@@ -928,7 +926,7 @@ fun RecebimentoScreen(
                                     text = "${itemAtual.item.nome} (${itemAtual.quantidade} ${itemAtual.item.unidade})",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (uiState.isErrorFlashingRed) CoralError else EmeraldSuccess,
+                                    color = if (uiState.isErrorFlashingRed) MaterialTheme.colorScheme.error else OkTeal,
                                     textAlign = TextAlign.Center
                                 )
 
@@ -937,7 +935,7 @@ fun RecebimentoScreen(
                                 PrimaryButton(
                                     text = "Simular Leitura NFC",
                                     onClick = { showNfcSimulator = true },
-                                    containerColor = ShelfRackBlue
+                                    containerColor = MaterialTheme.colorScheme.onSurface
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -979,7 +977,7 @@ fun RecebimentoScreen(
                                 text = "Entrada Concluída com Sucesso!",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = EmeraldSuccess
+                                color = OkTeal
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1022,13 +1020,13 @@ fun RecebimentoScreen(
                                                     text = "+${resumo.quantidade} ${resumo.item.unidade}",
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = FontWeight.ExtraBold,
-                                                    color = EmeraldSuccess
+                                                    color = OkTeal
                                                 )
                                             }
                                             Text(
                                                 text = "📍 ${resumo.enderecoFormatado}",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = ShelfRackBlue,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
@@ -1041,7 +1039,7 @@ fun RecebimentoScreen(
                             PrimaryButton(
                                 text = "Nova Entrada",
                                 onClick = { viewModel.iniciarNovaEntrada() },
-                                containerColor = ShelfRackBlue
+                                containerColor = MaterialTheme.colorScheme.onSurface
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -1076,7 +1074,7 @@ fun RecebimentoScreen(
                 Text(
                     text = "Tag NFC não cadastrada no sistema!",
                     fontWeight = FontWeight.Bold,
-                    color = CoralError
+                    color = MaterialTheme.colorScheme.error
                 )
             },
             text = {
@@ -1085,13 +1083,13 @@ fun RecebimentoScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = CoralError.copy(alpha = 0.12f),
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "UID Lido: $uid",
                             fontWeight = FontWeight.Bold,
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
@@ -1106,7 +1104,7 @@ fun RecebimentoScreen(
                         onNavigateEnderecosComUid(uid)
                     }
                 ) {
-                    Text("Cadastrar Agora", color = CoralError, fontWeight = FontWeight.Bold)
+                    Text("Cadastrar Agora", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1134,7 +1132,7 @@ fun RecebimentoScreen(
                         viewModel.descartarFormularioEVoltarParaScan()
                     }
                 ) {
-                    Text("Descartar", color = CoralError, fontWeight = FontWeight.Bold)
+                    Text("Descartar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1179,7 +1177,7 @@ fun RecebimentoScreen(
                                 Text(
                                     text = if (tagVinculada != null) "🏷️ Tag: ${tagVinculada.uid}" else "⚠️ Pendente NFC",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (tagVinculada != null) EmeraldSuccess else AmberWarning
+                                    color = if (tagVinculada != null) OkTeal else WarnAmber
                                 )
                             }
                         }
@@ -1245,7 +1243,7 @@ fun RecebimentoScreen(
                     if (novoItemError != null) {
                         Text(
                             text = novoItemError ?: "",
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold
                         )

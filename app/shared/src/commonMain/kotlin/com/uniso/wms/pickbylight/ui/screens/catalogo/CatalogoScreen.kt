@@ -69,12 +69,9 @@ import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
-import com.uniso.wms.pickbylight.ui.theme.ShelfRowOrange
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
@@ -132,7 +129,7 @@ fun CatalogoScreen(
                     itemEmEdicao = null
                     showModalNovoItem = true
                 },
-                containerColor = ShelfRackBlue,
+                containerColor = MaterialTheme.colorScheme.onSurface,
                 contentColor = Color.White
             ) {
                 Row(
@@ -163,7 +160,7 @@ fun CatalogoScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(dimensions.paddingMedium)
+                            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -208,7 +205,7 @@ fun CatalogoScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(dimensions.paddingMedium)
+                            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
                     ) {
                         // Cabeçalho da Tela
                         Row(
@@ -283,7 +280,7 @@ fun CatalogoScreen(
                                 label = {
                                     Text(
                                         text = "Abaixo do Mínimo (${state.itensAbaixoMinimoCount})",
-                                        color = if (state.apenasAbaixoMinimo) CoralError else MaterialTheme.colorScheme.onSurface
+                                        color = if (state.apenasAbaixoMinimo) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             )
@@ -338,7 +335,7 @@ fun CatalogoScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(CoralError.copy(alpha = 0.22f))
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.22f))
                 )
 
                 AlertDialog(
@@ -346,7 +343,7 @@ fun CatalogoScreen(
                     title = {
                         Text(
                             text = "Tag NFC não cadastrada no sistema!",
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
                         )
                     },
@@ -380,7 +377,7 @@ fun CatalogoScreen(
                                     onNavigateEnderecosComUid(currentUid)
                                 }
                             },
-                            containerColor = ShelfRackBlue
+                            containerColor = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     dismissButton = {
@@ -487,7 +484,7 @@ fun CatalogoScreen(
                             }
                             HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("➕ Adicionar Nova Categoria...", color = ShelfRackBlue, fontWeight = FontWeight.Bold) },
+                                text = { Text("➕ Adicionar Nova Categoria...", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
                                 onClick = {
                                     dropdownCategoriaExpanded = false
                                     showNovaCategoriaDialog = true
@@ -519,7 +516,7 @@ fun CatalogoScreen(
                     if (erroModalItem != null) {
                         Text(
                             text = erroModalItem ?: "",
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -657,7 +654,7 @@ fun CatalogoScreen(
                     Text(
                         "${itemTransferindo.item.sku} — ${itemTransferindo.item.nome}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ShelfRackBlue
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -665,7 +662,7 @@ fun CatalogoScreen(
                 if (estoquesDisponiveis.isEmpty()) {
                     Text(
                         "Este item não possui saldo alocado em nenhuma posição física para realizar movimentação.",
-                        color = AmberWarning
+                        color = WarnAmber
                     )
                 } else {
                     Column(
@@ -762,7 +759,7 @@ fun CatalogoScreen(
                         PrimaryButton(
                             text = "Ou Bipar Tag NFC do Destino",
                             onClick = { showNfcSimulatorForTransfer = true },
-                            containerColor = ShelfRackBlue
+                            containerColor = MaterialTheme.colorScheme.onSurface
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -791,7 +788,7 @@ fun CatalogoScreen(
                         if (erroTransferencia != null) {
                             Text(
                                 text = erroTransferencia ?: "",
-                                color = CoralError,
+                                color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -835,7 +832,7 @@ fun CatalogoScreen(
                     enabled = posOrigemSelecionada != null && posDestinoSelecionada != null && !isMoving,
                     modifier = Modifier.height(48.dp)
                 ) {
-                    Text("Confirmar Transferência", fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                    Text("Confirmar Transferência", fontWeight = FontWeight.Bold, color = OkTeal)
                 }
             },
             dismissButton = {
@@ -911,13 +908,13 @@ private fun ItemCardComponent(
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .background(ShelfRackBlue.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = item.sku,
                         style = MaterialTheme.typography.labelSmall,
-                        color = ShelfRackBlue,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
@@ -949,7 +946,7 @@ private fun ItemCardComponent(
                 if (item.emSeparacao) {
                     Box(
                         modifier = Modifier
-                            .background(CoralError, RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
@@ -983,7 +980,7 @@ private fun ItemCardComponent(
                         text = "${itemCard.saldoTotal} ${item.unidade}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (itemCard.isAbaixoMinimo) CoralError else EmeraldSuccess,
+                        color = if (itemCard.isAbaixoMinimo) MaterialTheme.colorScheme.error else OkTeal,
                         maxLines = 1
                     )
                     if (itemCard.isAbaixoMinimo) {
@@ -991,7 +988,7 @@ private fun ItemCardComponent(
                         Text(
                             text = "(Abaixo do mín: ${item.estoqueMinimo})",
                             style = MaterialTheme.typography.labelSmall,
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1
                         )
@@ -1019,12 +1016,12 @@ private fun ItemCardComponent(
                             text = "📍 Localizações (${itemCard.estoques.size} posições)",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = ShelfRackBlue
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = if (accordionExpanded) "▲ Ocultar" else "▼ Detalhar",
                             style = MaterialTheme.typography.labelSmall,
-                            color = ShelfRackBlue,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -1035,7 +1032,7 @@ private fun ItemCardComponent(
                             Text(
                                 text = "Nenhum estoque físico alocado para este item.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = AmberWarning
+                                color = WarnAmber
                             )
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1063,7 +1060,7 @@ private fun ItemCardComponent(
                                             text = "${estoque.quantidade} ${item.unidade}",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = EmeraldSuccess
+                                            color = OkTeal
                                         )
                                     }
                                 }
@@ -1100,7 +1097,7 @@ private fun ItemCardComponent(
                             text = "📦 Mover",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = ShelfRowOrange
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

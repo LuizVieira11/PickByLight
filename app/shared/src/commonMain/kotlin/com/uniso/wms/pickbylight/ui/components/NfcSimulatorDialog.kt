@@ -34,10 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.uniso.wms.pickbylight.domain.model.Posicao
 import com.uniso.wms.pickbylight.domain.model.TagNFC
 import com.uniso.wms.pickbylight.nfc.NfcManager
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 
 @Composable
 fun NfcSimulatorDialog(
@@ -82,7 +80,7 @@ fun NfcSimulatorDialog(
                             onTagSelected?.invoke(uid)
                             onDismiss()
                         },
-                    colors = CardDefaults.cardColors(containerColor = CoralError.copy(alpha = 0.12f)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
@@ -95,7 +93,7 @@ fun NfcSimulatorDialog(
                             modifier = Modifier
                                 .width(6.dp)
                                 .height(32.dp)
-                                .background(CoralError, RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.error, RoundedCornerShape(3.dp))
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -103,7 +101,7 @@ fun NfcSimulatorDialog(
                                 text = "Tag Desconhecida / Não Cadastrada",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = CoralError
+                                color = MaterialTheme.colorScheme.error
                             )
                             Text(
                                 text = "UID: 04:FF:EE:DD:CC:BB:AA (Testar Cenário 5.4)",
@@ -155,7 +153,7 @@ fun NfcSimulatorDialog(
                                         text = if (posicao != null) "${tag.posicaoId} (${posicao.codigo})" else tag.posicaoId,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = ShelfRackBlue
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = tag.uid,
@@ -165,13 +163,13 @@ fun NfcSimulatorDialog(
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .background(EmeraldSuccess.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                        .background(OkTeal.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
                                         text = "Válida",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = EmeraldSuccess,
+                                        color = OkTeal,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }

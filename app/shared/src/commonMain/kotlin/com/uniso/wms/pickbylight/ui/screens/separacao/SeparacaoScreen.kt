@@ -64,12 +64,9 @@ import com.uniso.wms.pickbylight.nfc.NfcManager
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
-import com.uniso.wms.pickbylight.ui.theme.ShelfRowOrange
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import kotlinx.coroutines.flow.collectLatest
@@ -146,8 +143,8 @@ fun SeparacaoScreen(
     // Cor dinâmica de feedback de validação visual
     val cardBorderColor by animateColorAsState(
         targetValue = when {
-            uiState.isVisualFlashingGreen -> EmeraldSuccess
-            uiState.isVisualFlashingRed -> CoralError
+            uiState.isVisualFlashingGreen -> OkTeal
+            uiState.isVisualFlashingRed -> MaterialTheme.colorScheme.error
             else -> Color.Transparent
         }
     )
@@ -173,7 +170,7 @@ fun SeparacaoScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = 12.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -192,7 +189,7 @@ fun SeparacaoScreen(
                                 text = "$totalItens ${if (totalItens == 1) "item" else "itens"} • $totalUnidades ${if (totalUnidades == 1) "unidade" else "unidades"}",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = if (totalUnidades > 0) ShelfRackBlue else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (totalUnidades > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -213,7 +210,7 @@ fun SeparacaoScreen(
                                 )
                             },
                             enabled = totalUnidades > 0,
-                            containerColor = EmeraldSuccess
+                            containerColor = OkTeal
                         )
                     }
                 }
@@ -224,7 +221,7 @@ fun SeparacaoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = dimensions.paddingMedium, vertical = dimensions.paddingMedium),
+                .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Banner de Modo Manual (quando ESP32 não responde)
@@ -232,7 +229,7 @@ fun SeparacaoScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(CoralError, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.error, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
                     Text(
@@ -249,8 +246,8 @@ fun SeparacaoScreen(
             if (uiState.timeoutCancelMessage != null) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = CoralError.copy(alpha = 0.14f),
-                    border = BorderStroke(1.5.dp, CoralError),
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
+                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -264,11 +261,11 @@ fun SeparacaoScreen(
                             text = "⏱️ ${uiState.timeoutCancelMessage}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { viewModel.dismissTimeoutCancelMessage() }) {
-                            Text("OK", color = CoralError, fontWeight = FontWeight.Bold)
+                            Text("OK", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -390,7 +387,7 @@ fun SeparacaoScreen(
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (selectedQty > 0) ShelfRackBlue.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
+                                        containerColor = if (selectedQty > 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
                                     ),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
@@ -417,7 +414,7 @@ fun SeparacaoScreen(
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Box(
                                                     modifier = Modifier
-                                                        .background(CoralError, RoundedCornerShape(4.dp))
+                                                        .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
@@ -438,7 +435,7 @@ fun SeparacaoScreen(
                                             text = "SKU: ${item.sku} • Saldo Total: ${itemComEstoque.saldoTotal} ${item.unidade}",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = if (itemComEstoque.isAbaixoMinimo) CoralError else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = if (itemComEstoque.isAbaixoMinimo) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -448,15 +445,15 @@ fun SeparacaoScreen(
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Surface(
                                                 shape = RoundedCornerShape(6.dp),
-                                                color = ShelfRackBlue.copy(alpha = 0.14f),
-                                                border = BorderStroke(1.dp, ShelfRackBlue.copy(alpha = 0.35f)),
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
+                                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)),
                                                 modifier = Modifier.align(Alignment.Start)
                                             ) {
                                                 Text(
                                                     text = "No Pedido: $selectedQty ${item.unidade}",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = ShelfRackBlue,
+                                                    color = MaterialTheme.colorScheme.onSurface,
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                                     maxLines = 1
                                                 )
@@ -476,7 +473,7 @@ fun SeparacaoScreen(
                                             Text(
                                                 text = if (item.emSeparacao) "Item bloqueado para separação" else "Quantidade para separação:",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = if (item.emSeparacao) CoralError else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                color = if (item.emSeparacao) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.weight(1f),
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis
@@ -534,13 +531,13 @@ fun SeparacaoScreen(
                                             text = "Item ${uiState.passoAtualIndex + 1} de ${uiState.totalPassos}",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = ShelfRackBlue
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
                                             text = "⏱️ ${uiState.timeoutOperadorSegundos}s para bipar",
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (uiState.timeoutOperadorSegundos < 15) CoralError else AmberWarning
+                                            color = if (uiState.timeoutOperadorSegundos < 15) MaterialTheme.colorScheme.error else WarnAmber
                                         )
                                     }
 
@@ -557,7 +554,7 @@ fun SeparacaoScreen(
                                     LinearProgressIndicator(
                                         progress = { uiState.progressoFracao },
                                         modifier = Modifier.fillMaxWidth(),
-                                        color = ShelfRackBlue,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
                             }
@@ -582,7 +579,7 @@ fun SeparacaoScreen(
                                     Box(
                                         modifier = Modifier
                                             .background(
-                                                if (uiState.isModoManual) CoralError else EmeraldSuccess,
+                                                if (uiState.isModoManual) MaterialTheme.colorScheme.error else OkTeal,
                                                 RoundedCornerShape(8.dp)
                                             )
                                             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -603,8 +600,8 @@ fun SeparacaoScreen(
                                     if (uiState.isModoManual) {
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
-                                            color = CoralError.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.5.dp, CoralError),
+                                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Column(
@@ -615,7 +612,7 @@ fun SeparacaoScreen(
                                                     text = "🧭 GUIA VISUAL POR ENDEREÇO TEXTUAL",
                                                     style = MaterialTheme.typography.labelMedium,
                                                     fontWeight = FontWeight.ExtraBold,
-                                                    color = CoralError
+                                                    color = MaterialTheme.colorScheme.error
                                                 )
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
@@ -632,10 +629,10 @@ fun SeparacaoScreen(
                                     // Endereço Esperado em Grande Destaque (Estante > Prat > Pos)
                                     Surface(
                                         shape = RoundedCornerShape(10.dp),
-                                        color = ShelfRackBlue.copy(alpha = 0.10f),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .border(1.5.dp, ShelfRackBlue.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                                            .border(1.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                                     ) {
                                         Column(
                                             modifier = Modifier.padding(14.dp),
@@ -645,7 +642,7 @@ fun SeparacaoScreen(
                                                 text = "DESTINO DE COLETA (ESTANTE & POSIÇÃO)",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.ExtraBold,
-                                                color = ShelfRackBlue
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Text(
@@ -661,7 +658,7 @@ fun SeparacaoScreen(
                                                 text = "📍 ${formatEndereco(passo.estante, passo.prateleira, passo.posicao)}",
                                                 style = MaterialTheme.typography.titleLarge,
                                                 fontWeight = FontWeight.Bold,
-                                                color = ShelfRackBlue,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -688,7 +685,7 @@ fun SeparacaoScreen(
                                                 text = if (passo.itens.size > 1) "📦 ITENS AGRUPADOS NESTA POSIÇÃO (${passo.itens.size}):" else "📦 ITEM A RETIRAR:",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = ShelfRackBlue
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Spacer(modifier = Modifier.height(6.dp))
                                             passo.itens.forEach { itemColeta ->
@@ -715,7 +712,7 @@ fun SeparacaoScreen(
                                                         text = "Pegue ${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade} na ${passo.posicao.codigo}",
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         fontWeight = FontWeight.ExtraBold,
-                                                        color = EmeraldSuccess
+                                                        color = OkTeal
                                                     )
                                                 }
                                             }
@@ -739,8 +736,8 @@ fun SeparacaoScreen(
                                         modifier = Modifier
                                             .size(110.dp)
                                             .scale(pulseScale)
-                                            .background(EmeraldSuccess.copy(alpha = 0.15f), CircleShape)
-                                            .border(2.dp, EmeraldSuccess, CircleShape),
+                                            .background(OkTeal.copy(alpha = 0.15f), CircleShape)
+                                            .border(2.dp, OkTeal, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text("🏷️", style = MaterialTheme.typography.headlineLarge)
@@ -760,7 +757,7 @@ fun SeparacaoScreen(
                                     PrimaryButton(
                                         text = "Simular Leitura NFC",
                                         onClick = { showNfcSimulator = true },
-                                        containerColor = ShelfRackBlue
+                                        containerColor = MaterialTheme.colorScheme.onSurface
                                     )
 
                                     // Botão de reconexão de LED quando em Modo Manual (Seção 5.2)
@@ -769,7 +766,7 @@ fun SeparacaoScreen(
                                         PrimaryButton(
                                             text = "Tentar Acender LED Novamente",
                                             onClick = { viewModel.acionarHardwarePassoAtual(forceRetry = true) },
-                                            containerColor = ShelfRowOrange
+                                            containerColor = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
 
@@ -779,7 +776,7 @@ fun SeparacaoScreen(
                                         PrimaryButton(
                                             text = "Validar Posição Sem Tag NFC",
                                             onClick = { viewModel.validarManualmenteSemNfc() },
-                                            containerColor = ShelfRowOrange
+                                            containerColor = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
 
@@ -790,7 +787,7 @@ fun SeparacaoScreen(
                                         text = "Cancelar Coleta",
                                         onClick = { showCancelPickingConfirmDialog = true },
                                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        contentColor = CoralError
+                                        contentColor = MaterialTheme.colorScheme.error
                                     )
                                 }
                             }
@@ -835,14 +832,14 @@ fun SeparacaoScreen(
                                         text = "Local correto! Confirme as quantidades retiradas.",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = EmeraldSuccess
+                                        color = OkTeal
                                     )
 
                                     Spacer(modifier = Modifier.height(10.dp))
 
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = ShelfRackBlue.copy(alpha = 0.12f),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                                     ) {
                                         Column(
@@ -853,7 +850,7 @@ fun SeparacaoScreen(
                                                 text = "📍 ${formatEndereco(passo.estante, passo.prateleira, passo.posicao)}",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = ShelfRackBlue
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
                                                 text = "Estante: ${passo.estante.nome}",
@@ -905,7 +902,7 @@ fun SeparacaoScreen(
                                                         text = "Confirmar: $confirmedQty ${itemColeta.item.unidade}",
                                                         style = MaterialTheme.typography.labelMedium,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = ShelfRackBlue
+                                                        color = MaterialTheme.colorScheme.onSurface
                                                     )
 
                                                     QuantityStepper(
@@ -926,7 +923,7 @@ fun SeparacaoScreen(
                                         onClick = {
                                             viewModel.finalizarRetiradaPassoAtual(quantidadesConfirmadas)
                                         },
-                                        containerColor = EmeraldSuccess
+                                        containerColor = OkTeal
                                     )
                                 }
                             }
@@ -963,7 +960,7 @@ fun SeparacaoScreen(
                                     text = "Coleta finalizada!",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = EmeraldSuccess
+                                    color = OkTeal
                                 )
 
                                 Text(
@@ -999,7 +996,7 @@ fun SeparacaoScreen(
                                             Text(
                                                 text = "SKU: ${itemColeta.item.sku}",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = ShelfRackBlue,
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -1011,7 +1008,7 @@ fun SeparacaoScreen(
                                 PrimaryButton(
                                     text = "Nova Separação",
                                     onClick = { viewModel.resetarParaSelecao() },
-                                    containerColor = EmeraldSuccess
+                                    containerColor = OkTeal
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -1019,7 +1016,7 @@ fun SeparacaoScreen(
                                 PrimaryButton(
                                     text = "Voltar ao Dashboard",
                                     onClick = onNavigateBack,
-                                    containerColor = ShelfRackBlue
+                                    containerColor = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -1037,7 +1034,7 @@ fun SeparacaoScreen(
                 Text(
                     text = "Item em Separação por Outro Operador",
                     fontWeight = FontWeight.Bold,
-                    color = CoralError
+                    color = MaterialTheme.colorScheme.error
                 )
             },
             text = {
@@ -1045,7 +1042,7 @@ fun SeparacaoScreen(
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.dismissConcurrencyLockError() }) {
-                    Text("Entendido", color = CoralError, fontWeight = FontWeight.Bold)
+                    Text("Entendido", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -1056,7 +1053,7 @@ fun SeparacaoScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissHardwareTimeoutModal() },
             title = {
-                Text("Hardware não respondeu", fontWeight = FontWeight.Bold, color = CoralError)
+                Text("Hardware não respondeu", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
             },
             text = {
                 Text("O ESP32 não enviou confirmação (ACK) em 5 segundos. Verifique a conexão Wi-Fi e a alimentação dos LEDs.")
@@ -1077,7 +1074,7 @@ fun SeparacaoScreen(
                         viewModel.continuarEmModoManual()
                     }
                 ) {
-                    Text("Continuar em Modo Manual", color = ShelfRowOrange)
+                    Text("Continuar em Modo Manual", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -1100,7 +1097,7 @@ fun SeparacaoScreen(
                         viewModel.cancelarColetaEVoltar(onComplete = onNavigateBack)
                     }
                 ) {
-                    Text("Cancelar Coleta", color = CoralError, fontWeight = FontWeight.Bold)
+                    Text("Cancelar Coleta", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1121,7 +1118,7 @@ fun SeparacaoScreen(
                 Text(
                     text = if (unmappedUid != null) "Tag NFC não cadastrada no sistema!" else "Local incorreto!",
                     fontWeight = FontWeight.Bold,
-                    color = CoralError
+                    color = MaterialTheme.colorScheme.error
                 )
             },
             text = {
@@ -1136,28 +1133,28 @@ fun SeparacaoScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = CoralError.copy(alpha = 0.12f),
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "❌ Bipado: $lida",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = CoralError,
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = EmeraldSuccess.copy(alpha = 0.12f),
+                        color = OkTeal.copy(alpha = 0.12f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "🎯 Sugerido: $esperada",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = EmeraldSuccess,
+                            color = OkTeal,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
@@ -1178,18 +1175,18 @@ fun SeparacaoScreen(
                             }
                         }
                     ) {
-                        Text("Cadastrar Agora", color = ShelfRackBlue, fontWeight = FontWeight.Bold)
+                        Text("Cadastrar Agora", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     TextButton(onClick = { viewModel.dismissWrongTagModal() }) {
-                        Text("Verificar Novamente", color = CoralError, fontWeight = FontWeight.Bold)
+                        Text("Verificar Novamente", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     }
                 }
             },
             dismissButton = if (unmappedUid != null && onNavigateEnderecosComUid != null) {
                 {
                     TextButton(onClick = { viewModel.dismissWrongTagModal() }) {
-                        Text("Verificar Novamente", color = CoralError)
+                        Text("Verificar Novamente", color = MaterialTheme.colorScheme.error)
                     }
                 }
             } else null

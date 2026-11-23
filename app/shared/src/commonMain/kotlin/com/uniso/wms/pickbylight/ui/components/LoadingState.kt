@@ -27,7 +27,7 @@ fun LoadingState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(dimensions.paddingLarge),
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingLarge),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

@@ -49,12 +49,9 @@ import com.uniso.wms.pickbylight.domain.model.Prateleira
 import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.EmptyState
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
-import com.uniso.wms.pickbylight.ui.theme.ShelfRowOrange
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 import com.uniso.wms.pickbylight.util.currentTimeMillis
 
@@ -195,7 +192,7 @@ fun HistoricoScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(dimensions.paddingMedium)
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -218,7 +215,7 @@ fun HistoricoScreen(
                     csvExportContent = gerarCsvMovimentacoes(listaFiltrada, itens, ::formatEndereco)
                 }
             ) {
-                Text("📤 Exportar CSV", style = MaterialTheme.typography.labelLarge, color = ShelfRackBlue, fontWeight = FontWeight.Bold)
+                Text("📤 Exportar CSV", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             }
             TextButton(onClick = onNavigateBack) {
                 Text("Voltar", style = MaterialTheme.typography.labelLarge)
@@ -307,9 +304,9 @@ fun HistoricoScreen(
                     val item = itens.find { it.id == mov.itemId }
                     val isEntrada = mov.tipo == TipoMovimentacao.ENTRADA
                     val badgeColor = when (mov.tipo) {
-                        TipoMovimentacao.ENTRADA -> EmeraldSuccess
-                        TipoMovimentacao.SAIDA -> CoralError
-                        TipoMovimentacao.TRANSFERENCIA -> ShelfRackBlue
+                        TipoMovimentacao.ENTRADA -> OkTeal
+                        TipoMovimentacao.SAIDA -> MaterialTheme.colorScheme.error
+                        TipoMovimentacao.TRANSFERENCIA -> MaterialTheme.colorScheme.onSurface
                     }
 
                     Card(
@@ -348,7 +345,7 @@ fun HistoricoScreen(
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Box(
                                             modifier = Modifier
-                                                .background(AmberWarning, RoundedCornerShape(6.dp))
+                                                .background(WarnAmber, RoundedCornerShape(6.dp))
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
                                             Text(
@@ -398,7 +395,7 @@ fun HistoricoScreen(
                                 Text(
                                     text = "Obs: ${mov.observacao}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = ShelfRowOrange,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -451,7 +448,7 @@ fun HistoricoScreen(
                     Text("Operador: ${detalhe.usuario}")
                     Text(
                         text = "Modo Manual: ${if (detalhe.modoManual) "SIM (⚠️ LED indisponível)" else "NÃO (Pick-by-Light normal)"}",
-                        color = if (detalhe.modoManual) AmberWarning else EmeraldSuccess,
+                        color = if (detalhe.modoManual) WarnAmber else OkTeal,
                         fontWeight = FontWeight.SemiBold
                     )
                     if (!detalhe.observacao.isNullOrBlank()) {
@@ -480,7 +477,7 @@ fun HistoricoScreen(
                     Text(
                         text = if (csvCopiedFeedback) "✅ CSV copiado para a área de transferência!" else "Conteúdo CSV gerado das movimentações filtradas:",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (csvCopiedFeedback) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (csvCopiedFeedback) OkTeal else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -507,7 +504,7 @@ fun HistoricoScreen(
                         csvCopiedFeedback = true
                     }
                 ) {
-                    Text("Copiar CSV", color = ShelfRackBlue, fontWeight = FontWeight.Bold)
+                    Text("Copiar CSV", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

@@ -3,7 +3,7 @@ package com.uniso.wms.pickbylight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -74,7 +74,7 @@ fun App(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .safeContentPadding()
+                        .safeDrawingPadding()
                 ) {
                     // Banner persistente de Broker MQTT desconectado (Seção 5.1)
                     MqttDisconnectedBanner(connectionState = mqttState)

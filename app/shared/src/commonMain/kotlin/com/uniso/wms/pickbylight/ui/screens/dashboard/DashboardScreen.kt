@@ -42,13 +42,9 @@ import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.responsive.WindowSizeClass
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfBinGreen
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
-import com.uniso.wms.pickbylight.ui.theme.ShelfRowOrange
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
 import kotlinx.coroutines.launch
@@ -93,7 +89,7 @@ fun DashboardScreen(
                         onCloseApp?.invoke()
                     }
                 ) {
-                    Text("Sair", color = CoralError, fontWeight = FontWeight.Bold)
+                    Text("Sair", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -128,7 +124,7 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(dimensions.paddingMedium),
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Cabeçalho de Status IoT e Ações Superiores (Seção 3.1)
@@ -203,10 +199,10 @@ fun DashboardScreen(
 
                         // Badge MQTT
                         val (badgeBg, badgeText) = when (mqttState) {
-                            MqttConnectionState.CONNECTED -> EmeraldSuccess to "Conectado"
-                            MqttConnectionState.CONNECTING -> AmberWarning to "Reconectando..."
-                            MqttConnectionState.DISCONNECTED -> CoralError to "Offline"
-                            MqttConnectionState.ERROR -> CoralError to "Erro MQTT"
+                            MqttConnectionState.CONNECTED -> OkTeal to "Conectado"
+                            MqttConnectionState.CONNECTING -> WarnAmber to "Reconectando..."
+                            MqttConnectionState.DISCONNECTED -> MaterialTheme.colorScheme.error to "Offline"
+                            MqttConnectionState.ERROR -> MaterialTheme.colorScheme.error to "Erro MQTT"
                         }
 
                         Box(
@@ -230,7 +226,7 @@ fun DashboardScreen(
                     Text(
                         text = "⚠️ Comandos pendentes na fila: $pendingCommands",
                         style = MaterialTheme.typography.bodySmall,
-                        color = AmberWarning,
+                        color = WarnAmber,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -260,7 +256,7 @@ fun DashboardScreen(
                     title = "Total Itens",
                     value = "$totalEstoque un",
                     subtitle = "${itens.size} SKUs",
-                    accentColor = ShelfRackBlue
+                    accentColor = MaterialTheme.colorScheme.onSurface
                 )
             }
             item {
@@ -268,7 +264,7 @@ fun DashboardScreen(
                     title = "Movimentos",
                     value = "+$entradasHoje / -$saidasHoje",
                     subtitle = "Entradas / Saídas",
-                    accentColor = ShelfRowOrange
+                    accentColor = MaterialTheme.colorScheme.onSurface
                 )
             }
             item {
@@ -276,7 +272,7 @@ fun DashboardScreen(
                     title = "Posições NFC",
                     value = "${tagsNFC.size}/${posicoes.size}",
                     subtitle = if (tagsNFC.size == posicoes.size) "100% Mapeadas" else "${posicoes.size - tagsNFC.size} Pendentes",
-                    accentColor = if (tagsNFC.size == posicoes.size) EmeraldSuccess else AmberWarning
+                    accentColor = if (tagsNFC.size == posicoes.size) OkTeal else WarnAmber
                 )
             }
             item {
@@ -284,7 +280,7 @@ fun DashboardScreen(
                     title = "Estoque Baixo",
                     value = itensBaixoEstoque.toString(),
                     subtitle = if (itensBaixoEstoque > 0) "Atenção!" else "OK",
-                    accentColor = if (itensBaixoEstoque > 0) CoralError else EmeraldSuccess
+                    accentColor = if (itensBaixoEstoque > 0) MaterialTheme.colorScheme.error else OkTeal
                 )
             }
         }
@@ -305,7 +301,7 @@ fun DashboardScreen(
         PrimaryButton(
             text = "Recebimento de Itens",
             onClick = onNavigateRecebimento,
-            containerColor = ShelfRackBlue
+            containerColor = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
@@ -313,7 +309,7 @@ fun DashboardScreen(
         PrimaryButton(
             text = "Separação de Pedidos (Pick-by-Light)",
             onClick = onNavigateSeparacao,
-            containerColor = EmeraldSuccess
+            containerColor = OkTeal
         )
 
         Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
@@ -321,7 +317,7 @@ fun DashboardScreen(
         PrimaryButton(
             text = "Gestão de Endereços",
             onClick = onNavigateEnderecos,
-            containerColor = ShelfRowOrange
+            containerColor = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
@@ -364,7 +360,7 @@ fun DashboardScreen(
                 }
             },
             isLoading = isPinging,
-            containerColor = ShelfRackBlue
+            containerColor = MaterialTheme.colorScheme.onSurface
         )
 
         if (pingFeedbackText != null) {
@@ -373,7 +369,7 @@ fun DashboardScreen(
                 text = pingFeedbackText ?: "",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = if (pingFeedbackText?.startsWith("Ping OK") == true) EmeraldSuccess else CoralError
+                color = if (pingFeedbackText?.startsWith("Ping OK") == true) OkTeal else MaterialTheme.colorScheme.error
             )
         }
 
@@ -397,7 +393,7 @@ fun DashboardScreen(
                     }
                 }
             },
-            containerColor = ShelfRowOrange
+            containerColor = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
@@ -410,7 +406,7 @@ fun DashboardScreen(
                     feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
                 }
             },
-            containerColor = AmberWarning,
+            containerColor = WarnAmber,
             contentColor = Color.White
         )
     }

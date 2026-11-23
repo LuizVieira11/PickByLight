@@ -1,9 +1,11 @@
 package com.uniso.wms.pickbylight
 
+import android.graphics.Color
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
@@ -16,7 +18,10 @@ import com.uniso.wms.pickbylight.util.FeedbackController
 
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
         AppBuildConfig.setDynamicBrokerUrl(BuildConfig.MQTT_BROKER_URL)
         BrokerUrlDataStore.init(this)

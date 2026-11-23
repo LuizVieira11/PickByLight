@@ -49,11 +49,9 @@ import com.uniso.wms.pickbylight.data.mqtt.model.MappingKind
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.EmptyState
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
-import com.uniso.wms.pickbylight.ui.theme.AmberWarning
-import com.uniso.wms.pickbylight.ui.theme.CoralError
-import com.uniso.wms.pickbylight.ui.theme.EmeraldSuccess
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.ShelfRackBlue
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
 
@@ -83,7 +81,7 @@ fun EspDetailScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(dimensions.paddingMedium)
+            .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -123,7 +121,7 @@ fun EspDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ShelfRackBlue, RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(8.dp))
                     .padding(12.dp)
             ) {
                 Text(uiState.infoMessage ?: "", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -180,7 +178,7 @@ private fun EspMetadataAndChannelsSection(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = EspManagementViewModel.readableErrorCode(device.errorCode),
-                    color = CoralError,
+                    color = MaterialTheme.colorScheme.error,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -190,13 +188,13 @@ private fun EspMetadataAndChannelsSection(
             when (val readState = uiState.detailReadState) {
                 EspDetailReadState.Idle, EspDetailReadState.Loading -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.width(20.dp).height(20.dp), color = ShelfRackBlue)
+                        CircularProgressIndicator(modifier = Modifier.width(20.dp).height(20.dp), color = MaterialTheme.colorScheme.onSurface)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Lendo configuração atual do ESP...", fontSize = 16.sp)
                     }
                 }
                 is EspDetailReadState.NotRead -> {
-                    Text(readState.message, color = CoralError, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(readState.message, color = MaterialTheme.colorScheme.error, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text(
                         text = "Edição bloqueada até a leitura da configuração atual nesta sessão.",
                         fontSize = 16.sp,
@@ -206,7 +204,7 @@ private fun EspMetadataAndChannelsSection(
                     PrimaryButton(
                         text = "Ler novamente",
                         onClick = { viewModel.lerConfiguracao(espId) },
-                        containerColor = ShelfRackBlue
+                        containerColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 is EspDetailReadState.Loaded -> {
@@ -215,7 +213,7 @@ private fun EspMetadataAndChannelsSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Configuração lida (rev ${readState.revision})", color = EmeraldSuccess, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Configuração lida (rev ${readState.revision})", color = OkTeal, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         TextButton(
                             onClick = { viewModel.lerConfiguracao(espId) },
                             modifier = Modifier.defaultMinSize(minHeight = 48.dp)
@@ -261,7 +259,7 @@ private fun EspOperationStatusSection(
             when (op) {
                 EspConfigOpState.Idle -> {}
                 is EspConfigOpState.WaitingResult -> {
-                    Text("Aguardando confirmação do ESP...", color = ShelfRackBlue, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Aguardando confirmação do ESP...", color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
                 is EspConfigOpState.AppliedWaitingState -> {
                     val label = if (op.timedOutWaitingState) {
@@ -269,56 +267,56 @@ private fun EspOperationStatusSection(
                     } else {
                         "Aplicado — aguardando confirmação do estado (rev ${op.expectedRevision})..."
                     }
-                    Text(label, color = AmberWarning, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(label, color = WarnAmber, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     if (op.diagnostics.isNotEmpty()) {
-                        Text(op.diagnostics.joinToString { it.message }, fontSize = 16.sp, color = AmberWarning)
+                        Text(op.diagnostics.joinToString { it.message }, fontSize = 16.sp, color = WarnAmber)
                     }
                     if (op.timedOutWaitingState) {
                         Spacer(modifier = Modifier.height(8.dp))
                         PrimaryButton(
                             text = "Ler configuração",
                             onClick = { viewModel.lerConfiguracao(espId) },
-                            containerColor = ShelfRackBlue
+                            containerColor = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 is EspConfigOpState.Synced -> {
-                    Text("Sincronizado (revisão ${op.revision})", color = EmeraldSuccess, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Sincronizado (revisão ${op.revision})", color = OkTeal, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     if (op.diagnostics.isNotEmpty()) {
-                        Text(op.diagnostics.joinToString { it.message }, fontSize = 16.sp, color = AmberWarning)
+                        Text(op.diagnostics.joinToString { it.message }, fontSize = 16.sp, color = WarnAmber)
                     }
                 }
                 is EspConfigOpState.Rejected -> {
-                    Text("Configuração rejeitada: ${op.message}", color = CoralError, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Configuração rejeitada: ${op.message}", color = MaterialTheme.colorScheme.error, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     if (op.errorCode == EspErrorCode.REVISION_MISMATCH) {
                         Spacer(modifier = Modifier.height(8.dp))
                         PrimaryButton(
                             text = "Recarregar configuração",
                             onClick = { viewModel.recarregarAposConflitoRevisao() },
-                            containerColor = ShelfRackBlue
+                            containerColor = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 is EspConfigOpState.Timeout -> {
                     Text(
                         text = "Timeout: o ESP não confirmou em 5 s (resultado indeterminado).",
-                        color = AmberWarning,
+                        color = WarnAmber,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     if (op.diagnostics.isNotEmpty()) {
-                        Text(op.diagnostics.joinToString { it.message }, fontSize = 16.sp, color = AmberWarning)
+                        Text(op.diagnostics.joinToString { it.message }, fontSize = 16.sp, color = WarnAmber)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     PrimaryButton(
                         text = "Tentar de novo",
                         onClick = { viewModel.tentarNovamenteSalvar() },
                         enabled = uiState.canEditMappings,
-                        containerColor = ShelfRackBlue
+                        containerColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 is EspConfigOpState.Failed -> {
-                    Text(op.message, color = CoralError, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(op.message, color = MaterialTheme.colorScheme.error, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -363,7 +361,7 @@ private fun EspMappingsEditorSection(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Edição bloqueada: tabela de canais inválida no firmware (INVALID_CHANNEL_TABLE).",
-                    color = CoralError,
+                    color = MaterialTheme.colorScheme.error,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -373,7 +371,7 @@ private fun EspMappingsEditorSection(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Modo de recuperação NVS (STORAGE_FAILURE): salve uma configuração para restaurar o ESP.",
-                    color = AmberWarning,
+                    color = WarnAmber,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -412,7 +410,7 @@ private fun EspMappingsEditorSection(
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selected) ShelfRackBlue else MaterialTheme.colorScheme.surfaceVariant,
+                                containerColor = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         ) {
@@ -440,7 +438,7 @@ private fun EspMappingsEditorSection(
                             .defaultMinSize(minHeight = 48.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelected) EmeraldSuccess else MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor = if (isSelected) OkTeal else MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
                         )
                     ) {
@@ -452,7 +450,7 @@ private fun EspMappingsEditorSection(
                 Text("2. Selecione um Canal GPIO Livre:", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(4.dp))
                 if (freeChannels.isEmpty()) {
-                    Text("Todos os canais deste ESP já estão em uso no rascunho.", color = AmberWarning, fontSize = 16.sp)
+                    Text("Todos os canais deste ESP já estão em uso no rascunho.", color = WarnAmber, fontSize = 16.sp)
                 } else {
                     freeChannels.chunked(3).forEach { chunk ->
                         Row(
@@ -466,7 +464,7 @@ private fun EspMappingsEditorSection(
                                     modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                                     shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isSelected) ShelfRackBlue else MaterialTheme.colorScheme.surfaceVariant,
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceVariant,
                                         contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
                                     )
                                 ) {
@@ -482,7 +480,7 @@ private fun EspMappingsEditorSection(
                     text = "Adicionar ao Rascunho",
                     onClick = { viewModel.adicionarMapping(selectedKind, selectedLedId, selectedChannelId) },
                     enabled = uiState.canAddMoreMappings && selectedLedId.isNotBlank() && selectedChannelId.isNotBlank(),
-                    containerColor = ShelfRackBlue
+                    containerColor = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -491,7 +489,7 @@ private fun EspMappingsEditorSection(
                 uiState.violations.forEach { v ->
                     Text(
                         text = "• ${EspManagementViewModel.readableViolation(v)}",
-                        color = CoralError,
+                        color = MaterialTheme.colorScheme.error,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -504,7 +502,7 @@ private fun EspMappingsEditorSection(
                 onClick = { viewModel.salvarConfig() },
                 enabled = uiState.canSave,
                 isLoading = uiState.isSaving,
-                containerColor = EmeraldSuccess
+                containerColor = OkTeal
             )
         }
     }
@@ -535,16 +533,16 @@ private fun MappingRowItem(
             rowViolations.forEach { v ->
                 Text(
                     text = EspManagementViewModel.readableViolation(v),
-                    color = CoralError,
+                    color = MaterialTheme.colorScheme.error,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
             if (testFeedback != null) {
                 val color = when {
-                    testFeedback == "LED confirmado" -> EmeraldSuccess
-                    testFeedback.startsWith("Erro") -> CoralError
-                    else -> AmberWarning
+                    testFeedback == "LED confirmado" -> OkTeal
+                    testFeedback.startsWith("Erro") -> MaterialTheme.colorScheme.error
+                    else -> WarnAmber
                 }
                 Text(testFeedback, color = color, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
@@ -555,7 +553,7 @@ private fun MappingRowItem(
                     enabled = uiState.canTestLed,
                     modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ShelfRackBlue, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = Color.White)
                 ) {
                     Text("Testar LED", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -564,7 +562,7 @@ private fun MappingRowItem(
                     enabled = uiState.canEditMappings,
                     modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CoralError, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = Color.White)
                 ) {
                     Text("Remover", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -607,7 +605,7 @@ private fun EspForgetSection(
                     text = error,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = CoralError
+                    color = MaterialTheme.colorScheme.error
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -619,7 +617,7 @@ private fun EspForgetSection(
                     .defaultMinSize(minHeight = 48.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CoralError,
+                    containerColor = MaterialTheme.colorScheme.error,
                     contentColor = Color.White
                 )
             ) {
@@ -649,7 +647,7 @@ private fun EspForgetSection(
                         viewModel.esquecerEspAtual()
                     },
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CoralError, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = Color.White)
                 ) {
                     Text("Esquecer ESP", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
