@@ -19,3 +19,4 @@ captures
 node_modules/
 graphify-out/
 build_logs_*.txt
+esp32/secrets.h
