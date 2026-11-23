@@ -69,6 +69,7 @@ import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
+import com.uniso.wms.pickbylight.ui.components.formatUnidade
 import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LedAmber
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
@@ -420,7 +421,7 @@ fun SeparacaoScreen(
                                                 Spacer(modifier = Modifier.height(4.dp))
 
                                                 Text(
-                                                    text = "SKU: ${item.sku} • Saldo: ${itemComEstoque.saldoTotal} ${item.unidade}",
+                                                    text = "SKU: ${item.sku} • Saldo: ${itemComEstoque.saldoTotal} ${formatUnidade(item.unidade)}",
                                                     style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                                     color = if (itemComEstoque.isAbaixoMinimo) WarnAmber else InkMuted
                                                 )
@@ -432,7 +433,7 @@ fun SeparacaoScreen(
                                                         color = SurfaceMuted
                                                     ) {
                                                         Text(
-                                                            text = "No pedido: $selectedQty ${item.unidade}",
+                                                            text = "No pedido: $selectedQty ${formatUnidade(item.unidade)}",
                                                             style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                                                             color = MaterialTheme.colorScheme.onSurface,
                                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -633,7 +634,7 @@ fun SeparacaoScreen(
                                                 }
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
-                                                    text = "${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade}",
+                                                    text = "${itemColeta.quantidadeDesejada} ${formatUnidade(itemColeta.item.unidade)}",
                                                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                                                     color = OkTeal
                                                 )
@@ -811,7 +812,7 @@ fun SeparacaoScreen(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "SKU: ${itemColeta.item.sku} • Pedido: ${itemColeta.quantidadeDesejada} ${itemColeta.item.unidade}",
+                                                text = "SKU: ${itemColeta.item.sku} • Pedido: ${itemColeta.quantidadeDesejada} ${formatUnidade(itemColeta.item.unidade)}",
                                                 style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                                 color = InkMuted
                                             )

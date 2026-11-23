@@ -178,18 +178,6 @@ fun EnderecosScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Barra de Busca
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.setSearchQuery(it) },
-                label = { Text("Buscar por código, estante, posição ou UID...") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(dimensions.buttonCornerRadius),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
             when (val state = uiState) {
                 is EnderecosUiState.Loading -> {
                     LoadingState(message = "Carregando endereços do armazém...")
@@ -221,65 +209,78 @@ fun EnderecosScreen(
                 }
 
                 is EnderecosUiState.Success -> {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        FilterChip(
-                            selected = state.filtroNfc == FiltroNfc.TODOS,
-                            onClick = { viewModel.setFiltroNfc(FiltroNfc.TODOS) },
-                            label = {
-                                Text(
-                                    text = "Todos (${state.totalPosicoes})",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
-                                )
-                            }
-                        )
-                        FilterChip(
-                            selected = state.filtroNfc == FiltroNfc.VINCULADO,
-                            onClick = { viewModel.setFiltroNfc(FiltroNfc.VINCULADO) },
-                            label = {
-                                Text(
-                                    text = "Vinculado (${state.posicoesVinculadasCount})",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
-                                )
-                            }
-                        )
-                        FilterChip(
-                            selected = state.filtroNfc == FiltroNfc.PENDENTE,
-                            onClick = { viewModel.setFiltroNfc(FiltroNfc.PENDENTE) },
-                            label = {
-                                Text(
-                                    text = "Pendente (${state.posicoesPendentesCount})",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
-                                )
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    PrimaryButton(
-                        text = "Nova estante",
-                        onClick = { showModalNovaEstante = true },
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_add),
-                                contentDescription = null, // Decorativo: o rótulo "Nova estante" descreve a ação
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Árvore Expansível em 3 Níveis (DESIGN.md seção 6: ícone, recuo e rótulo; 1 card por estante)
+                    // Busca, filtros e "Nova estante" rolam junto com a lista (LazyColumn)
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        item(key = "header_controls") {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { viewModel.setSearchQuery(it) },
+                                    label = { Text("Buscar por código, estante, posição ou UID...") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                                    singleLine = true
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    FilterChip(
+                                        selected = state.filtroNfc == FiltroNfc.TODOS,
+                                        onClick = { viewModel.setFiltroNfc(FiltroNfc.TODOS) },
+                                        label = {
+                                            Text(
+                                                text = "Todos (${state.totalPosicoes})",
+                                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                                            )
+                                        }
+                                    )
+                                    FilterChip(
+                                        selected = state.filtroNfc == FiltroNfc.VINCULADO,
+                                        onClick = { viewModel.setFiltroNfc(FiltroNfc.VINCULADO) },
+                                        label = {
+                                            Text(
+                                                text = "Vinculado (${state.posicoesVinculadasCount})",
+                                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                                            )
+                                        }
+                                    )
+                                    FilterChip(
+                                        selected = state.filtroNfc == FiltroNfc.PENDENTE,
+                                        onClick = { viewModel.setFiltroNfc(FiltroNfc.PENDENTE) },
+                                        label = {
+                                            Text(
+                                                text = "Pendente (${state.posicoesPendentesCount})",
+                                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                                            )
+                                        }
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                PrimaryButton(
+                                    text = "Nova estante",
+                                    onClick = { showModalNovaEstante = true },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(Res.drawable.ic_add),
+                                            contentDescription = null, // Decorativo: o rótulo "Nova estante" descreve a ação
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+
                         items(state.estantes, key = { it.estante.id }) { estanteItem ->
                             val estante = estanteItem.estante
 

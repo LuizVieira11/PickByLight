@@ -61,7 +61,6 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import pickbylight.app.shared.generated.resources.Res
 import pickbylight.app.shared.generated.resources.ic_chevron_right
-import pickbylight.app.shared.generated.resources.ic_cloud_off
 import pickbylight.app.shared.generated.resources.ic_inventory_2
 import pickbylight.app.shared.generated.resources.ic_lightbulb
 import pickbylight.app.shared.generated.resources.ic_list_alt
@@ -174,14 +173,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Linha do Broker MQTT direta sobre Paper (chip cheio com OnStrong para contraste AA)
-        val (chipBg, chipIcon, chipLabel) = when (mqttState) {
-            MqttConnectionState.CONNECTED -> Triple(OkTeal, Res.drawable.ic_wifi, "Conectado")
-            MqttConnectionState.CONNECTING -> Triple(WarnAmber, Res.drawable.ic_cloud_off, "Reconectando…")
-            MqttConnectionState.DISCONNECTED,
-            MqttConnectionState.ERROR -> Triple(WarnAmber, Res.drawable.ic_cloud_off, "Desconectado")
-        }
-
+        // Linha do Broker MQTT direta sobre Paper; chip só quando conectado (banner já cobre offline/reconectando)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -200,26 +192,28 @@ fun DashboardScreen(
                 )
             }
 
-            Surface(
-                shape = RoundedCornerShape(dimensions.buttonCornerRadius),
-                color = chipBg
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+            if (mqttState == MqttConnectionState.CONNECTED) {
+                Surface(
+                    shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                    color = OkTeal
                 ) {
-                    Icon(
-                        painter = painterResource(chipIcon),
-                        contentDescription = null, // Decorativo: o rótulo ao lado informa o estado da conexão
-                        tint = OnStrong,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = chipLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = OnStrong
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_wifi),
+                            contentDescription = null, // Decorativo: o rótulo ao lado informa o estado da conexão
+                            tint = OnStrong,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Conectado",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = OnStrong
+                        )
+                    }
                 }
             }
         }
@@ -263,9 +257,18 @@ fun DashboardScreen(
                     value = "$totalEstoque un (${itens.size} SKUs)"
                 )
                 HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                val semMovimentos = entradasHoje == 0 && saidasHoje == 0
+                val movimentosText = if (semMovimentos) {
+                    "Nenhum"
+                } else {
+                    val entradasLabel = if (entradasHoje == 1) "entrada" else "entradas"
+                    val saidasLabel = if (saidasHoje == 1) "saída" else "saídas"
+                    "+$entradasHoje $entradasLabel · \u2212$saidasHoje $saidasLabel"
+                }
                 MetricRow(
                     label = "Movimentos hoje",
-                    value = "+$entradasHoje / -$saidasHoje"
+                    value = movimentosText,
+                    valueColor = if (semMovimentos) InkMuted else MaterialTheme.colorScheme.onSurface
                 )
                 HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 MetricRow(

@@ -53,6 +53,7 @@ import com.uniso.wms.pickbylight.domain.model.TipoMovimentacao
 import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.EmptyState
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
+import com.uniso.wms.pickbylight.ui.components.formatUnidade
 import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
@@ -560,7 +561,7 @@ fun HistoricoScreen(
                     Text("Tipo: $tipoLabel", style = MaterialTheme.typography.titleMedium)
                     Text("Item: ${item?.nome ?: detalhe.itemId} (${item?.sku ?: "N/A"})")
                     Text(
-                        text = "Quantidade: ${detalhe.quantidade} ${item?.unidade ?: "UN"}",
+                        text = "Quantidade: ${detalhe.quantidade} ${formatUnidade(item?.unidade)}",
                         style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum")
                     )
                     Text(

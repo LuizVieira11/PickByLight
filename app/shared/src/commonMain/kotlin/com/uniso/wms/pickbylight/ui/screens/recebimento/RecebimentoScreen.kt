@@ -61,6 +61,7 @@ import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
+import com.uniso.wms.pickbylight.ui.components.formatUnidade
 import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.ui.theme.OkTeal
@@ -455,7 +456,7 @@ fun RecebimentoScreen(
                                                         color = MaterialTheme.colorScheme.onSurface
                                                     )
                                                     Text(
-                                                        text = "${item.categoria} · Nesta posição: $saldoPos ${item.unidade} (Total: $saldoTotal ${item.unidade})",
+                                                        text = "${item.categoria} · Nesta posição: $saldoPos ${formatUnidade(item.unidade)} (Total: $saldoTotal ${formatUnidade(item.unidade)})",
                                                         style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                                         color = InkMuted
                                                     )
@@ -507,8 +508,9 @@ fun RecebimentoScreen(
                                             tint = MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(20.dp)
                                         )
+                                        val unidFmt = formatUnidade(selected.unidade)
                                         Text(
-                                            text = "Em ${pos.codigo}: $saldoNaPosicao ${selected.unidade} · Após entrada: ${saldoNaPosicao + uiState.quantidade} ${selected.unidade} (Total: ${saldoTotal + uiState.quantidade} ${selected.unidade})",
+                                            text = "Em ${pos.codigo}: $saldoNaPosicao $unidFmt · Após entrada: ${saldoNaPosicao + uiState.quantidade} $unidFmt (Total: ${saldoTotal + uiState.quantidade} $unidFmt)",
                                             style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
@@ -655,7 +657,7 @@ fun RecebimentoScreen(
                                                         color = MaterialTheme.colorScheme.onSurface
                                                     )
                                                     Text(
-                                                        text = "${item.categoria} · Saldo total: $saldoTotal ${item.unidade}",
+                                                        text = "${item.categoria} · Saldo total: $saldoTotal ${formatUnidade(item.unidade)}",
                                                         style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                                         color = InkMuted
                                                     )
@@ -795,7 +797,7 @@ fun RecebimentoScreen(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "SKU ${loteItem.item.sku} · ${loteItem.quantidade} ${loteItem.item.unidade}",
+                                                text = "SKU ${loteItem.item.sku} · ${loteItem.quantidade} ${formatUnidade(loteItem.item.unidade)}",
                                                 style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                                 color = InkMuted
                                             )
@@ -845,7 +847,7 @@ fun RecebimentoScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "${itemAtual.quantidade} ${itemAtual.item.unidade}",
+                                text = "${itemAtual.quantidade} ${formatUnidade(itemAtual.item.unidade)}",
                                 style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                                 color = InkMuted
                             )
@@ -902,7 +904,7 @@ fun RecebimentoScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
 
                                 Text(
-                                    text = "${itemAtual.item.nome} (${itemAtual.quantidade} ${itemAtual.item.unidade})",
+                                    text = "${itemAtual.item.nome} (${itemAtual.quantidade} ${formatUnidade(itemAtual.item.unidade)})",
                                     style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
                                     color = if (isErro) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
@@ -1008,7 +1010,7 @@ fun RecebimentoScreen(
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
-                                                    text = "+${resumo.quantidade} ${resumo.item.unidade}",
+                                                    text = "+${resumo.quantidade} ${formatUnidade(resumo.item.unidade)}",
                                                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                                                     color = OkTeal
                                                 )

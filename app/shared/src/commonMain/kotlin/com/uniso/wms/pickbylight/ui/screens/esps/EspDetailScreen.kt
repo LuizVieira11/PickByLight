@@ -519,11 +519,6 @@ private fun EspMappingsEditorSection(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     MappingKind.entries.forEach { kind ->
                         val selected = selectedKind == kind
-                        val kindLabel = when (kind) {
-                            MappingKind.ESTANTE -> "Estante"
-                            MappingKind.PRATELEIRA -> "Prateleira"
-                            MappingKind.POSICAO -> "Posição"
-                        }
                         Button(
                             onClick = { selectedKind = kind },
                             modifier = Modifier.weight(1f).defaultMinSize(minHeight = dimensions.minTouchTarget),
@@ -535,7 +530,7 @@ private fun EspMappingsEditorSection(
                                 contentColor = if (selected) OnStrong else MaterialTheme.colorScheme.onSurface
                             )
                         ) {
-                            Text(kindLabel, style = MaterialTheme.typography.labelLarge)
+                            Text(kind.toUiLabel(), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -666,7 +661,7 @@ private fun MappingRowItem(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "${mapping.kind.name} · ${mapping.ledId}",
+                text = "${mapping.kind.toUiLabel()} · ${mapping.ledId}",
                 style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                 color = InkMuted
             )
@@ -708,6 +703,12 @@ private fun MappingRowItem(
             }
         }
     }
+}
+
+private fun MappingKind.toUiLabel(): String = when (this) {
+    MappingKind.ESTANTE -> "Estante"
+    MappingKind.PRATELEIRA -> "Prateleira"
+    MappingKind.POSICAO -> "Posição"
 }
 
 @Composable

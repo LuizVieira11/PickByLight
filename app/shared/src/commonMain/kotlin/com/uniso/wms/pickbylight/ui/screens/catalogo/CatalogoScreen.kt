@@ -74,6 +74,7 @@ import com.uniso.wms.pickbylight.ui.components.LoadingState
 import com.uniso.wms.pickbylight.ui.components.NfcSimulatorDialog
 import com.uniso.wms.pickbylight.ui.components.QuantityStepper
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
+import com.uniso.wms.pickbylight.ui.components.formatUnidade
 import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
 import com.uniso.wms.pickbylight.ui.theme.OnStrong
@@ -739,7 +740,7 @@ fun CatalogoScreen(
                                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
                                     )
                                     Text(
-                                        text = "Saldo disponível: ${unicaOrigem.quantidade} ${itemTransferindo.item.unidade}",
+                                        text = "Saldo disponível: ${unicaOrigem.quantidade} ${formatUnidade(itemTransferindo.item.unidade)}",
                                         style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                                         color = InkMuted
                                     )
@@ -751,7 +752,7 @@ fun CatalogoScreen(
                                 onExpandedChange = { dropdownOrigemExpanded = !dropdownOrigemExpanded }
                             ) {
                                 OutlinedTextField(
-                                    value = posOrigemSelecionada?.let { "${it.enderecoFormatado} (${it.quantidade} ${itemTransferindo.item.unidade})" } ?: "Selecione a origem...",
+                                    value = posOrigemSelecionada?.let { "${it.enderecoFormatado} (${it.quantidade} ${formatUnidade(itemTransferindo.item.unidade)})" } ?: "Selecione a origem...",
                                     onValueChange = {},
                                     readOnly = true,
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownOrigemExpanded) },
@@ -767,7 +768,7 @@ fun CatalogoScreen(
                                 ) {
                                     estoquesDisponiveis.forEach { est ->
                                         DropdownMenuItem(
-                                            text = { Text("${est.enderecoFormatado} (${est.quantidade} ${itemTransferindo.item.unidade})") },
+                                            text = { Text("${est.enderecoFormatado} (${est.quantidade} ${formatUnidade(itemTransferindo.item.unidade)})") },
                                             onClick = {
                                                 posOrigemSelecionada = est
                                                 quantidadeTransferir = 1.coerceAtMost(est.quantidade)
@@ -848,11 +849,12 @@ fun CatalogoScreen(
                         )
 
                         val saldoRestanteOrigem = (saldoOrigem - quantidadeTransferir).coerceAtLeast(0)
+                        val unidadeFmt = formatUnidade(itemTransferindo.item.unidade)
                         Text(
                             text = if (quantidadeTransferir == saldoOrigem)
                                 "Transferência total desta posição (saldo zerado)."
                             else
-                                "Saldo restante na origem: $saldoRestanteOrigem ${itemTransferindo.item.unidade}",
+                                "Saldo restante na origem: $saldoRestanteOrigem $unidadeFmt",
                             style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                             color = InkMuted
                         )
@@ -889,7 +891,7 @@ fun CatalogoScreen(
                             if (res.isSuccess) {
                                 itemParaMover = null
                                 snackbarHostState.showSnackbar(
-                                    "Transferência de $quantidadeTransferir ${itemTransferindo.item.unidade} de '${itemTransferindo.item.nome}' para ${destino.codigo} concluída!"
+                                    "Transferência de $quantidadeTransferir ${formatUnidade(itemTransferindo.item.unidade)} de '${itemTransferindo.item.nome}' para ${destino.codigo} concluída!"
                                 )
                             } else {
                                 erroTransferencia = res.exceptionOrNull()?.message
@@ -1051,7 +1053,7 @@ private fun ItemCardComponent(
                         color = InkMuted
                     )
                     Text(
-                        text = "${itemCard.saldoTotal} ${item.unidade}",
+                        text = "${itemCard.saldoTotal} ${formatUnidade(item.unidade)}",
                         style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                         color = if (itemCard.isAbaixoMinimo) WarnAmber else MaterialTheme.colorScheme.onSurface
                     )
@@ -1145,7 +1147,7 @@ private fun ItemCardComponent(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "${estoque.quantidade} ${item.unidade}",
+                                    text = "${estoque.quantidade} ${formatUnidade(item.unidade)}",
                                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
