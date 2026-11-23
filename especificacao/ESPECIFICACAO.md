@@ -327,7 +327,7 @@ Acessível pelo Dashboard via novo botão **`[Histórico]`** (ícone de lista no
   * Seletor de data (últimos 7 dias / 30 dias / customizado).
   * Busca por `SKU` ou `código de endereço`.
 * **Lista em formato cronológico reverso (mais recente primeiro):**
-  * Cada item exibe: ícone do tipo (verde/vermelho/azul), `Item [SKU]`, `Quantidade × [N]`, `Endereço completo`, `Timestamp formatado (dd/MM/yyyy HH:mm:ss)`, `Usuário`.
+  * Cada item exibe: ícone do tipo, sem cor por tipo (Entrada `move_to_inbox`, Saída `outbox`, Transferência `swap_horiz`; ver `DESIGN.md`), `Item [SKU]`, `Quantidade × [N]`, `Endereço completo`, `Timestamp formatado (dd/MM/yyyy HH:mm:ss)`, `Usuário`.
   * Se `modoManual == true`, exibir badge laranja *"⚠️ Modo Manual"* ao lado do endereço.
 * **Ações por item:**
   * Clique abre um *BottomSheet* com todos os detalhes (incluindo `id` UUID, `observacao`, `modoManual`).

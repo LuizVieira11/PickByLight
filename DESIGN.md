@@ -36,6 +36,10 @@ Contrastes medidos pela fórmula WCAG 2.x. Texto exige 4,5:1; contorno de compon
 | `LedAmber` | `#F2A900` | Ponto "LED aceso" na Separação | Qualquer outro uso | 7,37:1 sobre grafite |
 | `OnStrong` | `#FFFFFF` | Texto/ícone sobre `BrandWine`, `AlarmRed`, `OkTeal`, `ActionGraphite` | — | ver acima |
 
+**Texto em cor de estado** (`OkTeal`, `WarnAmber`, `AlarmRed`) só sobre `Paper` ou `SurfaceCard`, **nunca sobre
+`SurfaceMuted`** (medido: 4,25 / 4,42 / 4,08:1, abaixo do AA). Chip ou faixa de estado = fundo `SurfaceCard` +
+borda 1 dp na cor do estado + texto/ícone na cor do estado, **ou** fundo cheio na cor do estado + `OnStrong`.
+
 **Mapeamento Material 3 (`Theme.kt`, só `lightColorScheme`):** `primary = ActionGraphite`, `onPrimary = OnStrong`,
 `secondary = BrandWine`, `onSecondary = OnStrong`, `tertiary = OkTeal`, `onTertiary = OnStrong`,
 `background = Paper`, `onBackground = Ink`, `surface = SurfaceCard`, `onSurface = Ink`,
@@ -49,7 +53,8 @@ no "depois" da D1 em chip selecionado e no botão "+" da Separação):
 `onSecondaryContainer = Ink`, `tertiaryContainer = SurfaceMuted`, `onTertiaryContainer = Ink`,
 `surfaceTint = SurfaceCard` (anula o tingimento por elevação), `surfaceBright = SurfaceCard`,
 `surfaceDim = SurfaceMuted`, `surfaceContainerLowest/Low/Container = SurfaceCard`,
-`surfaceContainerHigh/Highest = SurfaceMuted`, `outlineVariant = SurfaceMuted`, `inverseSurface = Ink`,
+`surfaceContainerHigh = SurfaceCard` (é o fundo do `AlertDialog`: diálogo branco, erro legível),
+`surfaceContainerHighest = SurfaceMuted`, `outlineVariant = SurfaceMuted`, `inverseSurface = Ink`,
 `inverseOnSurface = Paper`, `inversePrimary = Paper`.
 
 **Saem:** toda a paleta Tailwind atual (`0F172A`, `1E293B`, `334155`, `059669`, `DC2626`, `F59E0B`, `1D4ED8`,
@@ -85,7 +90,8 @@ no "depois" da D1 em chip selecionado e no botão "+" da Separação):
   - **Listas usam a largura toda:** separadores de 1 dp entre itens em vez de um card por item quando o item
     só tem texto e uma ação.
   - **Medida de aceite:** no Motorola Edge 60 Pro (434 dp), o texto do corpo começa a ≤ 32 dp da borda em
-    todas as telas, inclusive o 3.º nível de Endereços (≤ 64 dp).
+    todas as telas. Na árvore de Endereços o recuo vale para o ícone do nível (32/48/64 dp) e o texto vem
+    32 dp depois dele: texto da posição a ≤ 96 dp (era ~114 dp com cards aninhados).
 - **Cantos:** 8 dp em cards, campos e botões. Sem sombra; card = `SurfaceCard` + borda 1 dp `LineOutline`.
 - **Toque:** mínimo 48 dp; botão primário com altura mínima de 56 dp (spec).
 - **Proibido:** card dentro de card (no máximo um nível; hierarquia por recuo + ícone + divisória);
@@ -145,6 +151,8 @@ final vem do `tint` do `Icon`).
 7. Nenhum `maxLines = 1` com `TextOverflow.Ellipsis` em rótulo de botão.
 8. Nenhum `safeContentPadding` no app; padding horizontal de nível de tela só via `Dimens`.
 9. Todos os papéis de cor da seção 2 aparecem no `lightColorScheme(...)` do `Theme.kt`.
+10. Nenhum texto/ícone em `OkTeal`, `WarnAmber` ou `colorScheme.error` dentro de container `SurfaceMuted`
+    (`surfaceVariant`, `*Container`, `surfaceContainerHigh*`).
 
 ## 8. Etapas e aceite
 
