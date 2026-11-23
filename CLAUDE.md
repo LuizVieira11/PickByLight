@@ -2,7 +2,7 @@
 
 App **Kotlin Multiplatform + Compose Multiplatform** (pacote `com.uniso.wms.pickbylight`): Android (NFC read-only, Paho MQTT QoS 1, DataStore) e Web/Wasm. Controla estantes com ESP32 + LEDs via MQTT.
 Módulos Gradle: `:app:androidApp`, `:app:shared`, `:app:webApp`, `:core`. Lógica em `app/shared/src/commonMain`.
-Firmware ESP32: **pasta `esp32/` ainda não existe**. O plano está em `especificacao/MQTT5_E_ESP32.md` (Arduino, `esp32/esp32.ino`).
+Firmware ESP32: `esp32/esp32.ino` (v1, MQTT 3.1.1 via ESP-MQTT, config em RAM restaurada pelo app). Credenciais em `esp32/secrets.h` (ignorado; modelo em `secrets.example.h`). Placa ESP-WROOM-32 na COM5 (CH340); LEDs de bancada em GPIO13/26/27 (CH02/CH11/CH12). Notebook/broker em 192.168.1.6.
 Fonte da verdade: `especificacao/ESPECIFICACAO.md` (contratos legados) e `especificacao/MQTT5_E_ESP32.md` (feature de gerenciamento de ESPs). Regras do Cline no arquivo único `.clinerules` (backup da pasta antiga em `.clinerules_bak/`).
 
 ## Papel padrão: supervisor do Cline
@@ -41,7 +41,7 @@ function soma($c) { ($s | ForEach-Object { [int]$_.$c } | Measure-Object -Sum).S
 - APK debug: `gradlew.bat :app:androidApp:assembleDebug --console=plain`
 - Web/Wasm: `gradlew.bat :app:webApp:wasmJsBrowserDevelopmentRun`
 - Daemon travado: `gradlew.bat --stop`
-- ESP32 (previsto na spec, ainda sem firmware): `arduino-cli compile --fqbn esp32:esp32:esp32 esp32 --warnings all`
+- ESP32 (core esp32 3.3.0, ArduinoJson 7.4.2): `& "C:\Program Files\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 esp32 --warnings all` (gravar: `upload -p COM5`, com o Monitor Serial fechado). O único warning esperado é do core (`esp32-hal-touch.c`).
 
 ## Navegação de código, Graphify primeiro
 - **Graphify 0.9.113** instalado. O grafo fica em `graphify-out/graph.json`. Atualize com `graphify update .` depois de mudanças grandes.
