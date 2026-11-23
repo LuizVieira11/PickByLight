@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.savedstate.read
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.uniso.wms.pickbylight.data.mqtt.MqttServiceProvider
@@ -185,7 +186,7 @@ fun App(
                                 route = Screen.EspDetail.route,
                                 arguments = listOf(navArgument(Screen.EspDetail.ARG_ESP_ID) { type = NavType.StringType })
                             ) { backStackEntry ->
-                                val espId = backStackEntry.arguments?.getString(Screen.EspDetail.ARG_ESP_ID) ?: ""
+                                val espId = backStackEntry.arguments?.read { getStringOrNull(Screen.EspDetail.ARG_ESP_ID) } ?: ""
                                 EspDetailScreen(
                                     espId = espId,
                                     mqttService = mqttService,
