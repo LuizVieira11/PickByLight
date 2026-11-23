@@ -21,7 +21,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.uniso.wms.pickbylight.data.mqtt.MqttConnectionState
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
-import com.uniso.wms.pickbylight.ui.theme.SurfaceMuted
 import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import org.jetbrains.compose.resources.painterResource
 import pickbylight.app.shared.generated.resources.Res
@@ -49,7 +48,7 @@ fun MqttDisconnectedBanner(
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .background(SurfaceMuted)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             Row(
                 modifier = Modifier

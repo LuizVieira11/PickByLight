@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -55,7 +57,9 @@ fun QuantityStepper(
             IconButton(
                 onClick = { if (value > min) onValueChange(value - 1) },
                 enabled = value > min,
-                modifier = Modifier.size(dimensions.minTouchTarget)
+                modifier = Modifier
+                    .size(dimensions.minTouchTarget)
+                    .clearAndSetSemantics { contentDescription = "Diminuir quantidade" }
             ) {
                 Text(
                     text = "−",
@@ -95,7 +99,8 @@ fun QuantityStepper(
             textStyle = MaterialTheme.typography.titleMedium.copy(
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                fontFeatureSettings = "tnum"
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = fieldModifier,
@@ -132,7 +137,9 @@ fun QuantityStepper(
             IconButton(
                 onClick = { if (value < max) onValueChange(value + 1) },
                 enabled = value < max,
-                modifier = Modifier.size(dimensions.minTouchTarget)
+                modifier = Modifier
+                    .size(dimensions.minTouchTarget)
+                    .clearAndSetSemantics { contentDescription = "Aumentar quantidade" }
             ) {
                 Text(
                     text = "+",

@@ -1,30 +1,33 @@
 package com.uniso.wms.pickbylight.ui.screens.dashboard
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,21 +48,30 @@ import com.uniso.wms.pickbylight.domain.repository.WmsRepository
 import com.uniso.wms.pickbylight.ui.components.PrimaryButton
 import com.uniso.wms.pickbylight.ui.components.ScreenHeader
 import com.uniso.wms.pickbylight.ui.responsive.WindowSizeClass
-import com.uniso.wms.pickbylight.ui.theme.WarnAmber
-import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import com.uniso.wms.pickbylight.ui.theme.InkMuted
 import com.uniso.wms.pickbylight.ui.theme.LocalWmsDimensions
+import com.uniso.wms.pickbylight.ui.theme.OkTeal
+import com.uniso.wms.pickbylight.ui.theme.OnStrong
+import com.uniso.wms.pickbylight.ui.theme.WarnAmber
 import com.uniso.wms.pickbylight.util.FeedbackController
 import com.uniso.wms.pickbylight.util.FeedbackScenario
-import kotlinx.coroutines.launch
-
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import com.uniso.wms.pickbylight.util.PlatformBackHandler
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import pickbylight.app.shared.generated.resources.Res
+import pickbylight.app.shared.generated.resources.ic_chevron_right
+import pickbylight.app.shared.generated.resources.ic_cloud_off
+import pickbylight.app.shared.generated.resources.ic_inventory_2
+import pickbylight.app.shared.generated.resources.ic_lightbulb
 import pickbylight.app.shared.generated.resources.ic_list_alt
+import pickbylight.app.shared.generated.resources.ic_move_to_inbox
+import pickbylight.app.shared.generated.resources.ic_route
+import pickbylight.app.shared.generated.resources.ic_sensors
 import pickbylight.app.shared.generated.resources.ic_settings
+import pickbylight.app.shared.generated.resources.ic_shelves
 import pickbylight.app.shared.generated.resources.ic_warning
+import pickbylight.app.shared.generated.resources.ic_wifi
 
 @Composable
 fun DashboardScreen(
@@ -88,28 +100,30 @@ fun DashboardScreen(
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            title = { Text("Sair do Aplicativo", fontWeight = FontWeight.Bold) },
-            text = { Text("Deseja realmente sair do sistema WMS Pick-by-Light?") },
+            title = { Text("Sair do aplicativo", style = MaterialTheme.typography.titleLarge) },
+            text = { Text("Deseja encerrar o sistema WMS Pick-by-Light?") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showExitDialog = false
                         onCloseApp?.invoke()
-                    }
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
                 ) {
-                    Text("Sair", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text("Sair", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Cancelar")
+                TextButton(
+                    onClick = { showExitDialog = false },
+                    modifier = Modifier.defaultMinSize(minHeight = dimensions.minTouchTarget)
+                ) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
     }
 
-    val estantes by repository.getEstantes().collectAsState(initial = emptyList())
-    val prateleiras by repository.getPrateleiras().collectAsState(initial = emptyList())
     val posicoes by repository.getPosicoes().collectAsState(initial = emptyList())
     val tagsNFC by repository.getTagsNFC().collectAsState(initial = emptyList())
     val itens by repository.getItens().collectAsState(initial = emptyList())
@@ -135,346 +149,361 @@ fun DashboardScreen(
             .padding(horizontal = dimensions.screenHorizontalPadding, vertical = dimensions.paddingMedium),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Cabeçalho de Status IoT e Ações Superiores (Seção 3.1)
+        ScreenHeader(
+            title = "WMS Pick-by-Light",
+            trailingContent = {
+                IconButton(onClick = onNavigateHistorico) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_list_alt),
+                        contentDescription = "Histórico",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                IconButton(onClick = onNavigateAjustes) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_settings),
+                        contentDescription = "Ajustes",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Linha do Broker MQTT direta sobre Paper (chip cheio com OnStrong para contraste AA)
+        val (chipBg, chipIcon, chipLabel) = when (mqttState) {
+            MqttConnectionState.CONNECTED -> Triple(OkTeal, Res.drawable.ic_wifi, "Conectado")
+            MqttConnectionState.CONNECTING -> Triple(WarnAmber, Res.drawable.ic_cloud_off, "Reconectando…")
+            MqttConnectionState.DISCONNECTED,
+            MqttConnectionState.ERROR -> Triple(WarnAmber, Res.drawable.ic_cloud_off, "Desconectado")
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = "Broker MQTT",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = brokerUrl,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                    color = InkMuted
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(dimensions.buttonCornerRadius),
+                color = chipBg
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(chipIcon),
+                        contentDescription = null, // Decorativo: o rótulo ao lado informa o estado da conexão
+                        tint = OnStrong,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = chipLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = OnStrong
+                    )
+                }
+            }
+        }
+
+        if (pendingCommands > 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_warning),
+                    contentDescription = null, // Decorativo: o texto ao lado informa os comandos pendentes
+                    tint = WarnAmber,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Comandos pendentes na fila: $pendingCommands",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.SemiBold,
+                    color = WarnAmber
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Métricas: UM card plano com 4 linhas separadas por HorizontalDivider
+        val nfcPendente = posicoes.size > tagsNFC.size
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = RoundedCornerShape(dimensions.cardCornerRadius)
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                // Linha 1: Título do App isolado com destaque + Ações (Histórico e Ajustes)
-                ScreenHeader(
-                    title = "WMS Pick-by-Light",
-                    trailingContent = {
-                        // Botão Histórico (Seção 3.1 & 3.8)
-                        IconButton(onClick = onNavigateHistorico) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_list_alt),
-                                contentDescription = "Histórico",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        // Ícone de Ajustes (Seção 3.1 & 3.6)
-                        IconButton(onClick = onNavigateAjustes) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_settings),
-                                contentDescription = "Ajustes",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                MetricRow(
+                    label = "Total em estoque",
+                    value = "$totalEstoque un (${itens.size} SKUs)"
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Linha 2: Informações do Broker e status MQTT organizados sem quebra de título
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = "BROKER MQTT",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = brokerUrl,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        // Badge MQTT
-                        val (badgeBg, badgeText) = when (mqttState) {
-                            MqttConnectionState.CONNECTED -> OkTeal to "Conectado"
-                            MqttConnectionState.CONNECTING -> WarnAmber to "Reconectando..."
-                            MqttConnectionState.DISCONNECTED -> MaterialTheme.colorScheme.error to "Offline"
-                            MqttConnectionState.ERROR -> MaterialTheme.colorScheme.error to "Erro MQTT"
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .background(badgeBg, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = badgeText,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-
-                if (pendingCommands > 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_warning),
-                            contentDescription = null, // Decorativo: o texto ao lado informa os comandos pendentes
-                            tint = WarnAmber,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Comandos pendentes na fila: $pendingCommands",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = WarnAmber,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
-
-        // Cards Resumo Operacional em Grade Adaptativa (2x2 Compact / 4x1 Medium/Expanded)
-        val isCompact = windowSize.widthSizeClass.isCompact
-        val gridColumns = if (isCompact) GridCells.Fixed(2) else GridCells.Fixed(4)
-        val gridHeight = if (isCompact) 215.dp else 105.dp
-
-        LazyVerticalGrid(
-            columns = gridColumns,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(gridHeight),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            userScrollEnabled = false
-        ) {
-            item {
-                StatusCard(
-                    title = "Total Itens",
-                    value = "$totalEstoque un",
-                    subtitle = "${itens.size} SKUs",
-                    accentColor = MaterialTheme.colorScheme.onSurface
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                MetricRow(
+                    label = "Movimentos hoje",
+                    value = "+$entradasHoje / -$saidasHoje"
                 )
-            }
-            item {
-                StatusCard(
-                    title = "Movimentos",
-                    value = "+$entradasHoje / -$saidasHoje",
-                    subtitle = "Entradas / Saídas",
-                    accentColor = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            item {
-                StatusCard(
-                    title = "Posições NFC",
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                MetricRow(
+                    label = "Posições NFC",
                     value = "${tagsNFC.size}/${posicoes.size}",
-                    subtitle = if (tagsNFC.size == posicoes.size) "100% Mapeadas" else "${posicoes.size - tagsNFC.size} Pendentes",
-                    accentColor = if (tagsNFC.size == posicoes.size) OkTeal else WarnAmber
+                    valueColor = if (nfcPendente) WarnAmber else MaterialTheme.colorScheme.onSurface
                 )
-            }
-            item {
-                StatusCard(
-                    title = "Estoque Baixo",
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                MetricRow(
+                    label = "Estoque baixo",
                     value = itensBaixoEstoque.toString(),
-                    subtitle = if (itensBaixoEstoque > 0) "Atenção!" else "OK",
-                    accentColor = if (itensBaixoEstoque > 0) MaterialTheme.colorScheme.error else OkTeal
+                    valueColor = if (itensBaixoEstoque > 0) WarnAmber else MaterialTheme.colorScheme.onSurface,
+                    leadingIcon = if (itensBaixoEstoque > 0) Res.drawable.ic_warning else null
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(dimensions.paddingLarge))
 
-        // Menu de Ações Principais (>= 56dp) (Seção 3.1)
-        Text(
-            text = "Menu de Operações WMS",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
-
+        // Navegação: 1 botão primário no topo + 1 card de lista com divisórias
         PrimaryButton(
-            text = "Recebimento de Itens",
-            onClick = onNavigateRecebimento,
-            containerColor = MaterialTheme.colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
-
-        PrimaryButton(
-            text = "Separação de Pedidos (Pick-by-Light)",
+            text = "Separação",
             onClick = onNavigateSeparacao,
-            containerColor = OkTeal
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_route),
+                    contentDescription = null, // Decorativo: o rótulo "Separação" descreve a ação
+                    tint = OnStrong,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         )
 
         Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
 
-        PrimaryButton(
-            text = "Gestão de Endereços",
-            onClick = onNavigateEnderecos,
-            containerColor = MaterialTheme.colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
-
-        PrimaryButton(
-            text = "Catálogo de Itens",
-            onClick = onNavigateCatalogo,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(dimensions.cardCornerRadius)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ActionListRow(
+                    icon = Res.drawable.ic_move_to_inbox,
+                    label = "Recebimento",
+                    onClick = onNavigateRecebimento
+                )
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                ActionListRow(
+                    icon = Res.drawable.ic_shelves,
+                    label = "Endereços",
+                    onClick = onNavigateEnderecos
+                )
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                ActionListRow(
+                    icon = Res.drawable.ic_inventory_2,
+                    label = "Catálogo",
+                    onClick = onNavigateCatalogo
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(dimensions.paddingLarge))
 
-        // Seção Hardware IoT & Diagnóstico Rápido
+        // Seção Testes de hardware (título 22 sp BrandWine; lista em 1 card plano)
         Text(
-            text = "Comunicação IoT & Testes de Hardware",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
+            text = "Testes de hardware",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
 
-        PrimaryButton(
-            text = if (isPinging) "Pingando ESP32..." else "Ping ESP32 (PING)",
-            onClick = {
-                coroutineScope.launch {
-                    isPinging = true
-                    val result = mqttService.enviarPing()
-                    isPinging = false
-                    if (result.isSuccess) {
-                        val latencia = result.getOrNull() ?: 0L
-                        pingFeedbackText = "Ping OK: ${latencia}ms de latência"
-                        feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
-                    } else {
-                        pingFeedbackText = "Falha no Ping: ${result.exceptionOrNull()?.message}"
-                        feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(dimensions.cardCornerRadius)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ActionListRow(
+                    icon = Res.drawable.ic_sensors,
+                    label = if (isPinging) "Pingando ESP32…" else "Ping ESP32",
+                    enabled = !isPinging,
+                    isLoading = isPinging,
+                    onClick = {
+                        coroutineScope.launch {
+                            isPinging = true
+                            val result = mqttService.enviarPing()
+                            isPinging = false
+                            if (result.isSuccess) {
+                                val latencia = result.getOrNull() ?: 0L
+                                pingFeedbackText = "Ping OK: ${latencia} ms"
+                                feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+                            } else {
+                                pingFeedbackText = "Sem resposta do ping: ${result.exceptionOrNull()?.message ?: "verifique a conexão"}"
+                                feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+                            }
+                        }
                     }
-                }
-            },
-            isLoading = isPinging,
-            containerColor = MaterialTheme.colorScheme.onSurface
-        )
+                )
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                ActionListRow(
+                    icon = Res.drawable.ic_lightbulb,
+                    label = "Testar LED",
+                    onClick = {
+                        coroutineScope.launch {
+                            val result = mqttService.testarLed(
+                                estanteLedId = "EST_A_LED1",
+                                prateleiraLedId = "PRAT_A1_LED1",
+                                posicaoLedId = "POS_A1_01",
+                                cor = "AZUL",
+                                duracaoMs = 3000
+                            )
+                            if (result.isSuccess) {
+                                feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
+                            } else {
+                                feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
+                            }
+                        }
+                    }
+                )
+            }
+        }
 
         if (pingFeedbackText != null) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = pingFeedbackText ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (pingFeedbackText?.startsWith("Ping OK") == true) OkTeal else MaterialTheme.colorScheme.error
-            )
-        }
-
-        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
-
-        PrimaryButton(
-            text = "Testar LED ESP32 (TESTE_LED)",
-            onClick = {
-                coroutineScope.launch {
-                    val result = mqttService.testarLed(
-                        estanteLedId = "EST_A_LED1",
-                        prateleiraLedId = "PRAT_A1_LED1",
-                        posicaoLedId = "POS_A1_01",
-                        cor = "AZUL",
-                        duracaoMs = 3000
+            Spacer(modifier = Modifier.height(8.dp))
+            val isOk = pingFeedbackText?.startsWith("Ping OK") == true
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!isOk) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_warning),
+                        contentDescription = null, // Decorativo: o texto ao lado informa a falha do ping
+                        tint = WarnAmber,
+                        modifier = Modifier.size(20.dp)
                     )
-                    if (result.isSuccess) {
-                        feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
-                    } else {
-                        feedbackController.triggerFeedback(FeedbackScenario.WARNING_DOUBLE_BEEP_VIBRATE)
-                    }
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(dimensions.minButtonSpacing))
-
-        PrimaryButton(
-            text = "Resetar Dados de Demonstração (Seed)",
-            onClick = {
-                coroutineScope.launch {
-                    repository.resetarDadosDemo()
-                    feedbackController.triggerFeedback(FeedbackScenario.SUCCESS_BEEP_VIBRATE)
-                }
-            },
-            containerColor = WarnAmber,
-            contentColor = Color.White
-        )
+                Text(
+                    text = pingFeedbackText ?: "",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isOk) OkTeal else WarnAmber
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun StatusCard(
-    title: String,
+private fun MetricRow(
+    label: String,
     value: String,
-    subtitle: String,
-    accentColor: Color,
-    modifier: Modifier = Modifier
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    leadingIcon: DrawableResource? = null
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(12.dp)
+    val dimensions = LocalWmsDimensions.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = dimensions.paddingMedium, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = InkMuted
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .width(24.dp)
-                    .height(4.dp)
-                    .background(accentColor, RoundedCornerShape(2.dp))
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+            if (leadingIcon != null) {
+                Icon(
+                    painter = painterResource(leadingIcon),
+                    contentDescription = null, // Decorativo: o valor numérico ao lado indica o estado
+                    tint = valueColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                color = valueColor
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+        }
+    }
+}
+
+@Composable
+private fun ActionListRow(
+    icon: DrawableResource,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    isLoading: Boolean = false
+) {
+    val dimensions = LocalWmsDimensions.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = dimensions.primaryButtonHeight)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = dimensions.paddingMedium, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null, // Decorativo: o rótulo ao lado descreve a ação
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+        } else {
+            Icon(
+                painter = painterResource(Res.drawable.ic_chevron_right),
+                contentDescription = null, // Decorativo: indica navegação na linha
+                tint = InkMuted,
+                modifier = Modifier.size(24.dp)
             )
         }
     }

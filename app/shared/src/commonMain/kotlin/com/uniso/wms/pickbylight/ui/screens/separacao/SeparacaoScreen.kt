@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -252,36 +253,6 @@ fun SeparacaoScreen(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Banner de Modo Manual (aviso sem cor de erro)
-            if (uiState.isModoManual) {
-                Surface(
-                    shape = RoundedCornerShape(dimensions.cardCornerRadius),
-                    color = SurfaceMuted,
-                    border = BorderStroke(1.dp, WarnAmber),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_warning),
-                            contentDescription = null, // Decorativo: o texto ao lado informa o modo manual
-                            tint = WarnAmber,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Modo manual: confirme pela leitura NFC.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = WarnAmber
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
 
             // Alerta de Timeout de 60s Expirado (erro que cancelou a operação)
             if (uiState.timeoutCancelMessage != null) {
@@ -564,7 +535,7 @@ fun SeparacaoScreen(
                             LinearProgressIndicator(
                                 progress = { uiState.progressoFracao },
                                 modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.secondary,
+                                color = MaterialTheme.colorScheme.primary,
                                 trackColor = SurfaceMuted
                             )
 
@@ -584,50 +555,13 @@ fun SeparacaoScreen(
                                         .padding(dimensions.paddingMedium),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    if (uiState.isModoManual) {
-                                        Surface(
-                                            shape = RoundedCornerShape(dimensions.cardCornerRadius),
-                                            color = SurfaceMuted,
-                                            border = BorderStroke(1.dp, WarnAmber),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(Res.drawable.ic_warning),
-                                                    contentDescription = null, // Decorativo: o texto ao lado informa o modo manual
-                                                    tint = WarnAmber,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "Modo manual: confirme pela leitura NFC.",
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                    color = WarnAmber
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .background(LedAmber, CircleShape)
-                                                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                                            )
-                                            Text(
-                                                text = "LED aceso em ${passo.posicao.ledId}",
-                                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
+                                    LedStatusBadge(
+                                        isModoManual = uiState.isModoManual,
+                                        isAguardandoAck = uiState.isAguardandoAck,
+                                        showHardwareTimeoutModal = uiState.showHardwareTimeoutModal,
+                                        prateleiraCodigo = passo.prateleira.codigo,
+                                        posicaoCodigo = passo.posicao.codigo
+                                    )
 
                                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -1050,13 +984,15 @@ fun SeparacaoScreen(
             val unmappedUid = uiState.unmappedTagUid
             val passo = uiState.passoAtual
             val enderecoEsperado = when {
-                esperada.isNotBlank() -> esperada
                 passo != null -> "${passo.prateleira.codigo} · ${passo.posicao.codigo}"
+                esperada.isNotBlank() -> esperada
                 else -> "esperado"
             }
+            val estanteLinha = passo?.let { "${it.estante.codigo} · ${it.estante.nome}" }
 
             PokaYokeErrorOverlay(
                 lida = lida,
+                estanteLinha = estanteLinha,
                 enderecoEsperado = enderecoEsperado,
                 unmappedUid = unmappedUid,
                 onDismiss = { viewModel.dismissWrongTagModal() },
@@ -1203,6 +1139,7 @@ fun SeparacaoScreen(
 @Composable
 private fun PokaYokeErrorOverlay(
     lida: String,
+    estanteLinha: String?,
     enderecoEsperado: String,
     unmappedUid: String?,
     onDismiss: () -> Unit,
@@ -1261,6 +1198,15 @@ private fun PokaYokeErrorOverlay(
                 modifier = Modifier.size(96.dp)
             )
 
+            if (estanteLinha != null) {
+                Text(
+                    text = estanteLinha,
+                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    color = OnStrong,
+                    textAlign = TextAlign.Center
+                )
+            }
+
             Text(
                 text = if (unmappedUid != null) {
                     "Tag errada. Etiqueta não cadastrada. Devolva ao endereço $enderecoEsperado."
@@ -1315,6 +1261,101 @@ private fun PokaYokeErrorOverlay(
                         color = OnStrong
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LedStatusBadge(
+    isModoManual: Boolean,
+    isAguardandoAck: Boolean,
+    showHardwareTimeoutModal: Boolean,
+    prateleiraCodigo: String,
+    posicaoCodigo: String
+) {
+    val dimensions = LocalWmsDimensions.current
+
+    when {
+        isModoManual -> {
+            Surface(
+                shape = RoundedCornerShape(dimensions.cardCornerRadius),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, WarnAmber),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_warning),
+                        contentDescription = null, // Decorativo: o texto ao lado informa o modo manual
+                        tint = WarnAmber,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Modo manual: confirme pela leitura NFC.",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = WarnAmber
+                    )
+                }
+            }
+        }
+        isAguardandoAck -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.5.dp,
+                    color = InkMuted
+                )
+                Text(
+                    text = "Acendendo LED…",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = InkMuted
+                )
+            }
+        }
+        showHardwareTimeoutModal -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_warning),
+                    contentDescription = null, // Decorativo: o texto ao lado informa ausência de resposta do LED
+                    tint = WarnAmber,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Sem resposta do LED",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = WarnAmber
+                )
+            }
+        }
+        else -> {
+            // shortcut: sem flag de ACK confirmado, o else assume aceso; pode piscar 1 quadro antes de isAguardandoAck. Upgrade: campo ledConfirmado no ViewModel.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(LedAmber, CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+                Text(
+                    text = "LED aceso em $prateleiraCodigo · $posicaoCodigo",
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

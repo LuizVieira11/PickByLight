@@ -759,13 +759,13 @@ class SeparacaoViewModel(
             }
             feedbackController.triggerFeedback(FeedbackScenario.ERROR_CRITICAL_LONG_VIBRATE)
 
-            val enderecoLido = if (tagLida != null && posLida != null) {
-                "${estLida?.nome ?: estLida?.codigo ?: "Estante"} > ${pratLida?.codigo ?: "Prateleira"} > ${posLida.codigo} (Sem saldo suficiente)"
+            val enderecoLido = if (tagLida != null && posLida != null && pratLida != null && estLida != null) {
+                "${pratLida.codigo} · ${posLida.codigo} (${estLida.codigo})"
             } else {
-                "UID: $scannedUid (Tag não cadastrada)"
+                "UID $scannedUid (tag não cadastrada)"
             }
 
-            val enderecoEsperado = "${passo.estante.nome} > ${passo.prateleira.codigo} > ${passo.posicao.codigo}"
+            val enderecoEsperado = "${passo.prateleira.codigo} · ${passo.posicao.codigo} (${passo.estante.codigo})"
             _uiState.update {
                 it.copy(
                     showWrongTagModal = enderecoLido to enderecoEsperado,
